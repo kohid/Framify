@@ -1981,7 +1981,9 @@
 					// or Container in Clip mode clips its host exactly as
 					// before (which also cuts its Floating Shapes / Text,
 					// border and shadow).
-					if ( 'clip' === s.framify_org_mode && 'yes' === s.framify_org_deco ) {
+					// "Clip background only" (mode bg) always takes the fill path:
+					// the background is clipped, the content is not.
+					if ( 'bg' === s.framify_org_mode || ( 'clip' === s.framify_org_mode && 'yes' === s.framify_org_deco ) ) {
 						this.setupFill( el, id, s );
 					} else {
 						// Only a moving custom shape (Liquid / Gentle) reaches
@@ -2133,7 +2135,9 @@
 				this.holdLayer( el, fill );
 
 				// Own id: the clip grain above already uses id + '-grain'.
-				this.holdLayer( el, this.ownDeco( el, id + '-deco', s, grainOn( s ) ? grainOptions( s, el ) : null, null ) );
+				if ( 'bg' !== s.framify_org_mode ) {
+					this.holdLayer( el, this.ownDeco( el, id + '-deco', s, grainOn( s ) ? grainOptions( s, el ) : null, null ) );
+				}
 				this.spill( el );
 			},
 

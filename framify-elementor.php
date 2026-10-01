@@ -409,6 +409,7 @@ class Framify_Elementor {
                 'options'   => array(
                     'deco' => esc_html__( 'Deco blob behind content', 'framify' ),
                     'clip' => esc_html__( 'Clip whole container', 'framify' ),
+                    'bg'   => esc_html__( 'Clip background only', 'framify' ),
                 ),
                 'condition' => $on,
             ) ) );

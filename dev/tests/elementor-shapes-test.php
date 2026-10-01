@@ -538,7 +538,7 @@ check( 'spacer: JS attaches all three handlers to the spacer (default skin)', fa
     && false !== strpos( $fs_js, "attachHandler( 'spacer', FloatingShapes );" ) && false !== strpos( $ft_js, "attachHandler( 'spacer', FloatingText );" ) );
 check( 'spacer: organic routes the spacer to setupContainer on its painting host', false !== strpos( $org_js, "if ( spacer || 'container' === this.getElementType() ) {" )
     && false !== strpos( $org_js, 'paintHost( this.$element[ 0 ] )' ) );
-check( 'spacer + container: Clip mode with the deco on clips a fill layer carrying the copied background, not the host', false !== strpos( $org_js, "if ( 'clip' === s.framify_org_mode && 'yes' === s.framify_org_deco ) {" )
+check( 'spacer + container: Clip mode with the deco on clips a fill layer carrying the copied background, not the host', false !== strpos( $org_js, "if ( 'bg' === s.framify_org_mode || ( 'clip' === s.framify_org_mode && 'yes' === s.framify_org_deco ) ) {" )
     && false !== strpos( $org_js, "fill.className = 'framify-organic__fill';" ) && false !== strpos( $org_js, "el.style.setProperty( 'background', 'none', 'important' );" ) );
 check( 'spacer: Clip mode without the deco keeps the host clip (setupContainer)', 1 === preg_match( "/this\\.setupFill\\( el, id, s \\);\\s*\\} else \\{.*?this\\.setupContainer\\( el, id, s \\);/s", $org_js ) );
 check( 'spacer: background and border changes rebuild the fill (not Space: CSS insets follow the height)', false !== strpos( $org_js, "var FILL_KEYS = [ '_background_', '_border_' ];" )
@@ -553,7 +553,7 @@ check( 'spacer: the fill clip maps the shape back into the host box', false !== 
     && false !== strpos( $org_js, 'var clipBox = fx.fill && ! fx.bleed ? fillBox( box, hostW, hostH, fx.fillMargin ) : box;' ) && false !== strpos( $org_js, 'fx.clip.origin = zoomOrigin( clipBox, fx.zoomSide );' ) );
 // A0: bleed only for a Container in Clip mode with a moving custom shape.
 check( 'bleed: gate = container, Clip mode, custom shape, moving (Liquid / Gentle), deco off', false !== strpos( $org_js, "fx.bleed = ! spacer && 'clip' === s.framify_org_mode && !! custom && !! fx.motion;" )
-    && 1 === preg_match( "/if \\( 'clip' === s\\.framify_org_mode && 'yes' === s\\.framify_org_deco \\) \\{\\s*this\\.setupFill\\( el, id, s \\);\\s*\\} else \\{.*?fx\\.bleed = /s", $org_js ) );
+    && 1 === preg_match( "/if \\( 'bg' === s\\.framify_org_mode \\|\\| \\( 'clip' === s\\.framify_org_mode && 'yes' === s\\.framify_org_deco \\) \\) \\{\\s*this\\.setupFill\\( el, id, s \\);\\s*\\} else \\{.*?fx\\.bleed = /s", $org_js ) );
 check( 'bleed: the host keeps its clip and handle rect; the fill is not clipped; grain goes inside it', 1 === preg_match( "/el\\.style\\.clipPath = 'url\\(#' \\+ id \\+ '\\)';.*?this\\.keepHandle\\( el, clip\\.path\\.parentNode \\);\\s*\\}\\s*if \\( fx\\.bleed \\) \\{.*?this\\.bleedLayers\\( el, id, s \\);\\s*return;/s", $org_js )
     && 1 === preg_match( '/bleedLayers: function \( el, id, s \) \{(?:(?!clipPath).)*?fill\.appendChild\( buildGrainLayer\( id, grainOptions\( s, el \) \) \);(?:(?!clipPath).)*?this\.spill\( el \);/s', $org_js ) );
 check( 'bleed: the fill re-copies on refill and rewrites the overlay vars', 1 === preg_match( '/fx\.taken = takeBackground\( fx\.el, fx\.fill, margin \);\s*if \( fx\.bleed \) \{\s*this\.bleedVars\(\);/', $org_js )
