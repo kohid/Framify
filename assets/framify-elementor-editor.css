@@ -43,169 +43,251 @@
 	display: none;
 }
 
-/* Shape studio modal (upload / draw / manage saved shapes). */
+/* ==========================================================================
+   Shape studio - a drafting table for organic shapes.
+   Pale bench, white tracing sheet with crop marks, ink type, one pen-blue
+   accent for the interface and a vermilion-pink reserved for the path you
+   draw. Numbers are monospaced.
+   ========================================================================== */
 .framify-studio {
+	--fs-ink: #172033;
+	--fs-ink-2: #4a5670;
+	--fs-muted: #7b869c;
+	--fs-line: #d9dfe9;
+	--fs-line-2: #e8ecf3;
+	--fs-bench: #e8ecf3;
+	--fs-panel: #ffffff;
+	--fs-pen: #2f5bff;
+	--fs-pen-soft: #e9eeff;
+	--fs-mark: #e5367a;
+	--fs-radius: 8px;
+	--fs-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
 	position: fixed;
 	inset: 0;
 	z-index: 100000;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: rgba(0, 0, 0, .55);
+	padding: 16px;
+	background: rgba(18, 26, 44, .58);
+	font-family: "Avenir Next", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+	font-size: 13px;
+	line-height: 1.4;
+	color: var(--fs-ink);
+}
+.framify-studio *,
+.framify-studio *::before,
+.framify-studio *::after {
+	box-sizing: border-box;
+}
+.framify-studio [hidden] {
+	display: none !important;
+}
+.framify-studio button {
+	font: inherit;
+	color: inherit;
+}
+.framify-studio button:focus-visible,
+.framify-studio input:focus-visible {
+	outline: 2px solid var(--fs-pen);
+	outline-offset: 2px;
+}
+/* The drawing surface: a hairline ring, not a heavy outline over the work. */
+.framify-studio canvas:focus-visible {
+	outline: 1px solid rgba(47, 91, 255, .45);
+	outline-offset: 0;
 }
 .framify-studio__box {
-	width: 520px;
-	max-width: 96vw;
-	max-height: 92vh;
-	overflow: auto;
-	background: #fff;
-	color: #1f2124;
-	border-radius: 6px;
-	font-size: 13px;
-	box-shadow: 0 10px 40px rgba(0, 0, 0, .35);
+	display: flex;
+	flex-direction: column;
+	width: 560px;
+	max-width: 100%;
+	max-height: 100%;
+	overflow: hidden;
+	background: var(--fs-panel);
+	border-radius: 12px;
+	box-shadow: 0 24px 70px rgba(10, 16, 32, .45), 0 0 0 1px rgba(23, 32, 51, .08);
 }
+
+/* Header: brand, tabs, close. */
 .framify-studio__head {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	padding: 12px 16px;
-	border-bottom: 1px solid #e6e9ec;
+	gap: 18px;
+	padding: 10px 12px 10px 18px;
+	border-bottom: 1px solid var(--fs-line);
+	background: var(--fs-panel);
 }
-.framify-studio__x {
-	border: 0;
-	background: none;
-	font-size: 22px;
-	line-height: 1;
-	cursor: pointer;
+.framify-studio__brand {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-right: auto;
+	color: var(--fs-ink);
+}
+.framify-studio__brand strong {
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .14em;
+	text-transform: uppercase;
 }
 .framify-studio__tabs {
 	display: flex;
-	border-bottom: 1px solid #e6e9ec;
+	gap: 2px;
+	padding: 3px;
+	border-radius: 999px;
+	background: var(--fs-line-2);
 }
 .framify-studio__tab {
-	flex: 1;
-	padding: 10px 6px;
+	padding: 6px 14px;
 	border: 0;
+	border-radius: 999px;
 	background: none;
+	color: var(--fs-ink-2);
+	font-weight: 600;
 	cursor: pointer;
-	border-bottom: 2px solid transparent;
+	transition: background-color .15s, color .15s;
+}
+.framify-studio__tab:hover {
+	color: var(--fs-ink);
 }
 .framify-studio__tab.is-active {
-	border-bottom-color: #d5008f;
-	font-weight: 600;
+	background: var(--fs-panel);
+	color: var(--fs-ink);
+	box-shadow: 0 1px 2px rgba(23, 32, 51, .18);
+}
+.framify-studio__x {
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	border: 0;
+	border-radius: 50%;
+	background: none;
+	font-size: 22px;
+	line-height: 1;
+	color: var(--fs-ink-2);
+	cursor: pointer;
+}
+.framify-studio__x:hover {
+	background: var(--fs-line-2);
+	color: var(--fs-ink);
+}
+.framify-studio__icon {
+	display: inline-flex;
+	line-height: 0;
 }
 .framify-studio__body {
-	padding: 14px 16px 18px;
+	min-height: 0;
+	overflow: auto;
 }
-.framify-studio__hint {
-	margin: 0 0 10px;
-	color: #69727d;
+
+/* Draw tab: tool rail | sheet | inspector. */
+.framify-studio__draw {
+	display: grid;
+	grid-template-columns: 56px minmax(0, 1fr) 268px;
+	min-height: 0;
+	height: min(720px, calc(100vh - 110px));
+}
+.framify-studio__rail {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	padding: 10px 0;
+	border-right: 1px solid var(--fs-line);
+	background: var(--fs-panel);
+}
+.framify-studio__tool {
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: 40px;
+	height: 40px;
+	border: 0;
+	border-radius: 10px;
+	background: none;
+	color: var(--fs-ink-2);
+	cursor: pointer;
+	transition: background-color .15s, color .15s;
+}
+.framify-studio__tool:hover {
+	background: var(--fs-line-2);
+	color: var(--fs-ink);
+}
+.framify-studio__tool.is-active {
+	background: var(--fs-pen);
+	color: #fff;
+	box-shadow: 0 4px 10px rgba(47, 91, 255, .35);
+}
+.framify-studio__tool::after {
+	content: attr(data-label);
+	position: absolute;
+	left: calc(100% + 10px);
+	top: 50%;
+	z-index: 3;
+	padding: 5px 9px;
+	border-radius: 6px;
+	background: var(--fs-ink);
+	color: #fff;
+	font-size: 12px;
+	white-space: pre;
+	pointer-events: none;
+	opacity: 0;
+	transform: translate(-4px, -50%);
+	transition: opacity .12s, transform .12s;
+}
+.framify-studio__tool:hover::after,
+.framify-studio__tool:focus-visible::after {
+	opacity: 1;
+	transform: translate(0, -50%);
+}
+.framify-studio__rule {
+	width: 24px;
+	height: 1px;
+	margin: 6px 0;
+	background: var(--fs-line);
+}
+
+/* The bench and the sheet. */
+.framify-studio__stagewrap {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	background: var(--fs-bench);
+}
+.framify-studio__stage {
+	flex: 1;
+	display: grid;
+	place-items: center;
+	min-height: 0;
+	padding: 20px;
+	overflow: auto;
+	background-image: radial-gradient(circle, rgba(23, 32, 51, .16) 1px, transparent 1.4px);
+	background-size: 18px 18px;
+}
+.framify-studio__sheet {
+	--m: rgba(23, 32, 51, .55);
+	padding: 18px;
+	background:
+		linear-gradient(var(--m), var(--m)) left 0 top 18px / 12px 1px no-repeat,
+		linear-gradient(var(--m), var(--m)) left 18px top 0 / 1px 12px no-repeat,
+		linear-gradient(var(--m), var(--m)) right 0 top 18px / 12px 1px no-repeat,
+		linear-gradient(var(--m), var(--m)) right 18px top 0 / 1px 12px no-repeat,
+		linear-gradient(var(--m), var(--m)) left 0 bottom 18px / 12px 1px no-repeat,
+		linear-gradient(var(--m), var(--m)) left 18px bottom 0 / 1px 12px no-repeat,
+		linear-gradient(var(--m), var(--m)) right 0 bottom 18px / 12px 1px no-repeat,
+		linear-gradient(var(--m), var(--m)) right 18px bottom 0 / 1px 12px no-repeat;
 }
 .framify-studio__canvas {
 	display: block;
-	width: 100%;
-	aspect-ratio: 1;
+	max-width: 100%;
+	height: auto;
 	touch-action: none;
 	cursor: crosshair;
-	background: repeating-conic-gradient(#f3f4f6 0 25%, #fff 0 50%) 0 0 / 20px 20px;
-	border: 1px solid #d5d8dc;
-	border-radius: 4px;
-}
-.framify-studio__row {
-	display: flex;
-	gap: 8px;
-	margin: 8px 0;
-}
-.framify-studio__field {
-	display: block;
-	margin: 10px 0;
-}
-.framify-studio__field span {
-	display: block;
-	margin-bottom: 4px;
-}
-.framify-studio__field input {
-	width: 100%;
-}
-.framify-studio__btn {
-	padding: 7px 12px;
-	border: 1px solid #d5d8dc;
-	border-radius: 3px;
 	background: #fff;
-	cursor: pointer;
-}
-.framify-studio__btn--primary {
-	background: #d5008f;
-	border-color: #d5008f;
-	color: #fff;
-}
-.framify-studio__btn--danger {
-	color: #b32d2e;
-}
-.framify-studio__status,
-.framify-studio__done {
-	margin: 10px 0 0;
-	color: #69727d;
-}
-.framify-studio__preview {
-	display: block;
-	width: 120px;
-	height: 120px;
-	margin: 10px 0;
-	object-fit: contain;
-	border: 1px solid #e6e9ec;
-}
-.framify-studio__list {
-	display: grid;
-	gap: 6px;
-}
-.framify-studio__item {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-.framify-studio__item img {
-	width: 36px;
-	height: 36px;
-	object-fit: contain;
-}
-.framify-studio__item span {
-	flex: 1;
-}
-
-/* Pen toolkit toolbar, canvas size fields. */
-.framify-studio__tools {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 4px;
-	margin-bottom: 8px;
-}
-.framify-studio__tool {
-	padding: 6px 10px;
-	border: 1px solid #d5d8dc;
-	border-radius: 3px;
-	background: #fff;
-	font-size: 12px;
-	cursor: pointer;
-}
-.framify-studio__tool.is-active {
-	background: #d5008f;
-	border-color: #d5008f;
-	color: #fff;
-}
-.framify-studio__size {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-}
-.framify-studio__size input {
-	width: 74px;
-}
-.framify-studio__check {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	margin: 8px 0;
+	box-shadow: 0 1px 0 rgba(23, 32, 51, .06), 0 8px 24px rgba(23, 32, 51, .14);
 }
 .framify-studio__canvas[data-tool="select"] {
 	cursor: default;
@@ -216,4 +298,414 @@
 .framify-studio__canvas[data-tool="add"],
 .framify-studio__canvas[data-tool="convert"] {
 	cursor: copy;
+}
+.framify-studio__status {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	min-height: 36px;
+	padding: 6px 16px;
+	border-top: 1px solid var(--fs-line);
+	background: var(--fs-panel);
+	color: var(--fs-ink-2);
+	font-size: 12px;
+}
+.framify-studio__hint {
+	min-width: 0;
+}
+.framify-studio__hint.is-shift {
+	color: var(--fs-pen);
+	font-weight: 600;
+}
+.framify-studio__readout {
+	flex: none;
+	font-family: var(--fs-mono);
+	font-size: 11.5px;
+	color: var(--fs-muted);
+	white-space: pre;
+}
+
+/* Inspector. */
+.framify-studio__inspector {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	overflow: auto;
+	border-left: 1px solid var(--fs-line);
+	background: var(--fs-panel);
+}
+.framify-studio__section {
+	padding: 14px 16px 16px;
+	border-bottom: 1px solid var(--fs-line-2);
+}
+.framify-studio__section:last-child {
+	margin-top: auto;
+	border-bottom: 0;
+}
+.framify-studio__h {
+	margin: 0 0 10px;
+	font-size: 10.5px;
+	font-weight: 700;
+	letter-spacing: .14em;
+	text-transform: uppercase;
+	color: var(--fs-muted);
+}
+.framify-studio__note {
+	margin: 6px 0 0;
+	color: var(--fs-muted);
+	font-size: 12px;
+}
+.framify-studio__sizes {
+	display: grid;
+	grid-template-columns: 1fr 30px 1fr;
+	align-items: end;
+	gap: 4px;
+}
+.framify-studio__size {
+	position: relative;
+	display: block;
+}
+.framify-studio__size span {
+	display: block;
+	margin-bottom: 4px;
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--fs-ink-2);
+}
+.framify-studio__size em {
+	position: absolute;
+	right: 9px;
+	bottom: 8px;
+	font-style: normal;
+	font-size: 11px;
+	color: var(--fs-muted);
+	pointer-events: none;
+}
+.framify-studio input[type="number"],
+.framify-studio input[type="text"] {
+	width: 100%;
+	height: 34px;
+	padding: 0 28px 0 10px;
+	border: 1px solid var(--fs-line);
+	border-radius: 6px;
+	background: #fff;
+	color: var(--fs-ink);
+	font-family: var(--fs-mono);
+	font-size: 13px;
+	box-shadow: none;
+}
+.framify-studio input[type="text"] {
+	padding-right: 10px;
+	font-family: inherit;
+}
+.framify-studio input[type="number"]:focus,
+.framify-studio input[type="text"]:focus {
+	border-color: var(--fs-pen);
+	box-shadow: 0 0 0 3px var(--fs-pen-soft);
+	outline: 0;
+}
+.framify-studio__link {
+	display: grid;
+	place-items: center;
+	width: 30px;
+	height: 34px;
+	border: 0;
+	border-radius: 6px;
+	background: none;
+	color: var(--fs-muted);
+	cursor: pointer;
+}
+.framify-studio__link:hover {
+	background: var(--fs-line-2);
+	color: var(--fs-ink);
+}
+.framify-studio__link.is-on {
+	color: var(--fs-pen);
+	background: var(--fs-pen-soft);
+}
+
+/* Switch. */
+.framify-studio__switch {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	margin-top: 12px;
+	cursor: pointer;
+}
+.framify-studio__switch input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+.framify-studio__track {
+	position: relative;
+	flex: none;
+	width: 30px;
+	height: 18px;
+	border-radius: 999px;
+	background: #c5ccda;
+	transition: background-color .15s;
+}
+.framify-studio__track::after {
+	content: "";
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(23, 32, 51, .3);
+	transition: transform .15s;
+}
+.framify-studio__switch input:checked + .framify-studio__track {
+	background: var(--fs-pen);
+}
+.framify-studio__switch input:checked + .framify-studio__track::after {
+	transform: translateX(12px);
+}
+.framify-studio__switch input:focus-visible + .framify-studio__track {
+	outline: 2px solid var(--fs-pen);
+	outline-offset: 2px;
+}
+.framify-studio__switch-label {
+	font-weight: 600;
+}
+
+/* Tracing image. */
+.framify-studio__drop {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	margin-top: 10px;
+	padding: 16px 10px;
+	border: 1.5px dashed #b9c2d4;
+	border-radius: var(--fs-radius);
+	background: #f7f9fc;
+	color: var(--fs-ink-2);
+	font-weight: 600;
+	cursor: pointer;
+}
+.framify-studio__drop:hover {
+	border-color: var(--fs-pen);
+	background: var(--fs-pen-soft);
+	color: var(--fs-pen);
+}
+.framify-studio__reftools {
+	margin-top: 4px;
+}
+.framify-studio__range {
+	display: grid;
+	grid-template-columns: auto 1fr 36px;
+	align-items: center;
+	gap: 8px;
+	margin-top: 12px;
+	font-weight: 600;
+}
+.framify-studio__range output {
+	font-family: var(--fs-mono);
+	font-size: 11.5px;
+	text-align: right;
+	color: var(--fs-ink-2);
+}
+.framify-studio input[type="range"] {
+	width: 100%;
+	accent-color: var(--fs-pen);
+}
+.framify-studio__seg {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 2px;
+	margin-top: 12px;
+	padding: 3px;
+	border-radius: 8px;
+	background: var(--fs-line-2);
+}
+.framify-studio__seg button {
+	padding: 6px 4px;
+	border: 0;
+	border-radius: 6px;
+	background: none;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--fs-ink-2);
+	cursor: pointer;
+}
+.framify-studio__seg button.is-active {
+	background: #fff;
+	color: var(--fs-ink);
+	box-shadow: 0 1px 2px rgba(23, 32, 51, .18);
+}
+
+/* Buttons and fields. */
+.framify-studio__row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 12px;
+}
+.framify-studio__reftools .framify-studio__row {
+	display: grid;
+	grid-template-columns: 1fr auto;
+}
+.framify-studio__btn {
+	min-height: 34px;
+	padding: 0 14px;
+	border: 1px solid var(--fs-line);
+	border-radius: 6px;
+	background: #fff;
+	font-weight: 600;
+	cursor: pointer;
+	transition: border-color .15s, background-color .15s;
+}
+.framify-studio__btn:hover {
+	border-color: #b9c2d4;
+	background: #f7f9fc;
+}
+.framify-studio__btn--primary {
+	width: 100%;
+	margin-top: 10px;
+	border-color: var(--fs-pen);
+	background: var(--fs-pen);
+	color: #fff;
+}
+.framify-studio__btn--primary:hover {
+	border-color: #2149d6;
+	background: #2149d6;
+}
+.framify-studio__btn--quiet {
+	border-color: transparent;
+	background: none;
+	color: var(--fs-ink-2);
+}
+.framify-studio__btn--danger {
+	color: #b3261e;
+}
+.framify-studio__field {
+	display: block;
+}
+.framify-studio__field span {
+	display: block;
+	margin-bottom: 4px;
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--fs-ink-2);
+}
+.framify-studio__msg {
+	margin: 8px 0 0;
+	color: var(--fs-ink-2);
+	font-size: 12px;
+}
+
+/* Upload, My shapes, done: a single centred column. */
+.framify-studio__body > p,
+.framify-studio__body > input,
+.framify-studio__body > img,
+.framify-studio__body > div,
+.framify-studio__body > label,
+.framify-studio__body > button {
+	margin-left: 24px;
+	margin-right: 24px;
+}
+.framify-studio__body > :first-child {
+	margin-top: 22px;
+}
+.framify-studio__body > :last-child {
+	margin-bottom: 24px;
+}
+.framify-studio__body > .framify-studio__draw {
+	margin: 0;
+}
+.framify-studio__body > .framify-studio__hint {
+	color: var(--fs-ink-2);
+}
+.framify-studio__body > input[type="file"] {
+	display: block;
+	width: calc(100% - 48px);
+	margin-top: 12px;
+	padding: 18px;
+	border: 1.5px dashed #b9c2d4;
+	border-radius: var(--fs-radius);
+	background: #f7f9fc;
+}
+.framify-studio__preview {
+	display: block;
+	width: 140px;
+	height: 140px;
+	margin-top: 12px;
+	object-fit: contain;
+	border: 1px solid var(--fs-line);
+	border-radius: var(--fs-radius);
+	background: #fff;
+}
+.framify-studio__body > .framify-studio__btn--primary {
+	width: calc(100% - 48px);
+}
+.framify-studio__done {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--fs-ink);
+}
+.framify-studio__list {
+	display: grid;
+	gap: 6px;
+}
+.framify-studio__item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 10px;
+	border: 1px solid var(--fs-line);
+	border-radius: var(--fs-radius);
+	background: #fff;
+}
+.framify-studio__item img {
+	width: 40px;
+	height: 40px;
+	object-fit: contain;
+	border-radius: 6px;
+	background: var(--fs-line-2);
+}
+.framify-studio__item span {
+	flex: 1;
+	font-weight: 600;
+}
+
+/* Narrow screens: rail across the top, inspector below the sheet. */
+@media (max-width: 900px) {
+	.framify-studio__draw {
+		grid-template-columns: 1fr;
+		grid-template-rows: auto minmax(260px, 1fr) auto;
+		height: auto;
+	}
+	.framify-studio__rail {
+		flex-direction: row;
+		justify-content: center;
+		flex-wrap: wrap;
+		padding: 8px;
+		border-right: 0;
+		border-bottom: 1px solid var(--fs-line);
+	}
+	.framify-studio__rule {
+		width: 1px;
+		height: 24px;
+		margin: 0 6px;
+	}
+	.framify-studio__tool::after {
+		display: none;
+	}
+	.framify-studio__inspector {
+		border-left: 0;
+		border-top: 1px solid var(--fs-line);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.framify-studio *,
+	.framify-studio *::before,
+	.framify-studio *::after {
+		transition: none !important;
+	}
 }

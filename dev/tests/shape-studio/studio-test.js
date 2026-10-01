@@ -119,12 +119,12 @@ const { chromium } = require( process.env.PLAYWRIGHT_MODULE || 'playwright' );
   await p.evaluate(() => openStudio());
   const si = p.locator('.framify-studio__size input');
   await si.nth(0).fill('5000'); await si.nth(0).dispatchEvent('change');
-  const big = await p.locator('canvas.framify-studio__canvas').evaluate(e => [e.width, e.height]);
+  const big = await p.locator('canvas.framify-studio__canvas').evaluate(e => [+e.dataset.w, +e.dataset.h]);
   ok('canvas width is capped at 2000', big[0] === 2000);
   const bw = await p.locator('.framify-studio__box').evaluate(e => e.style.width);
-  ok('the window grows with the canvas (2034px, capped to the screen by CSS)', bw === '2034px');
+  ok('the window grows with the canvas (2000 + 372 = 2372px, capped to the screen by CSS)', bw === '2372px');
   await si.nth(0).fill('300'); await si.nth(0).dispatchEvent('change');
-  ok('a small canvas keeps the minimum window width', await p.locator('.framify-studio__box').evaluate(e => e.style.width) === '520px');
+  ok('a small canvas keeps the minimum window width', await p.locator('.framify-studio__box').evaluate(e => e.style.width) === '880px');
 
   // Saving updates the pickers live (no reload) and selects the new shape.
   await tool('Pen');
@@ -156,16 +156,73 @@ const { chromium } = require( process.env.PLAYWRIGHT_MODULE || 'playwright' );
   const ins = p.locator('.framify-studio__size input');
   await ins.nth(0).fill('600'); await ins.nth(0).dispatchEvent('change');
   await ins.nth(1).fill('200'); await ins.nth(1).dispatchEvent('change');
-  const cw = await p.locator('canvas.framify-studio__canvas').evaluate(e => [e.width, e.height]);
+  const cw = await p.locator('canvas.framify-studio__canvas').evaluate(e => [+e.dataset.w, +e.dataset.h]);
   ok('canvas size inputs resize the canvas to 600x200', cw[0] === 600 && cw[1] === 200);
   const b5 = await p.locator('canvas.framify-studio__canvas').boundingBox();
   await tool('Pen');
   const X5 = (x) => b5.x + x * b5.width / 600, Y5 = (y) => b5.y + y * b5.height / 200;
   for (const [x, y] of [[100,40],[500,40],[500,160]]) await p.mouse.click(X5(x), Y5(y));
   await p.mouse.click(X5(100), Y5(40));
-  await p.locator('.framify-studio__check input').check();
+  await p.locator('.framify-studio__section').first().locator('.framify-studio__switch input').check({ force: true });
   let fr = await save('frame');
   ok('keep frame: viewBox follows the 600:200 canvas (100 x 33.3)', fr && fr.vb === '0 0 100 33.3');
+
+
+  // Link / unlink the canvas size.
+  await p.evaluate(() => openStudio());
+  const lk = p.locator('.framify-studio__size input');
+  await lk.nth(0).fill('600'); await lk.nth(0).dispatchEvent('change');
+  await lk.nth(1).fill('300'); await lk.nth(1).dispatchEvent('change');
+  ok('unlinked by default: width and height change separately (600 x 300)', await p.locator('canvas.framify-studio__canvas').evaluate(e => e.dataset.w === '600' && e.dataset.h === '300'));
+  await p.locator('.framify-studio__link').click();
+  await lk.nth(0).fill('400'); await lk.nth(0).dispatchEvent('change');
+  ok('linked: changing the width keeps the 2:1 ratio (400 x 200)', await p.locator('canvas.framify-studio__canvas').evaluate(e => e.dataset.w === '400' && e.dataset.h === '200'));
+  await lk.nth(1).fill('100'); await lk.nth(1).dispatchEvent('change');
+  ok('linked: changing the height drives the width (200 x 100)', await p.locator('canvas.framify-studio__canvas').evaluate(e => e.dataset.w === '200' && e.dataset.h === '100'));
+  await p.locator('.framify-studio__link').click();
+  await lk.nth(0).fill('500'); await lk.nth(0).dispatchEvent('change');
+  ok('unlinked again: the height stays (500 x 100)', await p.locator('canvas.framify-studio__canvas').evaluate(e => e.dataset.w === '500' && e.dataset.h === '100'));
+
+  // Shift = straight lines (45 degree steps) with the pen.
+  await p.evaluate(() => openStudio());
+  const bs = await p.locator('canvas.framify-studio__canvas').boundingBox();
+  const XS = (x) => bs.x + x * bs.width / 340, YS = (y) => bs.y + y * bs.height / 340;
+  await tool('Pen');
+  await p.mouse.click(XS(60), YS(60));
+  await p.keyboard.down('Shift'); await p.mouse.click(XS(200), YS(75)); await p.keyboard.up('Shift');   // ~ 6 degrees -> snaps to horizontal
+  await p.mouse.click(XS(200), YS(260));
+  await p.mouse.click(XS(60), YS(60));
+  let sh = await save('shift');
+  ok('shift: the second point snaps onto the horizontal through the first', sh && /^M0 0C0 0 [\d.]+ 0 [\d.]+ 0C/.test(sh.d));
+
+  // Tracing image: drawn on the canvas, never saved, can be hidden.
+  await p.evaluate(() => openStudio());
+  const br = await p.locator('canvas.framify-studio__canvas').boundingBox();
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await p.locator('.framify-studio__inspector input[type=file]').setInputFiles({ name: 'ref.png', mimeType: 'image/png', buffer: png });
+  await p.waitForSelector('.framify-studio__reftools:not([hidden])');
+  const alpha = () => p.locator('canvas.framify-studio__canvas').evaluate(e => { const c = e.getContext('2d'); return c.getImageData(e.width >> 1, e.height >> 1, 1, 1).data[3]; });
+  const a40 = await alpha();
+  ok('tracing image: visible on the canvas', a40 > 0);
+  await p.locator('.framify-studio__reftools .framify-studio__switch').click();
+  ok('tracing image: Show off hides it', (await alpha()) === 0);
+  await p.locator('.framify-studio__reftools .framify-studio__switch').click();
+  await p.locator('.framify-studio__reftools input[type=range]').fill('100');
+  ok('tracing image: the opacity slider changes how strongly it shows (100% > 40%)', (await alpha()) > a40 * 2);
+  await tool('Pen');
+  const XR = (x) => br.x + x * br.width / 340, YR = (y) => br.y + y * br.height / 340;
+  for (const [x, y] of [[60,60],[280,60],[280,280],[60,280]]) await p.mouse.click(XR(x), YR(y));
+  await p.mouse.click(XR(60), YR(60));
+  let withRef = await save('withref');
+  ok('tracing image: not part of the saved shape (same path as without it)', withRef && withRef.d === sq.d && !('img' in withRef) && !('svg' in withRef));
+
+  // Anchors stay small and undistorted on a wide canvas.
+  await p.evaluate(() => openStudio());
+  const ws = p.locator('.framify-studio__size input');
+  await ws.nth(0).fill('900'); await ws.nth(0).dispatchEvent('change');
+  await ws.nth(1).fill('150'); await ws.nth(1).dispatchEvent('change');
+  const css = await p.locator('canvas.framify-studio__canvas').evaluate(e => { const r = e.getBoundingClientRect(); return [r.width / r.height, e.dataset.w / e.dataset.h]; });
+  ok('wide canvas keeps its aspect ratio on screen (anchors are not stretched)', Math.abs(css[0] - css[1]) < 0.02);
 
   // Freehand.
   await p.evaluate(() => openStudio());

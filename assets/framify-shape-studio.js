@@ -13,7 +13,9 @@
 
 	var DATA = window.framifyShapeStudio;
 	var MAX_SIZE = 2000;
-	var MIN_BOX = 520;
+	var MIN_BOX = 880;
+	var MARK = '#e5367a';
+	var HANDLE_LINE = '#9aa4b8';
 	var context = 'framify_org_shape';
 	var showTab = function () {};
 	var modal = null;
@@ -254,7 +256,7 @@
 	}
 
 	function status() {
-		return el( 'p', 'framify-studio__status' );
+		return el( 'p', 'framify-studio__msg' );
 	}
 
 
@@ -448,16 +450,71 @@
 		return { d: d, vb: '0 0 ' + num( bw * k ) + ' ' + num( bh * k ) };
 	}
 
+	/* ---------- icons (static markup, no user data) ---------- */
+
+	var NIB = '<path d="M12 3l5 6.5-3 8.5h-4L7 9.5z"/><path d="M12 13v8"/><circle cx="12" cy="10.5" r="1.2"/>';
+	var ICONS = {
+		pen: NIB,
+		select: '<path d="M6 3.5l12 8.2-5.6 1.4L9.6 19z"/>',
+		add: NIB.replace( 'M12 3l5 6.5-3 8.5h-4L7 9.5z', 'M11 3l4.5 6-2.8 8H9L6 9z' ) + '<path d="M18 15v6M15 18h6"/>',
+		delete: NIB.replace( 'M12 3l5 6.5-3 8.5h-4L7 9.5z', 'M11 3l4.5 6-2.8 8H9L6 9z' ) + '<path d="M15 18h6"/>',
+		convert: '<path d="M4.5 17.5L12 6.5l7.5 11"/><circle cx="12" cy="6.5" r="1.6"/>',
+		free: '<path d="M3.5 15.5c2.6-8 4.6 5 7.5-1.5s5-6.5 9.5-2"/>',
+		undo: '<path d="M8.5 5L4.5 9l4 4"/><path d="M4.5 9h9a6 6 0 0 1 0 12h-4"/>',
+		clear: '<path d="M5 7h14M10 7V4.5h4V7M7 7l1 13h8l1-13"/>',
+		link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+		unlink: '<path d="M9.5 6.5l1-1a4 4 0 0 1 5.7 5.7L15 12.4"/><path d="M14.5 17.5l-1 1a4 4 0 0 1-5.7-5.7L9 11.6"/><path d="M4 4l16 16"/>',
+		image: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3L16 12l4 4"/>',
+		nib: '<path d="M12 3l5 6.5-3 8.5h-4L7 9.5z"/><path d="M12 13v8"/>'
+	};
+
+	function icon( name, size ) {
+		var span = el( 'span', 'framify-studio__icon' );
+		span.innerHTML = '<svg viewBox="0 0 24 24" width="' + ( size || 20 ) + '" height="' + ( size || 20 ) + '" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[ name ] + '</svg>';
+		return span;
+	}
+
 	var TOOLS = [
-		[ 'pen', 'Pen', 'Click to place corner points. Click and drag to pull curve handles. Click the first point to close, or press Enter to finish an open path.' ],
-		[ 'select', 'Select', 'Drag a point to move it, or drag a handle to bend the curve. Hold Alt while dragging a handle to break it from its twin.' ],
-		[ 'add', 'Add point', 'Click on a line to add a point there.' ],
-		[ 'delete', 'Delete point', 'Click a point to remove it (or select one and press Delete).' ],
-		[ 'convert', 'Convert point', 'Click a curve point to make it a corner, or a corner to make it smooth. Click and drag a point to pull its handles out.' ],
-		[ 'free', 'Freehand', 'Draw an outline with the mouse, finger or pen. It becomes editable points.' ]
+		[ 'pen', 'Pen', 'P', 'Click to place a corner point. Click and drag to pull curve handles. Click the first point to close the shape, or press Enter to finish an open path.' ],
+		[ 'select', 'Select', 'V', 'Drag a point to move it, or drag a handle to bend the curve. Hold Alt while dragging a handle to break it from its twin.' ],
+		[ 'add', 'Add point', '=', 'Click on a line to add a point there.' ],
+		[ 'delete', 'Delete point', '-', 'Click a point to remove it, or select one and press Delete.' ],
+		[ 'convert', 'Convert point', 'C', 'Click a curve point to make it a corner, or a corner to make it smooth. Click and drag a corner to pull its handles out.' ],
+		[ 'free', 'Freehand', 'B', 'Draw an outline with the mouse, finger or pen. It becomes editable points.' ]
 	];
 
-	function numberField( label, value ) {
+	// Snap `pt` to the nearest 45 degrees around `from` (Shift = straight).
+	function constrain( from, pt ) {
+		var dx = pt[ 0 ] - from[ 0 ];
+		var dy = pt[ 1 ] - from[ 1 ];
+		var len = Math.hypot( dx, dy );
+		var step = Math.PI / 4;
+		var a = Math.round( Math.atan2( dy, dx ) / step ) * step;
+		return [ from[ 0 ] + Math.cos( a ) * len, from[ 1 ] + Math.sin( a ) * len ];
+	}
+
+	function section( title, note ) {
+		var s = el( 'section', 'framify-studio__section' );
+		s.appendChild( el( 'h3', 'framify-studio__h', title ) );
+		if ( note ) {
+			s.appendChild( el( 'p', 'framify-studio__note', note ) );
+		}
+		return s;
+	}
+
+	function switchField( label, checked ) {
+		var wrap = el( 'label', 'framify-studio__switch' );
+		var input = el( 'input' );
+		input.type = 'checkbox';
+		input.checked = !! checked;
+		wrap.appendChild( input );
+		wrap.appendChild( el( 'span', 'framify-studio__track' ) );
+		wrap.appendChild( el( 'span', 'framify-studio__switch-label', label ) );
+		wrap.input = input;
+		return wrap;
+	}
+
+	function sizeField( label, value ) {
 		var wrap = el( 'label', 'framify-studio__size' );
 		wrap.appendChild( el( 'span', '', label ) );
 		var input = el( 'input' );
@@ -467,6 +524,7 @@
 		input.step = 10;
 		input.value = value;
 		wrap.appendChild( input );
+		wrap.appendChild( el( 'em', '', 'px' ) );
 		wrap.input = input;
 		return wrap;
 	}
@@ -481,23 +539,68 @@
 		var active = -1;     // path being built with the pen
 		var drag = null;
 		var stroke = null;   // freehand stroke in progress
+		var hover = null;    // pen rubber-band target
+		var shift = false;
+		var linked = false;
+		var ratio = 1;
+		var ref = { img: null, show: true, opacity: 0.4, fit: 'contain' };
+
+		var layout = el( 'div', 'framify-studio__draw' );
+		var rail = el( 'div', 'framify-studio__rail' );
+		var stageWrap = el( 'div', 'framify-studio__stagewrap' );
+		var stage = el( 'div', 'framify-studio__stage' );
+		var sheet = el( 'div', 'framify-studio__sheet' );
 		var canvas = el( 'canvas', 'framify-studio__canvas' );
 		canvas.tabIndex = 0;
-		canvas.width = W;
-		canvas.height = H;
 		var ctx = canvas.getContext( '2d' );
+		var inspector = el( 'aside', 'framify-studio__inspector' );
+		var bar = el( 'div', 'framify-studio__status' );
+		var hint = el( 'span', 'framify-studio__hint' );
+		var readout = el( 'span', 'framify-studio__readout' );
 		var msg = status();
 		var name = nameField();
-		var hint = el( 'p', 'framify-studio__hint' );
+
+		/* --- geometry helpers: model units are canvas pixels (W x H) --- */
 
 		function sc() {
 			var r = canvas.getBoundingClientRect();
-			return r.width ? canvas.width / r.width : 1;
+			return r.width ? W / r.width : 1;
 		}
 
 		function point( e ) {
 			var r = canvas.getBoundingClientRect();
-			return [ ( e.clientX - r.left ) * canvas.width / r.width, ( e.clientY - r.top ) * canvas.height / r.height ];
+			return [ ( e.clientX - r.left ) * W / r.width, ( e.clientY - r.top ) * H / r.height ];
+		}
+
+		// Sharp on any screen: the backing store follows the displayed size
+		// and the device pixel ratio; drawing code stays in canvas units.
+		function backing() {
+			var r = canvas.getBoundingClientRect();
+			var dpr = window.devicePixelRatio || 1;
+			var bw = Math.max( 1, Math.round( r.width * dpr ) );
+			var bh = Math.max( 1, Math.round( r.height * dpr ) );
+			if ( canvas.width !== bw || canvas.height !== bh ) {
+				canvas.width = bw;
+				canvas.height = bh;
+			}
+			ctx.setTransform( bw / W, 0, 0, bh / H, 0, 0 );
+		}
+
+		function applySize() {
+			canvas.style.width = W + 'px';
+			canvas.style.aspectRatio = W + ' / ' + H;
+			canvas.dataset.w = W;
+			canvas.dataset.h = H;
+			fitBox();
+		}
+
+		// The window grows with the canvas (CSS caps it to the screen; the
+		// stage scrolls).
+		function fitBox() {
+			var box = body.closest( '.framify-studio__box' );
+			if ( box ) {
+				box.style.width = Math.max( MIN_BOX, W + 372 ) + 'px';
+			}
 		}
 
 		function record() {
@@ -548,20 +651,46 @@
 			return null;
 		}
 
+		/* --- painting --- */
+
+		function drawRef() {
+			if ( ! ref.img || ! ref.show ) {
+				return;
+			}
+			var iw = ref.img.naturalWidth;
+			var ih = ref.img.naturalHeight;
+			var dw = W, dh = H, dx = 0, dy = 0;
+			if ( 'stretch' !== ref.fit ) {
+				var k = 'cover' === ref.fit ? Math.max( W / iw, H / ih ) : Math.min( W / iw, H / ih );
+				dw = iw * k;
+				dh = ih * k;
+				dx = ( W - dw ) / 2;
+				dy = ( H - dh ) / 2;
+			}
+			ctx.save();
+			ctx.globalAlpha = ref.opacity;
+			ctx.drawImage( ref.img, dx, dy, dw, dh );
+			ctx.restore();
+		}
+
 		function paint() {
+			backing();
 			var s = sc();
 			ctx.clearRect( 0, 0, W, H );
+			// The tracing image is a guide only: it is drawn here and never
+			// reaches the saved shape (modelToShape reads the model alone).
+			drawRef();
 			var ident = function ( x, y ) {
 				return [ x, y ];
 			};
 			var filled = pathD( model, ident, true );
 			if ( filled ) {
-				ctx.fillStyle = 'rgba(105,114,125,.28)';
+				ctx.fillStyle = 'rgba(47,91,255,.10)';
 				ctx.fill( new Path2D( filled ) );
 			}
-			ctx.lineWidth = 1.6 * s;
+			ctx.lineWidth = 1.5 * s;
 			ctx.lineJoin = 'round';
-			ctx.strokeStyle = '#d5008f';
+			ctx.strokeStyle = MARK;
 			var open = pathD( model, ident, false );
 			if ( open ) {
 				ctx.stroke( new Path2D( open ) );
@@ -573,13 +702,26 @@
 				} );
 				ctx.stroke();
 			}
-			// Anchors; handles for the selected one (and the pen's last point).
+			// Rubber band from the last pen point to the cursor.
+			var act = model.paths[ active ];
+			if ( 'pen' === tool && act && act.nodes.length && hover && ! drag ) {
+				var last = act.nodes[ act.nodes.length - 1 ];
+				ctx.save();
+				ctx.setLineDash( [ 5 * s, 4 * s ] );
+				ctx.lineWidth = 1.2 * s;
+				ctx.beginPath();
+				ctx.moveTo( last.x, last.y );
+				ctx.lineTo( hover[ 0 ], hover[ 1 ] );
+				ctx.stroke();
+				ctx.restore();
+			}
+			// Handles for the selected point (and the pen's last point).
 			var show = [];
 			if ( sel ) {
 				show.push( sel );
 			}
-			if ( 'pen' === tool && active >= 0 && model.paths[ active ] ) {
-				show.push( { pi: active, ni: model.paths[ active ].nodes.length - 1 } );
+			if ( 'pen' === tool && active >= 0 && act ) {
+				show.push( { pi: active, ni: act.nodes.length - 1 } );
 			}
 			show.forEach( function ( h ) {
 				var n = model.paths[ h.pi ] && model.paths[ h.pi ].nodes[ h.ni ];
@@ -590,26 +732,29 @@
 					if ( ! hd ) {
 						return;
 					}
-					ctx.strokeStyle = '#8a93a0';
+					ctx.lineWidth = 1 * s;
+					ctx.strokeStyle = HANDLE_LINE;
 					ctx.beginPath();
 					ctx.moveTo( n.x, n.y );
 					ctx.lineTo( hd[ 0 ], hd[ 1 ] );
 					ctx.stroke();
 					ctx.fillStyle = '#fff';
-					ctx.strokeStyle = '#d5008f';
+					ctx.strokeStyle = MARK;
+					ctx.lineWidth = 1.3 * s;
 					ctx.beginPath();
-					ctx.arc( hd[ 0 ], hd[ 1 ], 4 * s, 0, 6.2832 );
+					ctx.arc( hd[ 0 ], hd[ 1 ], 3 * s, 0, 6.2832 );
 					ctx.fill();
 					ctx.stroke();
 				} );
 			} );
+			// Anchors: small squares for corners, circles for curve points.
 			model.paths.forEach( function ( path, pi ) {
 				path.nodes.forEach( function ( n, ni ) {
 					var on = sel && sel.pi === pi && sel.ni === ni;
-					var r = 4.5 * s;
-					ctx.fillStyle = on ? '#d5008f' : '#fff';
-					ctx.strokeStyle = '#d5008f';
-					ctx.lineWidth = 1.6 * s;
+					var r = 3.4 * s;
+					ctx.fillStyle = on ? MARK : '#fff';
+					ctx.strokeStyle = MARK;
+					ctx.lineWidth = 1.3 * s;
 					ctx.beginPath();
 					if ( n.smooth || n.hin || n.hout ) {
 						ctx.arc( n.x, n.y, r, 0, 6.2832 );
@@ -636,9 +781,12 @@
 			sel = null;
 		}
 
+		/* --- pointer input --- */
+
 		canvas.addEventListener( 'pointerdown', function ( e ) {
 			canvas.focus();
 			canvas.setPointerCapture( e.pointerId );
+			shift = e.shiftKey;
 			var pt = point( e );
 			var hit = hitNode( pt );
 			drag = null;
@@ -658,6 +806,13 @@
 					paint();
 					return;
 				}
+				// Shift: a straight segment at 0, 45 or 90 degrees from the
+				// last point, with no curve handles.
+				var straight = e.shiftKey && act && act.nodes.length;
+				if ( straight ) {
+					var prev = act.nodes[ act.nodes.length - 1 ];
+					pt = constrain( [ prev.x, prev.y ], pt );
+				}
 				record();
 				if ( ! act ) {
 					model.paths.push( { closed: false, nodes: [] } );
@@ -667,7 +822,9 @@
 				var node = { x: pt[ 0 ], y: pt[ 1 ], hin: null, hout: null, smooth: false };
 				act.nodes.push( node );
 				sel = { pi: active, ni: act.nodes.length - 1 };
-				drag = { type: 'pull', node: node };
+				if ( ! straight ) {
+					drag = { type: 'pull', node: node };
+				}
 				paint();
 				return;
 			}
@@ -680,7 +837,8 @@
 				} else if ( hit ) {
 					record();
 					sel = { pi: hit.pi, ni: hit.ni };
-					drag = { type: 'move', last: pt };
+					var picked = model.paths[ hit.pi ].nodes[ hit.ni ];
+					drag = { type: 'move', grab: pt, origin: [ picked.x, picked.y ] };
 				} else {
 					sel = null;
 				}
@@ -724,13 +882,21 @@
 		} );
 
 		canvas.addEventListener( 'pointermove', function ( e ) {
+			shift = e.shiftKey;
 			var pt = point( e );
+			readout.textContent = 'x ' + Math.round( pt[ 0 ] ) + '   y ' + Math.round( pt[ 1 ] ) + '   ' + W + ' × ' + H;
 			if ( stroke ) {
 				stroke.push( pt );
 				paint();
 				return;
 			}
 			if ( ! drag ) {
+				var act = model.paths[ active ];
+				if ( 'pen' === tool && act && act.nodes.length ) {
+					var last = act.nodes[ act.nodes.length - 1 ];
+					hover = e.shiftKey ? constrain( [ last.x, last.y ], pt ) : pt;
+					paint();
+				}
 				return;
 			}
 			if ( 'pull' === drag.type ) {
@@ -743,8 +909,12 @@
 				}
 			} else if ( 'move' === drag.type ) {
 				var node = model.paths[ sel.pi ].nodes[ sel.ni ];
-				var dx = pt[ 0 ] - drag.last[ 0 ];
-				var dy = pt[ 1 ] - drag.last[ 1 ];
+				var target = [ drag.origin[ 0 ] + pt[ 0 ] - drag.grab[ 0 ], drag.origin[ 1 ] + pt[ 1 ] - drag.grab[ 1 ] ];
+				if ( e.shiftKey ) {
+					target = constrain( drag.origin, target );
+				}
+				var dx = target[ 0 ] - node.x;
+				var dy = target[ 1 ] - node.y;
 				node.x += dx;
 				node.y += dy;
 				[ node.hin, node.hout ].forEach( function ( hd ) {
@@ -753,17 +923,16 @@
 						hd[ 1 ] += dy;
 					}
 				} );
-				drag.last = pt;
 			} else if ( 'handle' === drag.type ) {
 				var hn = model.paths[ sel.pi ].nodes[ sel.ni ];
 				var other = 'hout' === drag.which ? 'hin' : 'hout';
 				if ( e.altKey ) {
 					hn.smooth = false;
 				}
-				hn[ drag.which ] = pt;
+				hn[ drag.which ] = e.shiftKey ? constrain( [ hn.x, hn.y ], pt ) : pt;
 				if ( hn.smooth && hn[ other ] ) {
 					var len = dist( hn[ other ], [ hn.x, hn.y ] );
-					var dir = [ hn.x - pt[ 0 ], hn.y - pt[ 1 ] ];
+					var dir = [ hn.x - hn[ drag.which ][ 0 ], hn.y - hn[ drag.which ][ 1 ] ];
 					var dl = Math.hypot( dir[ 0 ], dir[ 1 ] ) || 1;
 					hn[ other ] = [ hn.x + dir[ 0 ] / dl * len, hn.y + dir[ 1 ] / dl * len ];
 				}
@@ -787,64 +956,164 @@
 		}
 		canvas.addEventListener( 'pointerup', end );
 		canvas.addEventListener( 'pointercancel', end );
+		canvas.addEventListener( 'pointerleave', function () {
+			hover = null;
+			paint();
+		} );
 		canvas.addEventListener( 'dblclick', function () {
 			active = -1;
 			paint();
 		} );
-		canvas.addEventListener( 'keydown', function ( e ) {
-			if ( ( e.ctrlKey || e.metaKey ) && 'z' === e.key.toLowerCase() ) {
+
+		/* --- keyboard --- */
+
+		function setShift( on ) {
+			if ( on !== shift ) {
+				shift = on;
+				hint.textContent = shift ? 'Shift: lines snap to 0°, 45° and 90°.' : toolHint();
+				hint.classList.toggle( 'is-shift', shift );
+			}
+		}
+		var onKey = function ( e ) {
+			if ( ! modal || ! layout.isConnected ) {
+				document.removeEventListener( 'keydown', onKey, true );
+				document.removeEventListener( 'keyup', onKey, true );
+				return;
+			}
+			if ( 'Shift' === e.key ) {
+				setShift( 'keydown' === e.type );
+				if ( hover && active >= 0 ) {
+					paint();
+				}
+				return;
+			}
+			if ( 'keydown' !== e.type ) {
+				return;
+			}
+			var typing = /^(INPUT|TEXTAREA|SELECT)$/.test( e.target.tagName ) && 'range' !== e.target.type;
+			if ( ( e.ctrlKey || e.metaKey ) && 'z' === e.key.toLowerCase() && ! typing ) {
 				e.preventDefault();
 				undo();
-			} else if ( ( 'Delete' === e.key || 'Backspace' === e.key ) && sel ) {
+			} else if ( ( 'Delete' === e.key || 'Backspace' === e.key ) && sel && ! typing ) {
 				e.preventDefault();
 				record();
 				removeNode( sel.pi, sel.ni );
 				paint();
-			} else if ( 'Enter' === e.key || 'Escape' === e.key ) {
+			} else if ( ( 'Enter' === e.key || 'Escape' === e.key ) && ! typing ) {
 				active = -1;
+				hover = null;
 				if ( 'Escape' === e.key ) {
 					sel = null;
 				}
 				paint();
-			}
-		} );
-
-		// Toolbar.
-		var bar = el( 'div', 'framify-studio__tools' );
-		var toolButtons = {};
-		TOOLS.forEach( function ( def ) {
-			var b = el( 'button', 'framify-studio__tool', def[ 1 ] );
-			b.type = 'button';
-			b.title = def[ 2 ];
-			b.addEventListener( 'click', function () {
-				tool = def[ 0 ];
-				active = tool === 'pen' ? active : -1;
-				Object.keys( toolButtons ).forEach( function ( k ) {
-					toolButtons[ k ].classList.toggle( 'is-active', k === tool );
+			} else if ( ! typing && ! e.ctrlKey && ! e.metaKey && ! e.altKey ) {
+				TOOLS.forEach( function ( def ) {
+					if ( def[ 2 ].toLowerCase() === e.key.toLowerCase() ) {
+						pick( def[ 0 ] );
+					}
 				} );
-				hint.textContent = def[ 2 ];
-				canvas.dataset.tool = tool;
-				paint();
+			}
+		};
+		document.addEventListener( 'keydown', onKey, true );
+		document.addEventListener( 'keyup', onKey, true );
+
+		/* --- tool rail --- */
+
+		var toolButtons = {};
+		function toolHint() {
+			return TOOLS.filter( function ( def ) {
+				return def[ 0 ] === tool;
+			} )[ 0 ][ 3 ];
+		}
+		function pick( id ) {
+			tool = id;
+			if ( 'pen' !== id ) {
+				active = -1;
+				hover = null;
+			}
+			Object.keys( toolButtons ).forEach( function ( k ) {
+				toolButtons[ k ].classList.toggle( 'is-active', k === tool );
+				toolButtons[ k ].setAttribute( 'aria-pressed', k === tool ? 'true' : 'false' );
+			} );
+			hint.textContent = shift ? 'Shift: lines snap to 0°, 45° and 90°.' : toolHint();
+			canvas.dataset.tool = tool;
+			paint();
+		}
+		TOOLS.forEach( function ( def ) {
+			var b = el( 'button', 'framify-studio__tool' );
+			b.type = 'button';
+			b.setAttribute( 'aria-label', def[ 1 ] );
+			b.dataset.label = def[ 1 ] + '  ·  ' + def[ 2 ].toUpperCase();
+			b.appendChild( icon( def[ 0 ] ) );
+			b.addEventListener( 'click', function () {
+				pick( def[ 0 ] );
 			} );
 			toolButtons[ def[ 0 ] ] = b;
-			bar.appendChild( b );
+			rail.appendChild( b );
 		} );
-		toolButtons.pen.classList.add( 'is-active' );
-		hint.textContent = TOOLS[ 0 ][ 2 ];
-		canvas.dataset.tool = 'pen';
+		rail.appendChild( el( 'span', 'framify-studio__rule' ) );
+		function railAction( label, ic, fn ) {
+			var b = el( 'button', 'framify-studio__tool' );
+			b.type = 'button';
+			b.setAttribute( 'aria-label', label );
+			b.dataset.label = label;
+			b.appendChild( icon( ic ) );
+			b.addEventListener( 'click', fn );
+			rail.appendChild( b );
+		}
+		railAction( 'Undo', 'undo', undo );
+		railAction( 'Clear', 'clear', function () {
+			record();
+			model = { paths: [] };
+			sel = null;
+			active = -1;
+			paint();
+		} );
 
-		// Canvas size: the drawing is scaled with it, so resizing never
-		// loses work.
-		var wField = numberField( 'Width', W );
-		var hField = numberField( 'Height', H );
-		var frame = el( 'input' );
-		frame.type = 'checkbox';
-		var frameLabel = el( 'label', 'framify-studio__check' );
-		frameLabel.appendChild( frame );
-		frameLabel.appendChild( el( 'span', '', 'Keep the canvas frame (do not crop to the drawing)' ) );
-		function resize() {
-			var nw = Math.min( MAX_SIZE, Math.max( 100, parseInt( wField.input.value, 10 ) || W ) );
-			var nh = Math.min( MAX_SIZE, Math.max( 100, parseInt( hField.input.value, 10 ) || H ) );
+		/* --- inspector: canvas size --- */
+
+		var sizeSec = section( 'Canvas' );
+		var wField = sizeField( 'W', W );
+		var hField = sizeField( 'H', H );
+		var linkB = el( 'button', 'framify-studio__link' );
+		linkB.type = 'button';
+		function paintLink() {
+			linkB.innerHTML = '';
+			linkB.appendChild( icon( linked ? 'link' : 'unlink', 16 ) );
+			linkB.setAttribute( 'aria-pressed', linked ? 'true' : 'false' );
+			linkB.setAttribute( 'aria-label', linked ? 'Width and height linked. Click to unlink.' : 'Width and height unlinked. Click to link.' );
+			linkB.title = linked ? 'Linked: width and height keep their ratio' : 'Unlinked: width and height change separately';
+			linkB.classList.toggle( 'is-on', linked );
+		}
+		paintLink();
+		linkB.addEventListener( 'click', function () {
+			linked = ! linked;
+			ratio = W / H;
+			paintLink();
+		} );
+		var sizeRow = el( 'div', 'framify-studio__sizes' );
+		sizeRow.appendChild( wField );
+		sizeRow.appendChild( linkB );
+		sizeRow.appendChild( hField );
+		sizeSec.appendChild( sizeRow );
+
+		function clampSize( v, fallback ) {
+			return Math.min( MAX_SIZE, Math.max( 100, parseInt( v, 10 ) || fallback ) );
+		}
+		// Change the canvas size; the drawing scales with it. `which` is the
+		// field the user edited, so a linked pair follows it.
+		function resize( which ) {
+			var nw = clampSize( wField.input.value, W );
+			var nh = clampSize( hField.input.value, H );
+			if ( linked ) {
+				if ( 'h' === which ) {
+					nw = clampSize( Math.round( nh * ratio ), W );
+					nh = clampSize( Math.round( nw / ratio ), H );
+				} else {
+					nh = clampSize( Math.round( nw / ratio ), H );
+					nw = clampSize( Math.round( nh * ratio ), W );
+				}
+			}
 			wField.input.value = nw;
 			hField.input.value = nh;
 			if ( nw === W && nh === H ) {
@@ -866,49 +1135,144 @@
 			history = [];
 			W = nw;
 			H = nh;
-			canvas.width = W;
-			canvas.height = H;
-			fitBox();
+			if ( ! linked ) {
+				ratio = W / H;
+			}
+			applySize();
 			paint();
 		}
-		// The window grows with the canvas (scrolls past the screen).
-		function fitBox() {
-			var box = body.closest( '.framify-studio__box' );
-			if ( box ) {
-				box.style.width = Math.max( MIN_BOX, W + 34 ) + 'px';
-			}
-		}
-		wField.input.addEventListener( 'change', resize );
-		hField.input.addEventListener( 'change', resize );
-		var sizeRow = el( 'div', 'framify-studio__row' );
-		sizeRow.appendChild( wField );
-		sizeRow.appendChild( hField );
+		wField.input.addEventListener( 'change', function () {
+			resize( 'w' );
+		} );
+		hField.input.addEventListener( 'change', function () {
+			resize( 'h' );
+		} );
+		var frame = switchField( 'Keep the canvas frame', false );
+		sizeSec.appendChild( frame );
+		sizeSec.appendChild( el( 'p', 'framify-studio__note', 'Off: the saved shape is cropped to your drawing. On: it keeps the canvas proportions and margins.' ) );
 
-		body.appendChild( bar );
-		body.appendChild( hint );
-		body.appendChild( sizeRow );
-		body.appendChild( canvas );
-		body.appendChild( frameLabel );
-		var row = el( 'div', 'framify-studio__row' );
-		var undoB = el( 'button', 'framify-studio__btn', 'Undo' );
-		var clear = el( 'button', 'framify-studio__btn', 'Clear' );
-		undoB.type = clear.type = 'button';
-		undoB.addEventListener( 'click', undo );
-		clear.addEventListener( 'click', function () {
-			record();
-			model = { paths: [] };
-			sel = null;
-			active = -1;
+		/* --- inspector: tracing image (never saved) --- */
+
+		var refSec = section( 'Tracing image', 'A guide to trace over. It is never part of the saved shape.' );
+		var file = el( 'input' );
+		file.type = 'file';
+		file.accept = 'image/*';
+		file.hidden = true;
+		var drop = el( 'button', 'framify-studio__drop' );
+		drop.type = 'button';
+		drop.appendChild( icon( 'image', 22 ) );
+		drop.appendChild( el( 'span', '', 'Choose an image to trace' ) );
+		drop.addEventListener( 'click', function () {
+			file.click();
+		} );
+		var refTools = el( 'div', 'framify-studio__reftools' );
+		refTools.hidden = true;
+		var refShow = switchField( 'Show image', true );
+		var opacityRow = el( 'label', 'framify-studio__range' );
+		opacityRow.appendChild( el( 'span', '', 'Opacity' ) );
+		var opacity = el( 'input' );
+		opacity.type = 'range';
+		opacity.min = 5;
+		opacity.max = 100;
+		opacity.value = 40;
+		var opacityVal = el( 'output', '', '40%' );
+		opacityRow.appendChild( opacity );
+		opacityRow.appendChild( opacityVal );
+		var fitRow = el( 'div', 'framify-studio__seg' );
+		var fitButtons = {};
+		[ [ 'contain', 'Fit' ], [ 'cover', 'Fill' ], [ 'stretch', 'Stretch' ] ].forEach( function ( f ) {
+			var b = el( 'button', '', f[ 1 ] );
+			b.type = 'button';
+			b.addEventListener( 'click', function () {
+				ref.fit = f[ 0 ];
+				Object.keys( fitButtons ).forEach( function ( k ) {
+					fitButtons[ k ].classList.toggle( 'is-active', k === ref.fit );
+				} );
+				paint();
+			} );
+			fitButtons[ f[ 0 ] ] = b;
+			fitRow.appendChild( b );
+		} );
+		fitButtons.contain.classList.add( 'is-active' );
+		var refRow = el( 'div', 'framify-studio__row' );
+		var match = el( 'button', 'framify-studio__btn', 'Match canvas' );
+		var drop2 = el( 'button', 'framify-studio__btn framify-studio__btn--quiet', 'Remove' );
+		match.type = drop2.type = 'button';
+		match.addEventListener( 'click', function () {
+			if ( ! ref.img ) {
+				return;
+			}
+			var k = Math.min( 1, 800 / Math.max( ref.img.naturalWidth, ref.img.naturalHeight ) );
+			wField.input.value = Math.round( ref.img.naturalWidth * k );
+			hField.input.value = Math.round( ref.img.naturalHeight * k );
+			var was = linked;
+			linked = false;
+			resize( 'w' );
+			linked = was;
+			ratio = W / H;
+		} );
+		drop2.addEventListener( 'click', function () {
+			ref.img = null;
+			file.value = '';
+			refTools.hidden = true;
+			drop.hidden = false;
 			paint();
 		} );
-		row.appendChild( undoB );
-		row.appendChild( clear );
-		body.appendChild( row );
-		body.appendChild( name );
+		refRow.appendChild( match );
+		refRow.appendChild( drop2 );
+		refTools.appendChild( refShow );
+		refTools.appendChild( opacityRow );
+		refTools.appendChild( fitRow );
+		refTools.appendChild( refRow );
+		refShow.input.addEventListener( 'change', function () {
+			ref.show = refShow.input.checked;
+			paint();
+		} );
+		opacity.addEventListener( 'input', function () {
+			ref.opacity = opacity.value / 100;
+			opacityVal.textContent = opacity.value + '%';
+			paint();
+		} );
+		file.addEventListener( 'change', function () {
+			var f = file.files && file.files[ 0 ];
+			if ( ! f ) {
+				return;
+			}
+			if ( f.size > 20 * 1024 * 1024 ) {
+				msg.textContent = 'That image is over 20 MB.';
+				return;
+			}
+			var reader = new FileReader();
+			reader.onload = function () {
+				var img = new Image();
+				img.onload = function () {
+					ref.img = img;
+					ref.show = true;
+					refShow.input.checked = true;
+					refTools.hidden = false;
+					drop.hidden = true;
+					msg.textContent = '';
+					paint();
+				};
+				img.onerror = function () {
+					msg.textContent = 'That file is not an image the browser can open.';
+				};
+				img.src = String( reader.result );
+			};
+			reader.readAsDataURL( f );
+		} );
+		refSec.appendChild( file );
+		refSec.appendChild( drop );
+		refSec.appendChild( refTools );
+
+		/* --- inspector: save --- */
+
+		var saveSec = section( 'Save' );
+		saveSec.appendChild( name );
 		var save = el( 'button', 'framify-studio__btn framify-studio__btn--primary', 'Save shape' );
 		save.type = 'button';
 		save.addEventListener( 'click', function () {
-			var shape = modelToShape( model, W, H, frame.checked );
+			var shape = modelToShape( model, W, H, frame.input.checked );
 			if ( ! shape ) {
 				msg.textContent = 'Draw a closed outline with at least 3 points first.';
 				return;
@@ -926,9 +1290,37 @@
 				msg.textContent = 'Could not save.';
 			} );
 		} );
-		body.appendChild( save );
-		body.appendChild( msg );
-		fitBox();
+		saveSec.appendChild( save );
+		saveSec.appendChild( msg );
+
+		inspector.appendChild( sizeSec );
+		inspector.appendChild( refSec );
+		inspector.appendChild( saveSec );
+
+		/* --- assemble --- */
+
+		sheet.appendChild( canvas );
+		stage.appendChild( sheet );
+		bar.appendChild( hint );
+		bar.appendChild( readout );
+		stageWrap.appendChild( stage );
+		stageWrap.appendChild( bar );
+		layout.appendChild( rail );
+		layout.appendChild( stageWrap );
+		layout.appendChild( inspector );
+		body.appendChild( layout );
+
+		hint.textContent = toolHint();
+		readout.textContent = W + ' × ' + H;
+		canvas.dataset.tool = 'pen';
+		toolButtons.pen.classList.add( 'is-active' );
+		toolButtons.pen.setAttribute( 'aria-pressed', 'true' );
+		applySize();
+		if ( window.ResizeObserver ) {
+			new ResizeObserver( function () {
+				paint();
+			} ).observe( canvas );
+		}
 		paint();
 	}
 
@@ -1070,13 +1462,17 @@
 		context = 'string' === typeof prefix ? prefix : 'framify_org_shape';
 		modal = el( 'div', 'framify-studio' );
 		var box = el( 'div', 'framify-studio__box' );
+		box.setAttribute( 'role', 'dialog' );
+		box.setAttribute( 'aria-label', 'Shape studio' );
 		var head = el( 'div', 'framify-studio__head' );
-		head.appendChild( el( 'strong', '', 'Shape studio' ) );
-		var x = el( 'button', 'framify-studio__x', '×' );
+		var brand = el( 'div', 'framify-studio__brand' );
+		brand.appendChild( icon( 'nib', 18 ) );
+		brand.appendChild( el( 'strong', '', 'Shape studio' ) );
+		head.appendChild( brand );
+		var x = el( 'button', 'framify-studio__x', '\u00d7' );
 		x.type = 'button';
 		x.setAttribute( 'aria-label', 'Close' );
 		x.addEventListener( 'click', close );
-		head.appendChild( x );
 		var tabs = el( 'div', 'framify-studio__tabs' );
 		var body = el( 'div', 'framify-studio__body' );
 		var defs = [ [ 'Draw', drawTab ], [ 'Upload SVG', uploadTab ], [ 'My shapes', mineTab ] ];
@@ -1097,8 +1493,9 @@
 			body.innerHTML = '';
 			defs[ i ][ 1 ]( body );
 		}
+		head.appendChild( tabs );
+		head.appendChild( x );
 		box.appendChild( head );
-		box.appendChild( tabs );
 		box.appendChild( body );
 		modal.appendChild( box );
 		modal.addEventListener( 'mousedown', function ( e ) {
