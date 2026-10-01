@@ -1098,6 +1098,11 @@ class Framify {
 
 new Framify();
 
+// Load GitHub release updater
+if ( file_exists( FRAMIFY_PLUGIN_DIR . 'framify-updater.php' ) ) {
+    require_once FRAMIFY_PLUGIN_DIR . 'framify-updater.php';
+}
+
 // Load cache-compatibility module
 if ( file_exists( FRAMIFY_PLUGIN_DIR . 'framify-cache.php' ) ) {
     require_once FRAMIFY_PLUGIN_DIR . 'framify-cache.php';

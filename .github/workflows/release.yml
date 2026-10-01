@@ -1,0 +1,36 @@
+name: Release
+
+# Push a tag like v1.7.1 to publish a release with an installable framify.zip.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag must match plugin version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          HDR=$(grep -m1 -E '^\s*\* Version:' framify.php | sed -E 's/.*Version:\s*//' | tr -d '[:space:]')
+          CONST=$(grep -m1 "define('FRAMIFY_VERSION'" framify.php | sed -E "s/.*'FRAMIFY_VERSION', *'([^']+)'.*/\1/")
+          echo "tag=$TAG header=$HDR const=$CONST"
+          [ "$TAG" = "$HDR" ] && [ "$TAG" = "$CONST" ] || { echo "Version mismatch"; exit 1; }
+
+      - name: Build zip (top-level folder "framify")
+        run: |
+          mkdir -p build/framify
+          rsync -a --exclude='.git' --exclude='.github' --exclude='.claude' \
+            --exclude='dev' --exclude='docs' --exclude='CLAUDE.md' \
+            --exclude='.gitignore' --exclude='build' ./ build/framify/
+          (cd build && zip -rq ../framify.zip framify)
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" framify.zip --generate-notes --title "Framify $GITHUB_REF_NAME"
