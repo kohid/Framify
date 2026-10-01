@@ -42,3 +42,132 @@
 .framify-shape-tabs .elementor-choices label .elementor-screen-only {
 	display: none;
 }
+
+/* Shape studio modal (upload / draw / manage saved shapes). */
+.framify-studio {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, .55);
+}
+.framify-studio__box {
+	width: min(420px, 94vw);
+	max-height: 92vh;
+	overflow: auto;
+	background: #fff;
+	color: #1f2124;
+	border-radius: 6px;
+	font-size: 13px;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, .35);
+}
+.framify-studio__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 16px;
+	border-bottom: 1px solid #e6e9ec;
+}
+.framify-studio__x {
+	border: 0;
+	background: none;
+	font-size: 22px;
+	line-height: 1;
+	cursor: pointer;
+}
+.framify-studio__tabs {
+	display: flex;
+	border-bottom: 1px solid #e6e9ec;
+}
+.framify-studio__tab {
+	flex: 1;
+	padding: 10px 6px;
+	border: 0;
+	background: none;
+	cursor: pointer;
+	border-bottom: 2px solid transparent;
+}
+.framify-studio__tab.is-active {
+	border-bottom-color: #d5008f;
+	font-weight: 600;
+}
+.framify-studio__body {
+	padding: 14px 16px 18px;
+}
+.framify-studio__hint {
+	margin: 0 0 10px;
+	color: #69727d;
+}
+.framify-studio__canvas {
+	display: block;
+	width: 100%;
+	aspect-ratio: 1;
+	touch-action: none;
+	cursor: crosshair;
+	background: repeating-conic-gradient(#f3f4f6 0 25%, #fff 0 50%) 0 0 / 20px 20px;
+	border: 1px solid #d5d8dc;
+	border-radius: 4px;
+}
+.framify-studio__row {
+	display: flex;
+	gap: 8px;
+	margin: 8px 0;
+}
+.framify-studio__field {
+	display: block;
+	margin: 10px 0;
+}
+.framify-studio__field span {
+	display: block;
+	margin-bottom: 4px;
+}
+.framify-studio__field input {
+	width: 100%;
+}
+.framify-studio__btn {
+	padding: 7px 12px;
+	border: 1px solid #d5d8dc;
+	border-radius: 3px;
+	background: #fff;
+	cursor: pointer;
+}
+.framify-studio__btn--primary {
+	background: #d5008f;
+	border-color: #d5008f;
+	color: #fff;
+}
+.framify-studio__btn--danger {
+	color: #b32d2e;
+}
+.framify-studio__status,
+.framify-studio__done {
+	margin: 10px 0 0;
+	color: #69727d;
+}
+.framify-studio__preview {
+	display: block;
+	width: 120px;
+	height: 120px;
+	margin: 10px 0;
+	object-fit: contain;
+	border: 1px solid #e6e9ec;
+}
+.framify-studio__list {
+	display: grid;
+	gap: 6px;
+}
+.framify-studio__item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.framify-studio__item img {
+	width: 36px;
+	height: 36px;
+	object-fit: contain;
+}
+.framify-studio__item span {
+	flex: 1;
+}

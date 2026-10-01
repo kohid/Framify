@@ -194,6 +194,7 @@ class Framify_Test_Controls_Manager {
     const SLIDER   = 'slider';
     const COLOR    = 'color';
     const CHOOSE   = 'choose';
+    const BUTTON   = 'button';
     const HEADING  = 'heading';
     const NUMBER   = 'number';
     const TEXTAREA = 'textarea';
@@ -581,6 +582,14 @@ check( 'library: Built-in | Uploaded tab + uploaded picker on the Organic Shape 
     && 'library' === $con_c['framify_org_shape']['condition']['framify_org_shape_source!'] && isset( $con_c['framify_org_shape_lib']['options']['lib_soft-leaf'] ) );
 check( 'library: uploaded shapes reach the script and run through the Custom pipeline (library svg -> custom paste); deco is static', false !== strpos( $org_js, 'out.framify_org_custom_svg = svg;' )
     && false !== strpos( $org_js, "var s = libraryShape( window.FramifyColor.settings( this ) );" ) && false !== strpos( $org_js, 'decoPair = { rest: libPath, hover: libPath };' ) );
+$sl = 'Framify_Shape_Library';
+check( 'library sanitiser: path data keeps only path characters; markup, script and url() are refused', 'M0 0L10 10Z' === $sl::clean_d( "M0 0\nL10 10 Z" ) && '' === $sl::clean_d( 'M0 0 <script>alert(1)</script>' ) && '' === $sl::clean_d( 'url(#x)' ) && '' === $sl::clean_d( '' ) );
+check( 'library sanitiser: viewBox must be four numbers (else 0 0 100 100); parse keeps only d + viewBox', '0 0 100 100' === $sl::clean_viewbox( '0 0 100 x' ) && '0 0 200 50' === $sl::clean_viewbox( '0,0,200,50' )
+    && array( 'd' => 'M0 0L9 9Z', 'vb' => '0 0 40 30' ) === $sl::parse( '<svg viewBox="0 0 40 30" onload="x()"><script>1</script><path d="M0 0L9 9Z" fill="red"/></svg>' )
+    && null === $sl::parse( '<svg><circle r="4"/></svg>' ) && null === $sl::parse( 'not svg' ) );
+check( 'library: a saved file is regenerated as a plain svg > path (no attributes from the input)', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 30"><path d="M0 0L9 9Z"/></svg>' === $sl::build_svg( 'M0 0L9 9Z', '0 0 40 30' ) );
+check( 'library: save / delete are nonce + capability guarded; user shapes live in uploads, delete only touches user shapes', false !== strpos( file_get_contents( dirname( __DIR__, 2 ) . '/framify-shape-library.php' ), "check_ajax_referer('framify_shapes', 'nonce')" )
+    && false !== strpos( file_get_contents( dirname( __DIR__, 2 ) . '/framify-shape-library.php' ), "current_user_can('upload_files')" ) && false !== strpos( file_get_contents( dirname( __DIR__, 2 ) . '/framify-shape-library.php' ), "'user' !== \$all[\$id]['source']" ) );
 check( 'bleed: gate = container, Clip mode, custom shape, moving (Liquid / Gentle), deco off', false !== strpos( $org_js, "fx.bleed = ! spacer && 'clip' === s.framify_org_mode && !! custom && !! fx.motion;" )
     && 1 === preg_match( "/if \\( 'bg' === s\\.framify_org_mode \\|\\| \\( 'clip' === s\\.framify_org_mode && 'yes' === s\\.framify_org_deco \\) \\) \\{\\s*this\\.setupFill\\( el, id, s \\);\\s*\\} else \\{.*?fx\\.bleed = /s", $org_js ) );
 check( 'bleed: the host keeps its clip and handle rect; the fill is not clipped; grain goes inside it', 1 === preg_match( "/el\\.style\\.clipPath = 'url\\(#' \\+ id \\+ '\\)';.*?this\\.keepHandle\\( el, clip\\.path\\.parentNode \\);\\s*\\}\\s*if \\( fx\\.bleed \\) \\{.*?this\\.bleedLayers\\( el, id, s \\);\\s*return;/s", $org_js )

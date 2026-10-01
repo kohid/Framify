@@ -17,6 +17,8 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+require_once __DIR__ . '/framify-shape-library.php';
+
 class Framify_Elementor {
 
     const TAB           = 'framify';
@@ -277,8 +279,6 @@ class Framify_Elementor {
     }
 
     /** Rest + hover path strings per shape, as sent to the frontend. */
-    private $library = null;
-
     private function shape_paths() {
         $paths = array();
         foreach ( $this->presets() as $id => $preset ) {
@@ -310,47 +310,12 @@ class Framify_Elementor {
     }
 
     /**
-     * Shapes bundled with the plugin: every assets/shapes/*.svg, so a shape
-     * uploaded there is available on any site the plugin is installed on.
-     * Returns id => array( title, svg (the file, for the browser parser,
-     * which only ever reads its d attributes), thumb (data URI built from
-     * those d attributes alone, never the file itself) ). Ids are 'lib_' +
-     * the file name; files that are too big or hold no path are skipped.
+     * The shape library: assets/shapes/*.svg shipped with the plugin plus the
+     * shapes made in the editor (uploads/framify-shapes), see
+     * Framify_Shape_Library. id => array( title, svg, thumb, source ).
      */
     public function library_shapes() {
-        if ( null !== $this->library ) {
-            return $this->library;
-        }
-        $this->library = array();
-        $files = glob( FRAMIFY_PLUGIN_DIR . 'assets/shapes/*.svg' );
-        if ( ! $files ) {
-            return $this->library;
-        }
-        sort( $files );
-        foreach ( array_slice( $files, 0, 200 ) as $file ) {
-            $svg = ( filesize( $file ) <= 50000 ) ? file_get_contents( $file ) : false;
-            if ( ! $svg || false === stripos( $svg, '<svg' ) ) {
-                continue;
-            }
-            preg_match_all( '/\sd\s*=\s*(?:"([^"]*)"|\'([^\']*)\')/', $svg, $m );
-            $d = trim( implode( ' ', array_filter( array_merge( $m[1], $m[2] ) ) ) );
-            if ( '' === $d || preg_match( '/[^MmLlHhVvCcSsQqTtAaZz0-9eE.,+\-\s]/', $d ) ) {
-                continue;
-            }
-            $vb = '0 0 100 100';
-            if ( preg_match( '/viewBox\s*=\s*"\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*"/i', $svg, $v ) ) {
-                $vb = $v[1] . ' ' . $v[2] . ' ' . $v[3] . ' ' . $v[4];
-            }
-            $name  = pathinfo( $file, PATHINFO_FILENAME );
-            $id    = 'lib_' . sanitize_key( $name );
-            $thumb = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' . $vb . '"><path fill="#69727d" d="' . $d . '"/></svg>';
-            $this->library[ $id ] = array(
-                'title' => ucwords( trim( preg_replace( '/[-_]+/', ' ', $name ) ) ),
-                'svg'   => $svg,
-                'thumb' => 'data:image/svg+xml,' . rawurlencode( $thumb ),
-            );
-        }
-        return $this->library;
+        return Framify_Shape_Library::all();
     }
 
     /** VISUAL_CHOICE options for the uploaded (library) tab. */
@@ -369,8 +334,8 @@ class Framify_Elementor {
 
     /**
      * Built-in | Uploaded tab for a Shape picker (a CHOOSE styled as tabs by
-     * the editor stylesheet). Only registered when assets/shapes holds a
-     * shape, so a plugin without any behaves exactly as before.
+     * the editor stylesheet), plus the button that opens the shape studio
+     * (upload an SVG / draw freehand / manage saved shapes).
      */
     private function register_shape_tabs( $element, $prefix, $label, $condition ) {
         $cm = 'Elementor\Controls_Manager';
@@ -387,23 +352,22 @@ class Framify_Elementor {
             'condition'   => $condition,
             'classes'     => 'framify-shape-tabs',
         ) ) );
+        $element->add_control( $prefix . '_studio', array(
+            'type'        => $cm::BUTTON,
+            'label_block' => true,
+            'text'        => esc_html__( 'Draw or upload a shape', 'framify' ),
+            'event'       => 'framify:shapeStudio',
+            'condition'   => $condition + array( $prefix . '_source' => 'library' ),
+        ) );
     }
 
     /**
      * Condition for controls that apply to Custom-like shapes (and Wavy /
      * Flow): the picked built-in is in $ids, OR the Uploaded tab is active
      * (an uploaded shape runs through the Custom pipeline). $on is the plain
-     * condition map; $extra_terms are more AND terms. Without a library this
-     * is the plain map, as before.
+     * condition map; $extra_terms are more AND terms.
      */
     private function shape_condition( array $on, array $ids, array $extra_terms = array() ) {
-        if ( ! $this->library_shapes() ) {
-            $plain = $on;
-            foreach ( $extra_terms as $t ) {
-                $plain[ $t['name'] . ( 'in' === $t['operator'] ? '' : '!' ) ] = $t['value'];
-            }
-            return array( 'condition' => $plain + array( 'framify_org_shape' => $ids ) );
-        }
         $terms = array();
         foreach ( $on as $name => $value ) {
             $terms[] = array( 'name' => $name, 'operator' => '===', 'value' => $value );
@@ -569,7 +533,7 @@ class Framify_Elementor {
             ) );
         }
 
-        $has_lib   = (bool) $this->library_shapes();
+        $has_lib   = true;
         $shape_on  = $on;
         if ( $has_lib ) {
             $this->register_shape_tabs( $element, 'framify_org_shape', esc_html__( 'Shape', 'framify' ), $on );
@@ -592,7 +556,7 @@ class Framify_Elementor {
                 'label_block' => true,
                 'columns'     => 4,
                 'options'     => $this->library_options(),
-                'default'     => $lib_ids[0],
+                'default'     => $lib_ids ? $lib_ids[0] : '',
                 'description' => esc_html__( 'Shapes in the plugin folder assets/shapes. Add an .svg there and it shows up here on every site the plugin is installed on.', 'framify' ),
                 'condition'   => $on + array( 'framify_org_shape_source' => 'library' ),
             ) ) );
@@ -870,7 +834,7 @@ class Framify_Elementor {
         ) ) );
         $deco_on = $own + array( 'framify_org_deco' => 'yes' );
 
-        $deco_lib = $this->library_shapes();
+        $deco_lib = true;
         $deco_shape_on = $deco_on;
         if ( $deco_lib ) {
             $this->register_shape_tabs( $element, 'framify_org_deco_shape', esc_html__( 'Deco shape', 'framify' ), $deco_on );
@@ -886,14 +850,14 @@ class Framify_Elementor {
             'condition'   => $deco_shape_on,
         ) ) );
         if ( $deco_lib ) {
-            $deco_ids = array_keys( $deco_lib );
+            $deco_ids = array_keys( $this->library_shapes() );
             $element->add_control( 'framify_org_deco_shape_lib', $this->live( array(
                 'label'       => esc_html__( 'Uploaded shapes', 'framify' ),
                 'type'        => $cm::VISUAL_CHOICE,
                 'label_block' => true,
                 'columns'     => 4,
                 'options'     => $this->library_options(),
-                'default'     => $deco_ids[0],
+                'default'     => $deco_ids ? $deco_ids[0] : '',
                 'condition'   => $deco_on + array( 'framify_org_deco_shape_source' => 'library' ),
             ) ) );
         }
@@ -1221,6 +1185,31 @@ class Framify_Elementor {
             $this->asset_version( 'framify-elementor-editor.js' ),
             true
         );
+
+        // Shape studio (Uploaded tab): upload an SVG, draw freehand, manage
+        // the shapes saved in uploads/framify-shapes.
+        wp_enqueue_script(
+            'framify-shape-studio',
+            FRAMIFY_PLUGIN_URL . 'assets/framify-shape-studio.js',
+            array( 'elementor-editor' ),
+            $this->asset_version( 'framify-shape-studio.js' ),
+            true
+        );
+        $mine = array();
+        foreach ( $this->library_shapes() as $id => $shape ) {
+            $mine[] = array(
+                'id'     => $id,
+                'title'  => $shape['title'],
+                'thumb'  => $shape['thumb'],
+                'svg'    => $shape['svg'],
+                'source' => $shape['source'],
+            );
+        }
+        wp_localize_script( 'framify-shape-studio', 'framifyShapeStudio', array(
+            'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+            'nonce'   => wp_create_nonce( 'framify_shapes' ),
+            'shapes'  => $mine,
+        ) );
     }
 }
 
