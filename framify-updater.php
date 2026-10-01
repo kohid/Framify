@@ -61,8 +61,15 @@ class Framify_Updater {
             array('timeout' => 10, 'headers' => $this->api_headers())
         );
         if (is_wp_error($res) || 200 !== wp_remote_retrieve_response_code($res)) {
-            $code = is_wp_error($res) ? $res->get_error_message() : 'HTTP ' . wp_remote_retrieve_response_code($res);
-            update_site_option('framify_github_last', ($this->token() ? 'token set' : 'NO TOKEN (FRAMIFY_GITHUB_TOKEN not defined)') . ' - GitHub said: ' . $code);
+            if (is_wp_error($res)) {
+                $code = $res->get_error_message();
+            } else {
+                $body = json_decode(wp_remote_retrieve_body($res), true);
+                $code = 'HTTP ' . wp_remote_retrieve_response_code($res)
+                    . (is_array($body) && !empty($body['message']) ? ' "' . $body['message'] . '"' : ' (' . substr(wp_strip_all_tags(wp_remote_retrieve_body($res)), 0, 120) . ')')
+                    . ' via ' . (wp_remote_retrieve_header($res, 'server') ?: 'unknown server');
+            }
+            update_site_option('framify_github_last', 'v' . FRAMIFY_VERSION . ', ' . ($this->token() ? 'token set' : 'NO TOKEN (FRAMIFY_GITHUB_TOKEN not defined)') . ' - ' . $code);
             // Cache the failure briefly so a down/unauthorised API isn't hit on every admin load.
             set_site_transient(self::CACHE_KEY, array(), 15 * MINUTE_IN_SECONDS);
             return null;
