@@ -437,7 +437,7 @@
 			return false;
 		}
 		function wants( key ) {
-			return 0 === key.indexOf( prefix ) && ! ignored( key );
+			return '__globals__' === key || ( 0 === key.indexOf( prefix ) && ! ignored( key ) );
 		}
 		return {
 			onElementChange: function ( name ) {
@@ -827,7 +827,7 @@
 			},
 
 			setup: function () {
-				var s = this.getElementSettings();
+				var s = window.FramifyColor.settings( this );
 				if ( 'yes' !== s[ PREFIX + 'enable' ] ) {
 					return;
 				}

@@ -171,7 +171,7 @@
 				if ( el.classList.contains( 'e-child' ) ) {
 					return;
 				}
-				var s = this.getElementSettings();
+				var s = window.FramifyColor.settings( this );
 				var sides = SIDES.map( function ( side ) {
 					return readSide( s, side, Shape.CUSTOM_AMOUNT );
 				} ).filter( Boolean );

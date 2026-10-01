@@ -53,6 +53,21 @@
 	pointer-events: none;
 }
 
+/* Clip background only: overlay tint inside the clipped fill. Earlier in the
+   tree than the grain layer (a child), so grain paints over it. No-op while
+   --framify-bg-overlay is unset. */
+.framify-organic__fill::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	background: var(--framify-bg-overlay, transparent);
+	opacity: var(--framify-bg-overlay-o, 1);
+	pointer-events: none;
+}
+
 /* Container Clip mode with a moving custom shape ("bleed"): the container
    stays clipped while its background paints in an oversized fill, so the
    shape's outward motion has something to reveal past the box. Elementor's

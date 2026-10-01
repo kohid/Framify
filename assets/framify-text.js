@@ -952,7 +952,7 @@
 			},
 
 			setup: function () {
-				var s = this.getElementSettings();
+				var s = window.FramifyColor.settings( this );
 				if ( 'yes' !== s[ PREFIX + 'enable' ] ) {
 					return;
 				}

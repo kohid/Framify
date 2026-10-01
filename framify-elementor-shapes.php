@@ -154,10 +154,8 @@ class Framify_Elementor_Shapes {
 
         // Five slots, empty ones are skipped: a palette is usually two or
         // three brand colours, and a repeater would be heavy for that.
-        // Global Colours are disabled on purpose: a global-linked value lives
-        // only in __globals__, which never reaches the JS (not in the page's
-        // data-settings, not in the editor's active settings), so a linked
-        // slot would silently read as empty.
+        // Global Colours work: a linked value lives only in __globals__, so
+        // assets/framify-colors.js resolves it back into the settings.
         $palette = array( '#F69216', '#263238', '', '', '' );
         foreach ( $palette as $i => $default ) {
             $element->add_control( 'framify_fs_color_' . ( $i + 1 ), $this->live( array(
@@ -165,7 +163,6 @@ class Framify_Elementor_Shapes {
                 'label'     => sprintf( esc_html__( 'Colour %d', 'framify' ), $i + 1 ),
                 'type'      => $cm::COLOR,
                 'default'   => $default,
-                'global'    => array( 'active' => false ),
                 'condition' => $on + array( 'framify_fs_color_mode' => 'palette' ),
             ) ) );
         }
@@ -284,10 +281,13 @@ class Framify_Elementor_Shapes {
             array(),
             $this->asset_version( 'framify-shapes.css' )
         );
+        if ( class_exists( 'Framify_Elementor' ) ) {
+            Framify_Elementor::enqueue_colors_script();
+        }
         wp_enqueue_script(
             'framify-shapes',
             FRAMIFY_PLUGIN_URL . 'assets/framify-shapes.js',
-            array( 'elementor-frontend' ),
+            array( 'elementor-frontend', 'framify-colors' ),
             $this->asset_version( 'framify-shapes.js' ),
             true
         );

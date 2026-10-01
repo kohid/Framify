@@ -258,9 +258,9 @@ check( 'fs: duration only shows when speed is custom', array( 'framify_fs_enable
 // __globals__ never reaches the JS, so a global-linked slot could not be read.
 $fs_no_global = true;
 for ( $i = 1; $i <= 5; $i++ ) {
-    $fs_no_global = $fs_no_global && isset( $fs_el->controls[ 'framify_fs_color_' . $i ]['global'] ) && false === $fs_el->controls[ 'framify_fs_color_' . $i ]['global']['active'];
+    $fs_no_global = $fs_no_global && ! isset( $fs_el->controls[ 'framify_fs_color_' . $i ]['global'] );
 }
-check( 'fs: colour slots have the Global Colour picker disabled', $fs_no_global );
+check( 'fs: colour slots keep the Global Colour picker (resolved by framify-colors.js)', $fs_no_global );
 check( 'fs: JS publishes the shared FramifyFx helpers', false !== strpos( $fs_js, 'window.FramifyFx = {' ) );
 
 // 5b. Floating Text (framify-elementor-text.php): ids, tab, live flags, defaults, animation list.
@@ -310,9 +310,9 @@ check( 'ft: outline width hidden for solid', array( 'framify_ft_enable' => 'yes'
 check( 'ft: direction shows for drift and random', array( 'drift', 'random' ) === $ft_el->controls['framify_ft_direction']['condition']['framify_ft_animation'] );
 $ft_no_global = true;
 for ( $i = 1; $i <= 5; $i++ ) {
-    $ft_no_global = $ft_no_global && isset( $ft_el->controls[ 'framify_ft_color_' . $i ]['global'] ) && false === $ft_el->controls[ 'framify_ft_color_' . $i ]['global']['active'];
+    $ft_no_global = $ft_no_global && ! isset( $ft_el->controls[ 'framify_ft_color_' . $i ]['global'] );
 }
-check( 'ft: colour slots have the Global Colour picker disabled', $ft_no_global );
+check( 'ft: colour slots keep the Global Colour picker (resolved by framify-colors.js)', $ft_no_global );
 $ft_anims = array_keys( $ft_el->controls['framify_ft_animation']['options'] );
 check( 'ft: animation list is random + ten', 'random' === $ft_anims[0] && 11 === count( $ft_anims ) );
 $ft_js = file_get_contents( dirname( __DIR__, 2 ) . '/assets/framify-text.js' );
@@ -475,7 +475,7 @@ foreach ( $in_section( $sp_org, 'framify_deco_section' ) as $id ) {
 check( 'spacer: deco control args equal the Image widget ones (bar conditions and the image/shape wording)', $sp_args_ok );
 check( 'spacer: grain keeps both container switches (saved values carry over), no image target or zoom', isset( $sp_c['framify_org_deco_grain'], $sp_c['framify_org_clip_grain'] )
     && 'yes' === $sp_c['framify_org_deco_grain']['default'] && '' === $sp_c['framify_org_clip_grain']['default']
-    && $sp_either === $sp_c['framify_org_deco_grain']['conditions'] && $sp_on + array( 'framify_org_mode' => 'clip' ) === $sp_c['framify_org_clip_grain']['condition']
+    && $sp_either === $sp_c['framify_org_deco_grain']['conditions'] && $sp_on + array( 'framify_org_mode' => array( 'clip', 'bg' ) ) === $sp_c['framify_org_clip_grain']['condition']
     && ! isset( $sp_c['framify_org_zoom'] ) && ! isset( $sp_c['framify_org_grain_target'] ) );
 check( 'spacer: no control outside the container + image sets', array() === array_diff( array_keys( $sp_c ), array_keys( $con_org->controls ), array_keys( $img_org->controls ) ) );
 
@@ -485,6 +485,9 @@ $con_c = $con_org->controls;
 check( 'container: sections Organic Shape, Deco Blob, Grain', array( 'framify_org_section', 'framify_deco_section', 'framify_grain_section' ) === array_keys( $con_org->sections ) && 0 === $con_org->open );
 check( 'container: Deco Blob section shows whenever the shape is on, same ids as the Spacer, in order', $sp_on === $con_org->sections['framify_deco_section']['condition']
     && $in_section( $sp_org, 'framify_deco_section' ) === $in_section( $con_org, 'framify_deco_section' ) );
+check( 'container + spacer: Clip background only has colour + overlay + opacity, CSS only (no frontend_available), mode bg', isset( $con_c['framify_orgbg_color'], $con_c['framify_orgbg_overlay'], $con_c['framify_orgbg_overlay_opacity'], $sp_c['framify_orgbg_color'] )
+    && 'bg' === $con_c['framify_orgbg_color']['condition']['framify_org_mode'] && empty( $con_c['framify_orgbg_color']['frontend_available'] ) && isset( $con_c['framify_org_mode']['options']['bg'] ) && ! isset( $con_c['framify_orgbg_color']['global'] ) );
+check( 'organic: bg mode always takes the fill path and builds no deco', false !== strpos( $org_js, "'bg' === s.framify_org_mode ||" ) && false !== strpos( $org_js, "if ( 'bg' !== s.framify_org_mode ) {" ) );
 check( 'container: deco switch registered with the Clip-mode condition', $sp_on + array( 'framify_org_mode' => 'clip' ) === $con_c['framify_org_deco']['condition'] && '' === $con_c['framify_org_deco']['default'] );
 $con_deco_same = true;
 foreach ( $in_section( $con_org, 'framify_deco_section' ) as $id ) {
@@ -493,7 +496,7 @@ foreach ( $in_section( $con_org, 'framify_deco_section' ) as $id ) {
 check( 'container: Deco Blob control args equal the Spacer ones (Same as shape wording)', $con_deco_same && 'Same as shape' === $con_c['framify_org_deco_trigger']['options']['same'] );
 check( 'container: no deco heading left in Organic Shape', ! isset( $con_c['framify_org_deco_heading'] ) && ! isset( $sp_c['framify_org_deco_heading'] ) );
 check( 'container: grain = the Spacer switches (deco grain in either mode), own fill wording', $sp_c['framify_org_deco_grain'] === $con_c['framify_org_deco_grain']
-    && $sp_on + array( 'framify_org_mode' => 'clip' ) === $con_c['framify_org_clip_grain']['condition'] && 'Grain on container fill' === $con_c['framify_org_clip_grain']['label'] && '' === $con_c['framify_org_clip_grain']['default'] );
+    && $sp_on + array( 'framify_org_mode' => array( 'clip', 'bg' ) ) === $con_c['framify_org_clip_grain']['condition'] && 'Grain on container fill' === $con_c['framify_org_clip_grain']['label'] && '' === $con_c['framify_org_clip_grain']['default'] );
 check( 'container: no image-only controls', ! isset( $con_c['framify_org_zoom'] ) && ! isset( $con_c['framify_org_grain_target'] ) );
 $img_look_ok = true;
 foreach ( $sp_look as $id ) {
@@ -710,7 +713,7 @@ check( 'divider: Source None | code | media, default None (empty, dropped from d
 check( 'divider: code textarea / SVG-only media with the unfiltered-uploads note, each on its source', 'textarea' === $dvc['framify_org_dv_top_svg']['type'] && array( 'framify_org_dv_top_source' => 'code' ) === $dvc['framify_org_dv_top_svg']['condition']
     && 'media' === $dvc['framify_org_dv_top_media']['type'] && array( 'svg' ) === $dvc['framify_org_dv_top_media']['media_types'] && array( 'framify_org_dv_top_source' => 'media' ) === $dvc['framify_org_dv_top_media']['condition']
     && false !== strpos( $dvc['framify_org_dv_top_media']['description'], 'Enable Unfiltered File Uploads' ) );
-check( 'divider: colour white with Global Colours off; switches default off', 'color' === $dvc['framify_org_dv_top_color']['type'] && '#FFFFFF' === $dvc['framify_org_dv_top_color']['default'] && array( 'active' => false ) === $dvc['framify_org_dv_top_color']['global']
+check( 'divider: colour white with the Global Colour picker on; switches default off', 'color' === $dvc['framify_org_dv_top_color']['type'] && '#FFFFFF' === $dvc['framify_org_dv_top_color']['default'] && ! isset( $dvc['framify_org_dv_top_color']['global'] )
     && '' === $dvc['framify_org_dv_top_flip']['default'] && '' === $dvc['framify_org_dv_top_upside']['default'] && '' === $dvc['framify_org_dv_top_front']['default'] );
 check( 'divider: Motion static | liquid; trigger loop | inview | hover and amount only for Liquid', array( 'static', 'liquid' ) === array_keys( $dvc['framify_org_dv_top_motion']['options'] ) && 'static' === $dvc['framify_org_dv_top_motion']['default']
     && array( 'loop', 'inview', 'hover' ) === array_keys( $dvc['framify_org_dv_top_trigger']['options'] ) && array( 'subtle', 'normal', 'strong' ) === array_keys( $dvc['framify_org_dv_top_amount']['options'] )
@@ -720,7 +723,7 @@ $dv_js  = file_get_contents( dirname( __DIR__, 2 ) . '/assets/framify-divider.js
 $dv_css = file_get_contents( dirname( __DIR__, 2 ) . '/assets/framify-divider.css' );
 $main_php = file_get_contents( dirname( __DIR__, 2 ) . '/framify.php' );
 check( 'divider: loaded from framify.php after the text module, behind a file_exists guard', 1 === preg_match( "/framify-elementor-text\.php';\s*\}.*if \( file_exists\( FRAMIFY_PLUGIN_DIR \. 'framify-elementor-divider\.php' \) \) \{\s*require_once FRAMIFY_PLUGIN_DIR \. 'framify-elementor-divider\.php';/s", $main_php ) );
-check( 'divider: script depends on the organic (parser) and shapes (FramifyFx) handles; style on shapes', false !== strpos( $dv_php, "array( 'elementor-frontend', 'framify-elementor', 'framify-shapes' )," ) && false !== strpos( $dv_php, "FRAMIFY_PLUGIN_URL . 'assets/framify-divider.css',\n            array( 'framify-shapes' )," ) );
+check( 'divider: script depends on the organic (parser) and shapes (FramifyFx) handles; style on shapes', false !== strpos( $dv_php, "array( 'elementor-frontend', 'framify-elementor', 'framify-shapes', 'framify-colors' )," ) && false !== strpos( $dv_php, "FRAMIFY_PLUGIN_URL . 'assets/framify-divider.css',\n            array( 'framify-shapes' )," ) );
 check( 'divider: no editor enqueue of its own (the shared editor script does the hiding)', 1 === count( framify_hooked( 'elementor/editor/after_enqueue_scripts' ) ) );
 preg_match( '/var CSS_KEYS = \[([^\]]*)\];/', $dv_js, $dv_m );
 $dv_css_keys = isset( $dv_m[1] ) ? array_map( function ( $k ) { return str_replace( array( "PREFIX + '", "'" ), array( 'framify_org_dv_', '' ), trim( $k ) ); }, explode( ',', $dv_m[1] ) ) : array();
@@ -755,7 +758,7 @@ check( 'sanitiser: DOMParser image/svg+xml on a detached document, parser errors
 check( 'sanitiser: no markup API anywhere in the organic script', 0 === preg_match( '/innerHTML|outerHTML|insertAdjacentHTML|importNode|adoptNode|createContextualFragment/', $org_js ) );
 check( 'sanitiser: built path data re-checked against PATH_CHARS; path d validated before parsing', false !== strpos( $org_js, "return /\\d/.test( s ) && PATH_CHARS.test( s ) ? s : '';" ) && false !== strpos( $org_js, "return PATH_CHARS.test( d ) ? d : '';" ) );
 check( 'sanitiser: pinDistance takes a list of sides (divider); Organic still passes one', false !== strpos( $org_js, 'if ( Array.isArray( side ) ) {' ) && false !== strpos( $org_js, "'none' === fx.edge ? null : fx.custom.straight" ) );
-check( 'organic: divider controls (framify_org_dv_) never rebuild the Organic Shape', false !== strpos( $org_js, "var DIVIDER_PREFIX = 'framify_org_dv_';" ) && false !== strpos( $org_js, "if ( 0 !== name.indexOf( 'framify_org_' ) || 0 === name.indexOf( DIVIDER_PREFIX ) ) {" ) );
+check( 'organic: divider controls (framify_org_dv_) never rebuild the Organic Shape', false !== strpos( $org_js, "var DIVIDER_PREFIX = 'framify_org_dv_';" ) && false !== strpos( $org_js, "if ( '__globals__' !== name && ( 0 !== name.indexOf( 'framify_org_' ) || 0 === name.indexOf( DIVIDER_PREFIX ) ) ) {" ) );
 // The node unit test of svgGeometry (DOMParser stand-in), when node is on the PATH.
 $node_out = array();
 $node_rc  = -1;

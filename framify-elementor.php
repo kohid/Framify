@@ -47,6 +47,7 @@ class Framify_Elementor {
         // section for a top-level one.
         add_action( 'elementor/element/container/_section_responsive/after_section_end', array( $this, 'register_float_controls' ), 40 );
 
+        add_action( 'elementor/frontend/before_render', array( $this, 'globals_attribute' ) );
         add_action( 'elementor/frontend/after_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
         add_action( 'elementor/editor/after_enqueue_styles',    array( $this, 'enqueue_editor_assets' ) );
         add_action( 'elementor/editor/after_enqueue_scripts',   array( $this, 'enqueue_editor_scripts' ) );
@@ -413,6 +414,45 @@ class Framify_Elementor {
                 ),
                 'condition' => $on,
             ) ) );
+
+            // Clip background only: a plain colour for the clipped area (so
+            // a shape works with no image) and an overlay on top of the
+            // background. CSS only (ids outside the framify_org_ prefix, so
+            // the script never rebuilds for them); Global Colours work
+            // because Elementor resolves them into the CSS. The colour is
+            // !important because the script copies the host's computed
+            // background onto the fill as inline longhands.
+            $bg = $on + array( 'framify_org_mode' => 'bg' );
+            $fill = '{{WRAPPER}} > .framify-organic__fill';
+            $fill_spacer = '{{WRAPPER}} > .elementor-widget-container > .framify-organic__fill';
+            $element->add_control( 'framify_orgbg_color', array(
+                'label'     => esc_html__( 'Background color', 'framify' ),
+                'type'      => $cm::COLOR,
+                'selectors' => array(
+                    $fill        => 'background-color: {{VALUE}} !important;',
+                    $fill_spacer => 'background-color: {{VALUE}} !important;',
+                ),
+                'render_type' => 'ui',
+                'condition' => $bg,
+            ) );
+            $element->add_control( 'framify_orgbg_overlay', array(
+                'label'     => esc_html__( 'Overlay color', 'framify' ),
+                'type'      => $cm::COLOR,
+                'selectors' => array( '{{WRAPPER}}' => '--framify-bg-overlay: {{VALUE}};' ),
+                'render_type' => 'ui',
+                'description' => esc_html__( 'Tints the clipped area, over the background and under the grain.', 'framify' ),
+                'condition' => $bg,
+            ) );
+            $element->add_control( 'framify_orgbg_overlay_opacity', array(
+                'label'      => esc_html__( 'Overlay opacity', 'framify' ),
+                'type'       => $cm::SLIDER,
+                'size_units' => array( 'px' ),
+                'range'      => array( 'px' => array( 'min' => 0, 'max' => 1, 'step' => 0.05 ) ),
+                'default'    => array( 'unit' => 'px', 'size' => 1 ),
+                'selectors'  => array( '{{WRAPPER}}' => '--framify-bg-overlay-o: {{SIZE}};' ),
+                'render_type' => 'ui',
+                'condition'  => $bg,
+            ) );
         }
 
         $element->add_control( 'framify_org_shape', $this->live( array(
@@ -648,7 +688,7 @@ class Framify_Elementor {
                 'type'        => $cm::SWITCHER,
                 'default'     => '',
                 'description' => $is_spacer ? esc_html__( 'Chalky speckle over the Spacer background, clipped with it.', 'framify' ) : esc_html__( 'Chalky speckle over the container background, under its content.', 'framify' ),
-                'condition'   => $on + array( 'framify_org_mode' => 'clip' ),
+                'condition'   => $on + array( 'framify_org_mode' => array( 'clip', 'bg' ) ),
             ) ) );
         }
 
@@ -731,15 +771,13 @@ class Framify_Elementor {
 
         $outline_on = array( 'framify_org_deco_style' => 'outline' );
 
-        // Both deco colours have Global Colours disabled on purpose: a
-        // global-linked value lives only in __globals__, which never reaches
-        // the JS (not in data-settings, not in the editor's active settings),
-        // so a linked colour would silently fall back to the default.
+        // Both deco colours accept Global Colours: a linked value lives only
+        // in __globals__, so assets/framify-colors.js puts it back into the
+        // settings the script reads.
         $element->add_control( 'framify_org_deco_outline_color', $this->live( array(
             'label'     => esc_html__( 'Outline color', 'framify' ),
             'type'      => $cm::COLOR,
             'default'   => '#1E1E1E',
-            'global'    => array( 'active' => false ),
         ) + $look( $outline_on ) ) );
 
         $element->add_control( 'framify_org_deco_outline_width', $this->live( array(
@@ -754,7 +792,6 @@ class Framify_Elementor {
             'label'     => esc_html__( 'Color', 'framify' ),
             'type'      => $cm::COLOR,
             'default'   => '#F2C53D',
-            'global'    => array( 'active' => false ),
         ) + $look( array( 'framify_org_deco_style!' => 'outline' ) ) ) );
 
         $this->register_placement_controls( $element, 'deco_', array( 'w' => 108, 'h' => 108, 'ox' => 6, 'oy' => 6 ), $deco_on );
@@ -963,10 +1000,11 @@ class Framify_Elementor {
             array(),
             $this->asset_version( 'framify-elementor.css' )
         );
+        self::enqueue_colors_script();
         wp_enqueue_script(
             'framify-elementor',
             FRAMIFY_PLUGIN_URL . 'assets/framify-elementor.js',
-            array( 'elementor-frontend' ),
+            array( 'elementor-frontend', 'framify-colors' ),
             $this->asset_version( 'framify-elementor.js' ),
             true
         );
@@ -978,6 +1016,41 @@ class Framify_Elementor {
             ) ) . ';',
             'before'
         );
+    }
+
+    /**
+     * The Global Colour resolver every Framify Elementor script depends on.
+     * Safe to call from each module's enqueue; WordPress de-duplicates.
+     */
+    public static function enqueue_colors_script() {
+        wp_enqueue_script(
+            'framify-colors',
+            FRAMIFY_PLUGIN_URL . 'assets/framify-colors.js',
+            array( 'elementor-frontend' ),
+            file_exists( FRAMIFY_PLUGIN_DIR . 'assets/framify-colors.js' ) ? (string) filemtime( FRAMIFY_PLUGIN_DIR . 'assets/framify-colors.js' ) : FRAMIFY_VERSION,
+            true
+        );
+    }
+
+    /**
+     * Published pages: the Global Colour a Framify colour control is linked
+     * to lives only in __globals__, which never reaches data-settings. Hand
+     * the control -> global id map to the script (framify-colors.js).
+     */
+    public function globals_attribute( $element ) {
+        $globals = $element->get_settings( '__globals__' );
+        if ( empty( $globals ) || ! is_array( $globals ) ) {
+            return;
+        }
+        $map = array();
+        foreach ( $globals as $key => $ref ) {
+            if ( 0 === strpos( (string) $key, 'framify_' ) && is_string( $ref ) && preg_match( '/[?&]id=([\w-]+)/', $ref, $m ) ) {
+                $map[ $key ] = $m[1];
+            }
+        }
+        if ( $map ) {
+            $element->add_render_attribute( '_wrapper', 'data-framify-globals', wp_json_encode( $map ) );
+        }
     }
 
     public function enqueue_editor_assets() {

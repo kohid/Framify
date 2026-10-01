@@ -235,9 +235,8 @@ class Framify_Elementor_Text {
             'condition' => $on,
         ) ) );
 
-        // Same five slots and the same Global Colour rule as Floating
-        // Shapes: a global-linked value lives only in __globals__, which
-        // never reaches the JS, so the picker is disabled.
+        // Same five slots and the same Global Colour handling as Floating
+        // Shapes (assets/framify-colors.js resolves a linked value).
         $palette = array( '#F69216', '#263238', '', '', '' );
         foreach ( $palette as $i => $default ) {
             $element->add_control( 'framify_ft_color_' . ( $i + 1 ), $this->live( array(
@@ -245,7 +244,6 @@ class Framify_Elementor_Text {
                 'label'     => sprintf( esc_html__( 'Colour %d', 'framify' ), $i + 1 ),
                 'type'      => $cm::COLOR,
                 'default'   => $default,
-                'global'    => array( 'active' => false ),
                 'condition' => $on + array( 'framify_ft_color_mode' => 'palette' ),
             ) ) );
         }
@@ -466,10 +464,13 @@ class Framify_Elementor_Text {
             array( 'framify-shapes' ),
             $this->asset_version( 'framify-text.css' )
         );
+        if ( class_exists( 'Framify_Elementor' ) ) {
+            Framify_Elementor::enqueue_colors_script();
+        }
         wp_enqueue_script(
             'framify-text',
             FRAMIFY_PLUGIN_URL . 'assets/framify-text.js',
-            array( 'elementor-frontend', 'framify-shapes' ),
+            array( 'elementor-frontend', 'framify-shapes', 'framify-colors' ),
             $this->asset_version( 'framify-text.js' ),
             true
         );

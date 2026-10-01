@@ -120,13 +120,12 @@ class Framify_Elementor_Divider {
             'condition'   => array( $k . 'source' => 'media' ),
         ) ) );
 
-        // Global Colours stay off: a linked value lives only in __globals__,
-        // which never reaches the JS (see "How settings reach the JS").
+        // Global Colours work: a linked value lives only in __globals__,
+        // resolved back by assets/framify-colors.js.
         $element->add_control( $k . 'color', $this->live( array(
             'label'     => esc_html__( 'Colour', 'framify' ),
             'type'      => $cm::COLOR,
             'default'   => '#FFFFFF',
-            'global'    => array( 'active' => false ),
             'condition' => $on,
         ) ) );
 
@@ -216,10 +215,13 @@ class Framify_Elementor_Divider {
             array( 'framify-shapes' ),
             $this->asset_version( 'framify-divider.css' )
         );
+        if ( class_exists( 'Framify_Elementor' ) ) {
+            Framify_Elementor::enqueue_colors_script();
+        }
         wp_enqueue_script(
             'framify-divider',
             FRAMIFY_PLUGIN_URL . 'assets/framify-divider.js',
-            array( 'elementor-frontend', 'framify-elementor', 'framify-shapes' ),
+            array( 'elementor-frontend', 'framify-elementor', 'framify-shapes', 'framify-colors' ),
             $this->asset_version( 'framify-divider.js' ),
             true
         );

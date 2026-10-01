@@ -1720,7 +1720,7 @@
 			},
 
 			onElementChange: function ( name ) {
-				if ( 0 !== name.indexOf( 'framify_org_' ) || 0 === name.indexOf( DIVIDER_PREFIX ) ) {
+				if ( '__globals__' !== name && ( 0 !== name.indexOf( 'framify_org_' ) || 0 === name.indexOf( DIVIDER_PREFIX ) ) ) {
 					if ( this.fx && this.fx.fill && fillKey( name, this.fillKeys() ) ) {
 						this.scheduleFill();
 					}
@@ -1778,7 +1778,7 @@
 					}
 					var keys = Object.keys( ( changed && changed.changed ) || {} );
 					for ( var i = 0; i < keys.length; i++ ) {
-						if ( 0 === keys[ i ].indexOf( 'framify_org_' ) || ( self.fx && self.fx.fill && fillKey( keys[ i ], FILL_KEYS ) ) ) {
+						if ( '__globals__' === keys[ i ] || 0 === keys[ i ].indexOf( 'framify_org_' ) || ( self.fx && self.fx.fill && fillKey( keys[ i ], FILL_KEYS ) ) ) {
 							self.scheduleFill();
 							return;
 						}
@@ -1889,7 +1889,7 @@
 			},
 
 			setup: function () {
-				var s = this.getElementSettings();
+				var s = window.FramifyColor.settings( this );
 				if ( 'yes' !== s.framify_org_enable || ! shapeData( s.framify_org_shape ) ) {
 					return;
 				}
