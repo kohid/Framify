@@ -31,6 +31,7 @@ class Framify_Updater {
         add_filter('http_request_args', array($this, 'authorize_download'), 10, 2);
         add_filter('plugin_action_links_' . $this->basename, array($this, 'action_links'));
         add_action('admin_init', array($this, 'handle_manual_check'));
+        add_action('admin_notices', array($this, 'check_notice'));
         add_action('upgrader_process_complete', array($this, 'clear_cache'), 10, 0);
     }
 
@@ -60,6 +61,8 @@ class Framify_Updater {
             array('timeout' => 10, 'headers' => $this->api_headers())
         );
         if (is_wp_error($res) || 200 !== wp_remote_retrieve_response_code($res)) {
+            $code = is_wp_error($res) ? $res->get_error_message() : 'HTTP ' . wp_remote_retrieve_response_code($res);
+            update_site_option('framify_github_last', ($this->token() ? 'token set' : 'NO TOKEN (FRAMIFY_GITHUB_TOKEN not defined)') . ' - GitHub said: ' . $code);
             // Cache the failure briefly so a down/unauthorised API isn't hit on every admin load.
             set_site_transient(self::CACHE_KEY, array(), 15 * MINUTE_IN_SECONDS);
             return null;
@@ -67,8 +70,10 @@ class Framify_Updater {
 
         $r = json_decode(wp_remote_retrieve_body($res), true);
         if (empty($r['tag_name'])) {
+            update_site_option('framify_github_last', 'GitHub answered but no release tag found.');
             return null;
         }
+        update_site_option('framify_github_last', 'OK - latest release on GitHub is ' . ltrim($r['tag_name'], 'vV') . '; installed is ' . FRAMIFY_VERSION . '.');
 
         // Prefer an uploaded framify.zip asset; fall back to the auto-generated zipball.
         $package = $r['zipball_url'];
@@ -178,9 +183,22 @@ class Framify_Updater {
             return;
         }
         $this->clear_cache();
+        // WordPress skips its own re-check for up to 12 h unless this is gone.
+        delete_site_transient('update_plugins');
         wp_update_plugins();
-        wp_safe_redirect(admin_url('plugins.php'));
+        wp_safe_redirect(admin_url('plugins.php?framify_checked=1'));
         exit;
+    }
+
+    /** After "Check for updates": say what GitHub answered. */
+    public function check_notice() {
+        if (empty($_GET['framify_checked']) || !current_user_can('update_plugins')) {
+            return;
+        }
+        $msg = get_site_option('framify_github_last', 'No answer recorded.');
+        $ok  = 0 === strpos($msg, 'OK');
+        printf('<div class="notice notice-%s is-dismissible"><p><strong>Framify updater:</strong> %s</p></div>',
+            $ok ? 'info' : 'error', esc_html($msg));
     }
 
     public function clear_cache() {
