@@ -277,6 +277,8 @@ class Framify_Elementor {
     }
 
     /** Rest + hover path strings per shape, as sent to the frontend. */
+    private $library = null;
+
     private function shape_paths() {
         $paths = array();
         foreach ( $this->presets() as $id => $preset ) {
@@ -305,6 +307,118 @@ class Framify_Elementor {
             );
         }
         return $paths;
+    }
+
+    /**
+     * Shapes bundled with the plugin: every assets/shapes/*.svg, so a shape
+     * uploaded there is available on any site the plugin is installed on.
+     * Returns id => array( title, svg (the file, for the browser parser,
+     * which only ever reads its d attributes), thumb (data URI built from
+     * those d attributes alone, never the file itself) ). Ids are 'lib_' +
+     * the file name; files that are too big or hold no path are skipped.
+     */
+    public function library_shapes() {
+        if ( null !== $this->library ) {
+            return $this->library;
+        }
+        $this->library = array();
+        $files = glob( FRAMIFY_PLUGIN_DIR . 'assets/shapes/*.svg' );
+        if ( ! $files ) {
+            return $this->library;
+        }
+        sort( $files );
+        foreach ( array_slice( $files, 0, 200 ) as $file ) {
+            $svg = ( filesize( $file ) <= 50000 ) ? file_get_contents( $file ) : false;
+            if ( ! $svg || false === stripos( $svg, '<svg' ) ) {
+                continue;
+            }
+            preg_match_all( '/\sd\s*=\s*(?:"([^"]*)"|\'([^\']*)\')/', $svg, $m );
+            $d = trim( implode( ' ', array_filter( array_merge( $m[1], $m[2] ) ) ) );
+            if ( '' === $d || preg_match( '/[^MmLlHhVvCcSsQqTtAaZz0-9eE.,+\-\s]/', $d ) ) {
+                continue;
+            }
+            $vb = '0 0 100 100';
+            if ( preg_match( '/viewBox\s*=\s*"\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*"/i', $svg, $v ) ) {
+                $vb = $v[1] . ' ' . $v[2] . ' ' . $v[3] . ' ' . $v[4];
+            }
+            $name  = pathinfo( $file, PATHINFO_FILENAME );
+            $id    = 'lib_' . sanitize_key( $name );
+            $thumb = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' . $vb . '"><path fill="#69727d" d="' . $d . '"/></svg>';
+            $this->library[ $id ] = array(
+                'title' => ucwords( trim( preg_replace( '/[-_]+/', ' ', $name ) ) ),
+                'svg'   => $svg,
+                'thumb' => 'data:image/svg+xml,' . rawurlencode( $thumb ),
+            );
+        }
+        return $this->library;
+    }
+
+    /** VISUAL_CHOICE options for the uploaded (library) tab. */
+    private function library_options() {
+        $options = array();
+        foreach ( $this->library_shapes() as $id => $shape ) {
+            $options[ $id ] = array( 'title' => $shape['title'], 'image' => $shape['thumb'] );
+        }
+        return $options;
+    }
+
+    /** id => svg text, as sent to the frontend. */
+    private function library_svgs() {
+        return wp_list_pluck( $this->library_shapes(), 'svg' );
+    }
+
+    /**
+     * Built-in | Uploaded tab for a Shape picker (a CHOOSE styled as tabs by
+     * the editor stylesheet). Only registered when assets/shapes holds a
+     * shape, so a plugin without any behaves exactly as before.
+     */
+    private function register_shape_tabs( $element, $prefix, $label, $condition ) {
+        $cm = 'Elementor\Controls_Manager';
+        $element->add_control( $prefix . '_source', $this->live( array(
+            'label'       => $label,
+            'type'        => $cm::CHOOSE,
+            'toggle'      => false,
+            'label_block' => true,
+            'default'     => 'builtin',
+            'options'     => array(
+                'builtin' => array( 'title' => esc_html__( 'Built-in', 'framify' ), 'icon' => 'eicon-shape' ),
+                'library' => array( 'title' => esc_html__( 'Uploaded', 'framify' ), 'icon' => 'eicon-upload' ),
+            ),
+            'condition'   => $condition,
+            'classes'     => 'framify-shape-tabs',
+        ) ) );
+    }
+
+    /**
+     * Condition for controls that apply to Custom-like shapes (and Wavy /
+     * Flow): the picked built-in is in $ids, OR the Uploaded tab is active
+     * (an uploaded shape runs through the Custom pipeline). $on is the plain
+     * condition map; $extra_terms are more AND terms. Without a library this
+     * is the plain map, as before.
+     */
+    private function shape_condition( array $on, array $ids, array $extra_terms = array() ) {
+        if ( ! $this->library_shapes() ) {
+            $plain = $on;
+            foreach ( $extra_terms as $t ) {
+                $plain[ $t['name'] . ( 'in' === $t['operator'] ? '' : '!' ) ] = $t['value'];
+            }
+            return array( 'condition' => $plain + array( 'framify_org_shape' => $ids ) );
+        }
+        $terms = array();
+        foreach ( $on as $name => $value ) {
+            $terms[] = array( 'name' => $name, 'operator' => '===', 'value' => $value );
+        }
+        foreach ( $extra_terms as $t ) {
+            $terms[] = $t;
+        }
+        $terms[] = array(
+            'relation' => 'or',
+            'terms'    => array(
+                array( 'name' => 'framify_org_shape_source', 'operator' => '===', 'value' => 'library' ),
+                array( 'name' => 'framify_org_shape', 'operator' => 'in', 'value' => $ids ),
+            ),
+        );
+        return array( 'conditions' => array( 'relation' => 'and', 'terms' => $terms ) );
     }
 
     /**
@@ -455,15 +569,34 @@ class Framify_Elementor {
             ) );
         }
 
+        $has_lib   = (bool) $this->library_shapes();
+        $shape_on  = $on;
+        if ( $has_lib ) {
+            $this->register_shape_tabs( $element, 'framify_org_shape', esc_html__( 'Shape', 'framify' ), $on );
+            $shape_on = $on + array( 'framify_org_shape_source!' => 'library' );
+        }
         $element->add_control( 'framify_org_shape', $this->live( array(
-            'label'       => esc_html__( 'Shape', 'framify' ),
+            'label'       => $has_lib ? esc_html__( 'Built-in shapes', 'framify' ) : esc_html__( 'Shape', 'framify' ),
             'type'        => $cm::VISUAL_CHOICE,
             'label_block' => true,
             'columns'     => 4,
             'options'     => $this->shape_options( true ),
             'default'     => self::DEFAULT_SHAPE,
-            'condition'   => $on,
+            'condition'   => $shape_on,
         ) ) );
+        if ( $has_lib ) {
+            $lib_ids = array_keys( $this->library_shapes() );
+            $element->add_control( 'framify_org_shape_lib', $this->live( array(
+                'label'       => esc_html__( 'Uploaded shapes', 'framify' ),
+                'type'        => $cm::VISUAL_CHOICE,
+                'label_block' => true,
+                'columns'     => 4,
+                'options'     => $this->library_options(),
+                'default'     => $lib_ids[0],
+                'description' => esc_html__( 'Shapes in the plugin folder assets/shapes. Add an .svg there and it shows up here on every site the plugin is installed on.', 'framify' ),
+                'condition'   => $on + array( 'framify_org_shape_source' => 'library' ),
+            ) ) );
+        }
 
         $element->add_control( 'framify_org_edge', $this->live( array(
             'label'       => esc_html__( 'Flat edge', 'framify' ),
@@ -478,8 +611,7 @@ class Framify_Elementor {
                 'bottom' => esc_html__( 'Bottom', 'framify' ),
             ),
             'description' => esc_html__( 'The straight side of a Wavy or Flow shape, flush with the element edge so it can run off the page. Flow shapes always keep one straight side. For Custom, Framify detects which side of your SVG is straight: Auto and None keep your SVG as pasted; Left/Right/Top/Bottom turn its straight side there (a paste with no straight side ignores this setting).', 'framify' ),
-            'condition'   => $on + array( 'framify_org_shape' => array_merge( $this->wavy_ids(), $this->flow_ids(), array( 'custom' ) ) ),
-        ) ) );
+        ) + $this->shape_condition( $on, array_merge( $this->wavy_ids(), $this->flow_ids(), array( 'custom' ) ) ) ) );
 
         // Applied last inside the shape box (after the Flat edge turn), so
         // they mirror whatever the shape and edge settings produced.
@@ -511,8 +643,7 @@ class Framify_Elementor {
                 '180' => esc_html__( '180 deg', 'framify' ),
                 '270' => esc_html__( '270 deg', 'framify' ),
             ),
-            'condition' => $on + array( 'framify_org_shape' => 'custom' ),
-        ) ) );
+        ) + $this->shape_condition( $on, array( 'custom' ) ) ) );
 
         // Parsed in the browser: only validated path data is used, and only
         // ever through setAttribute('d'), so pasted markup can't inject.
@@ -523,7 +654,7 @@ class Framify_Elementor {
             'placeholder' => '<svg viewBox="0 0 1200 800"><path d="..."/></svg>',
             'description' => esc_html__( 'Paste an SVG from any design tool, or just its path data. Every path in it is merged into one shape (including any inside defs or masks); transforms inside the SVG are ignored.', 'framify' ),
             'ai'          => array( 'active' => false ),
-            'condition'   => $on + array( 'framify_org_shape' => 'custom' ),
+            'condition'   => $on + array( 'framify_org_shape' => 'custom' ) + ( $has_lib ? array( 'framify_org_shape_source!' => 'library' ) : array() ),
         ) ) );
 
         $element->add_control( 'framify_org_placement_heading', array(
@@ -580,9 +711,10 @@ class Framify_Elementor {
 
         // Custom shapes only move when a real trigger is chosen (Auto keeps
         // them static), so these only appear then.
-        $custom_moving = $on + array(
-            'framify_org_shape'    => 'custom',
-            'framify_org_trigger!' => array( 'auto', 'none' ),
+        $custom_moving = $this->shape_condition(
+            $on,
+            array( 'custom' ),
+            array( array( 'name' => 'framify_org_trigger', 'operator' => '!in', 'value' => array( 'auto', 'none' ) ) )
         );
 
         $element->add_control( 'framify_org_custom_motion', $this->live( array(
@@ -594,8 +726,7 @@ class Framify_Elementor {
                 'gentle' => esc_html__( 'Gentle (exact shape, tilt and swell)', 'framify' ),
             ),
             'description' => esc_html__( 'Liquid traces your shape and ripples its edge, softening sharp corners. Gentle keeps it exact and moves it as a whole; use it for logos and icons.', 'framify' ),
-            'condition'   => $custom_moving,
-        ) ) );
+        ) + $custom_moving ) );
 
         $element->add_control( 'framify_org_custom_amount', $this->live( array(
             'label'     => esc_html__( 'Motion amount', 'framify' ),
@@ -606,8 +737,7 @@ class Framify_Elementor {
                 'normal' => esc_html__( 'Normal', 'framify' ),
                 'strong' => esc_html__( 'Strong', 'framify' ),
             ),
-            'condition' => $custom_moving,
-        ) ) );
+        ) + $custom_moving ) );
 
         if ( ! $is_container ) {
             $element->add_control( 'framify_org_zoom', $this->live( array(
@@ -740,15 +870,33 @@ class Framify_Elementor {
         ) ) );
         $deco_on = $own + array( 'framify_org_deco' => 'yes' );
 
+        $deco_lib = $this->library_shapes();
+        $deco_shape_on = $deco_on;
+        if ( $deco_lib ) {
+            $this->register_shape_tabs( $element, 'framify_org_deco_shape', esc_html__( 'Deco shape', 'framify' ), $deco_on );
+            $deco_shape_on = $deco_on + array( 'framify_org_deco_shape_source!' => 'library' );
+        }
         $element->add_control( 'framify_org_deco_shape', $this->live( array(
-            'label'       => esc_html__( 'Deco shape', 'framify' ),
+            'label'       => $deco_lib ? esc_html__( 'Built-in shapes', 'framify' ) : esc_html__( 'Deco shape', 'framify' ),
             'type'        => $cm::VISUAL_CHOICE,
             'label_block' => true,
             'columns'     => 4,
             'options'     => $this->shape_options(),
             'default'     => 'splash',
-            'condition'   => $deco_on,
+            'condition'   => $deco_shape_on,
         ) ) );
+        if ( $deco_lib ) {
+            $deco_ids = array_keys( $deco_lib );
+            $element->add_control( 'framify_org_deco_shape_lib', $this->live( array(
+                'label'       => esc_html__( 'Uploaded shapes', 'framify' ),
+                'type'        => $cm::VISUAL_CHOICE,
+                'label_block' => true,
+                'columns'     => 4,
+                'options'     => $this->library_options(),
+                'default'     => $deco_ids[0],
+                'condition'   => $deco_on + array( 'framify_org_deco_shape_source' => 'library' ),
+            ) ) );
+        }
 
         // Visibility of the look controls: $extra on top of "the deco is
         // shown". Spacer / Containers need an OR over their two modes.
@@ -1013,6 +1161,7 @@ class Framify_Elementor {
             'window.framifyOrganic = ' . wp_json_encode( array(
                 'shapes'       => $this->shape_paths(),
                 'defaultShape' => self::DEFAULT_SHAPE,
+                'library'      => (object) $this->library_svgs(),
             ) ) . ';',
             'before'
         );

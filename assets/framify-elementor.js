@@ -93,6 +93,22 @@
 	// Callers pass the control's own default as the fallback. A shape id is
 	// never empty in practice (its default is always sent), so this only
 	// guards against a stale id from a removed shape.
+	// An uploaded (assets/shapes) shape runs through the Custom pipeline: the
+	// effective settings carry its SVG text as the Custom paste.
+	function libraryShape( s ) {
+		var svg = 'library' === s.framify_org_shape_source && CONFIG.library && CONFIG.library[ s.framify_org_shape_lib ];
+		if ( ! svg ) {
+			return s;
+		}
+		var out = {};
+		Object.keys( s ).forEach( function ( key ) {
+			out[ key ] = s[ key ];
+		} );
+		out.framify_org_shape = 'custom';
+		out.framify_org_custom_svg = svg;
+		return out;
+	}
+
 	function shapeData( id, fallback ) {
 		return CONFIG.shapes[ id ] || CONFIG.shapes[ fallback || CONFIG.defaultShape ] || null;
 	}
@@ -1889,7 +1905,7 @@
 			},
 
 			setup: function () {
-				var s = window.FramifyColor.settings( this );
+				var s = libraryShape( window.FramifyColor.settings( this ) );
 				if ( 'yes' !== s.framify_org_enable || ! shapeData( s.framify_org_shape ) ) {
 					return;
 				}
@@ -2077,11 +2093,18 @@
 				var fx = this.fx;
 				// The deco has its own shape and placement; a Wavy deco's flat
 				// edge always follows its own horizontal position.
-				var decoFamily = familyOf( s.framify_org_deco_shape, 'splash' );
+				// An uploaded deco shape is static (no morph, no flat edge): its
+				// path is fitted into the 0-100 box by its own viewBox.
+				var decoLib = 'library' === s.framify_org_deco_shape_source && CONFIG.library ? parseCustom( CONFIG.library[ s.framify_org_deco_shape_lib ] ) : null;
+				var decoFamily = decoLib ? 'blob' : familyOf( s.framify_org_deco_shape, 'splash' );
 				var decoEdge = resolveEdge( decoFamily, 'auto', readBox( el, 'deco-', DECO_BOX ) );
 				var decoPair = shapePair( s.framify_org_deco_shape, 'splash', decoEdge );
+				if ( decoLib ) {
+					var libPath = parsePath( decoLib.d );
+					decoPair = { rest: libPath, hover: libPath };
+				}
 				var deco = buildDeco( id, decoPair.rest.d, decoLook( s, grain ) );
-				deco.path.setAttribute( 'transform', edgeTransform( decoEdge ) );
+				deco.path.setAttribute( 'transform', decoLib ? customTransform( decoLib.box ) : edgeTransform( decoEdge ) );
 
 				// "Same as image" (the default) keeps following the main channel.
 				var decoTrigger = s.framify_org_deco_trigger || 'same';

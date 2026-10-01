@@ -12,6 +12,7 @@ if ( 'cli' !== PHP_SAPI ) {
 }
 
 define( 'ABSPATH', __DIR__ . '/' );
+define( 'FRAMIFY_PLUGIN_DIR', dirname( __DIR__, 2 ) . '/' );
 $framify_actions = array();
 function add_action( $hook, $callback, $priority = 10 ) {
     $GLOBALS['framify_actions'][] = array( 'hook' => $hook, 'callback' => $callback, 'priority' => $priority );
@@ -33,6 +34,23 @@ function framify_hooked( $hook ) {
 }
 function __( $text ) { return $text; }
 function esc_html__( $text ) { return $text; }
+function framify_shape_ids( $control ) {
+    if ( isset( $control['condition']['framify_org_shape'] ) ) {
+        return (array) $control['condition']['framify_org_shape'];
+    }
+    foreach ( $control['conditions']['terms'] ?? array() as $t ) {
+        if ( isset( $t['relation'] ) ) {
+            foreach ( $t['terms'] as $u ) {
+                if ( 'framify_org_shape' === $u['name'] ) {
+                    return (array) $u['value'];
+                }
+            }
+        }
+    }
+    return null;
+}
+function sanitize_key( $k ) { return strtolower( preg_replace( '/[^a-z0-9_\-]/i', '', (string) $k ) ); }
+function wp_list_pluck( $list, $field ) { $out = array(); foreach ( $list as $k => $v ) { $out[ $k ] = $v[ $field ]; } return $out; }
 
 require dirname( __DIR__, 2 ) . '/framify-elementor.php';
 
@@ -380,7 +398,7 @@ foreach ( array( 'image' => false, 'container' => true ) as $type => $is_contain
     $ids  = array_keys( $c );
     $edge = array_search( 'framify_org_edge', $ids, true );
     check( "org $type: flat edge offered for wavy + flow + custom", isset( $c['framify_org_edge'] )
-        && array_merge( framify_call( $module, 'wavy_ids' ), framify_call( $module, 'flow_ids' ), array( 'custom' ) ) === $c['framify_org_edge']['condition']['framify_org_shape'] );
+        && array_merge( framify_call( $module, 'wavy_ids' ), framify_call( $module, 'flow_ids' ), array( 'custom' ) ) === framify_shape_ids( $c['framify_org_edge'] ) );
     check( "org $type: flip + rotate follow the flat edge control", false !== $edge
         && array( 'framify_org_flip_h', 'framify_org_flip_v', 'framify_org_custom_rotate' ) === array_slice( $ids, $edge + 1, 3 ) );
     foreach ( array( 'flip_h', 'flip_v' ) as $key ) {
@@ -391,7 +409,7 @@ foreach ( array( 'image' => false, 'container' => true ) as $type => $is_contain
     $rot = isset( $c['framify_org_custom_rotate'] ) ? $c['framify_org_custom_rotate'] : null;
     check( "org $type: custom rotate 0/90/180/270, default 0, custom only", $rot && 'select' === $rot['type'] && '0' === $rot['default']
         && array( '0', '90', '180', '270' ) === array_map( 'strval', array_keys( $rot['options'] ) )
-        && array( 'framify_org_enable' => 'yes', 'framify_org_shape' => 'custom' ) === $rot['condition']
+        && array( 'custom' ) === framify_shape_ids( $rot )
         && ! empty( $rot['frontend_available'] ) && 'none' === $rot['render_type'] );
 }
 
@@ -555,6 +573,14 @@ check( 'spacer: the fill clip maps the shape back into the host box', false !== 
     && false !== strpos( $org_js, 'var clipBox = fx.fill && ! fx.bleed ? fillBox( box, hostW, hostH, fx.fillMargin ) : box;' ) && false !== strpos( $org_js, 'fx.clip.origin = zoomOrigin( clipBox, fx.zoomSide );' ) );
 // A0: bleed only for a Container in Clip mode with a moving custom shape.
 check( 'organic: bg mode always takes the fill path and builds no deco', false !== strpos( $org_js, "'bg' === s.framify_org_mode ||" ) && false !== strpos( $org_js, "if ( 'bg' !== s.framify_org_mode ) {" ) );
+$lib = framify_call( new Framify_Elementor(), 'library_shapes' );
+check( 'library: assets/shapes svgs are listed as lib_* with a title and a thumbnail built from path data only', isset( $lib['lib_soft-leaf'] ) && 'Soft Leaf' === $lib['lib_soft-leaf']['title']
+    && 0 === strpos( $lib['lib_soft-leaf']['thumb'], 'data:image/svg+xml,' ) && false === strpos( rawurldecode( $lib['lib_soft-leaf']['thumb'] ), 'script' ) );
+check( 'library: Built-in | Uploaded tab + uploaded picker on the Organic Shape and Deco Blob, picker hidden unless the Uploaded tab is on', isset( $con_c['framify_org_shape_source'], $con_c['framify_org_shape_lib'], $con_c['framify_org_deco_shape_source'], $con_c['framify_org_deco_shape_lib'] )
+    && 'builtin' === $con_c['framify_org_shape_source']['default'] && 'library' === $con_c['framify_org_shape_lib']['condition']['framify_org_shape_source']
+    && 'library' === $con_c['framify_org_shape']['condition']['framify_org_shape_source!'] && isset( $con_c['framify_org_shape_lib']['options']['lib_soft-leaf'] ) );
+check( 'library: uploaded shapes reach the script and run through the Custom pipeline (library svg -> custom paste); deco is static', false !== strpos( $org_js, 'out.framify_org_custom_svg = svg;' )
+    && false !== strpos( $org_js, "var s = libraryShape( window.FramifyColor.settings( this ) );" ) && false !== strpos( $org_js, 'decoPair = { rest: libPath, hover: libPath };' ) );
 check( 'bleed: gate = container, Clip mode, custom shape, moving (Liquid / Gentle), deco off', false !== strpos( $org_js, "fx.bleed = ! spacer && 'clip' === s.framify_org_mode && !! custom && !! fx.motion;" )
     && 1 === preg_match( "/if \\( 'bg' === s\\.framify_org_mode \\|\\| \\( 'clip' === s\\.framify_org_mode && 'yes' === s\\.framify_org_deco \\) \\) \\{\\s*this\\.setupFill\\( el, id, s \\);\\s*\\} else \\{.*?fx\\.bleed = /s", $org_js ) );
 check( 'bleed: the host keeps its clip and handle rect; the fill is not clipped; grain goes inside it', 1 === preg_match( "/el\\.style\\.clipPath = 'url\\(#' \\+ id \\+ '\\)';.*?this\\.keepHandle\\( el, clip\\.path\\.parentNode \\);\\s*\\}\\s*if \\( fx\\.bleed \\) \\{.*?this\\.bleedLayers\\( el, id, s \\);\\s*return;/s", $org_js )

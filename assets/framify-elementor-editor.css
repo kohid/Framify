@@ -21,3 +21,24 @@
 .framify-divider-off [class*="elementor-control-framify_org_dv_"] {
 	display: none !important;
 }
+
+/* Shape pickers with an "Uploaded" tab (Organic Shape / Deco Blob): the
+   Built-in | Uploaded CHOOSE reads as two text tabs instead of two icons. */
+.framify-shape-tabs .elementor-choices {
+	width: 100%;
+}
+.framify-shape-tabs .elementor-choices label {
+	flex: 1 1 50%;
+	width: auto;
+	font-size: 12px;
+	line-height: 1;
+}
+.framify-shape-tabs .elementor-choices label i {
+	display: none;
+}
+.framify-shape-tabs .elementor-choices label::after {
+	content: attr(data-tooltip);
+}
+.framify-shape-tabs .elementor-choices label .elementor-screen-only {
+	display: none;
+}
