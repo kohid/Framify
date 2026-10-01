@@ -487,7 +487,6 @@ check( 'container: Deco Blob section shows whenever the shape is on, same ids as
     && $in_section( $sp_org, 'framify_deco_section' ) === $in_section( $con_org, 'framify_deco_section' ) );
 check( 'container + spacer: Clip background only has colour + overlay + opacity, CSS only (no frontend_available), mode bg', isset( $con_c['framify_orgbg_color'], $con_c['framify_orgbg_overlay'], $con_c['framify_orgbg_overlay_opacity'], $sp_c['framify_orgbg_color'] )
     && 'bg' === $con_c['framify_orgbg_color']['condition']['framify_org_mode'] && empty( $con_c['framify_orgbg_color']['frontend_available'] ) && isset( $con_c['framify_org_mode']['options']['bg'] ) && ! isset( $con_c['framify_orgbg_color']['global'] ) );
-check( 'organic: bg mode always takes the fill path and builds no deco', false !== strpos( $org_js, "'bg' === s.framify_org_mode ||" ) && false !== strpos( $org_js, "if ( 'bg' !== s.framify_org_mode ) {" ) );
 check( 'container: deco switch registered with the Clip-mode condition', $sp_on + array( 'framify_org_mode' => 'clip' ) === $con_c['framify_org_deco']['condition'] && '' === $con_c['framify_org_deco']['default'] );
 $con_deco_same = true;
 foreach ( $in_section( $con_org, 'framify_deco_section' ) as $id ) {
@@ -555,6 +554,7 @@ check( 'container: the fill margin stops at the page\'s left / right edge (no ho
 check( 'spacer: the fill clip maps the shape back into the host box', false !== strpos( $org_js, 'x: ( s.left + box.x * w ) / fw,' ) && false !== strpos( $org_js, 'w: box.w * w / fw,' )
     && false !== strpos( $org_js, 'var clipBox = fx.fill && ! fx.bleed ? fillBox( box, hostW, hostH, fx.fillMargin ) : box;' ) && false !== strpos( $org_js, 'fx.clip.origin = zoomOrigin( clipBox, fx.zoomSide );' ) );
 // A0: bleed only for a Container in Clip mode with a moving custom shape.
+check( 'organic: bg mode always takes the fill path and builds no deco', false !== strpos( $org_js, "'bg' === s.framify_org_mode ||" ) && false !== strpos( $org_js, "if ( 'bg' !== s.framify_org_mode ) {" ) );
 check( 'bleed: gate = container, Clip mode, custom shape, moving (Liquid / Gentle), deco off', false !== strpos( $org_js, "fx.bleed = ! spacer && 'clip' === s.framify_org_mode && !! custom && !! fx.motion;" )
     && 1 === preg_match( "/if \\( 'bg' === s\\.framify_org_mode \\|\\| \\( 'clip' === s\\.framify_org_mode && 'yes' === s\\.framify_org_deco \\) \\) \\{\\s*this\\.setupFill\\( el, id, s \\);\\s*\\} else \\{.*?fx\\.bleed = /s", $org_js ) );
 check( 'bleed: the host keeps its clip and handle rect; the fill is not clipped; grain goes inside it', 1 === preg_match( "/el\\.style\\.clipPath = 'url\\(#' \\+ id \\+ '\\)';.*?this\\.keepHandle\\( el, clip\\.path\\.parentNode \\);\\s*\\}\\s*if \\( fx\\.bleed \\) \\{.*?this\\.bleedLayers\\( el, id, s \\);\\s*return;/s", $org_js )
