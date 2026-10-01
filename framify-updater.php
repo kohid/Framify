@@ -157,14 +157,26 @@ class Framify_Updater {
         return new WP_Error('framify_rename_failed', 'Framify: could not rename the update folder.');
     }
 
-    /** Private-repo downloads need the token and the octet-stream Accept header. */
+    /**
+     * Private-repo downloads need the token. Only the release asset download
+     * wants the octet-stream Accept header; the release lookup must keep JSON
+     * (octet-stream there makes GitHub answer 415).
+     */
     public function authorize_download($args, $url) {
-        if (!$this->token() || 0 !== strpos($url, 'https://api.github.com/repos/' . self::REPO . '/')) {
+        $base = 'https://api.github.com/repos/' . self::REPO . '/';
+        if (!$this->token() || 0 !== strpos($url, $base)) {
+            return $args;
+        }
+        if (false !== strpos($url, '/releases/assets/')) {
+            $accept = 'application/octet-stream';
+        } elseif (false !== strpos($url, '/zipball/')) {
+            $accept = 'application/vnd.github+json';
+        } else {
             return $args;
         }
         $args['headers'] = array_merge(
             isset($args['headers']) ? (array) $args['headers'] : array(),
-            $this->api_headers('application/octet-stream')
+            $this->api_headers($accept)
         );
         return $args;
     }
