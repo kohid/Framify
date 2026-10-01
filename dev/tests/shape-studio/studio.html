@@ -1,0 +1,11 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../../assets/framify-elementor-editor.css"></head><body>
+<script>
+window.__posts=[];
+window.framifyShapeStudio={ajaxUrl:'/x',nonce:'n',shapes:[]};
+var handler=null;
+window.elementor={channels:{editor:{on:function(n,f){handler=f;}}},on:function(){}};
+window.fetch=function(u,o){window.__posts.push(Object.fromEntries(o.body.entries()));return Promise.resolve({json:function(){return Promise.resolve({success:true})}})};
+window.openStudio=function(){handler();};
+</script>
+<script src="../../../assets/framify-shape-studio.js"></script>
+</body></html>

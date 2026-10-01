@@ -54,7 +54,7 @@
 	background: rgba(0, 0, 0, .55);
 }
 .framify-studio__box {
-	width: min(420px, 94vw);
+	width: min(520px, 96vw);
 	max-height: 92vh;
 	overflow: auto;
 	background: #fff;
@@ -170,4 +170,49 @@
 }
 .framify-studio__item span {
 	flex: 1;
+}
+
+/* Pen toolkit toolbar, canvas size fields. */
+.framify-studio__tools {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-bottom: 8px;
+}
+.framify-studio__tool {
+	padding: 6px 10px;
+	border: 1px solid #d5d8dc;
+	border-radius: 3px;
+	background: #fff;
+	font-size: 12px;
+	cursor: pointer;
+}
+.framify-studio__tool.is-active {
+	background: #d5008f;
+	border-color: #d5008f;
+	color: #fff;
+}
+.framify-studio__size {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.framify-studio__size input {
+	width: 74px;
+}
+.framify-studio__check {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 8px 0;
+}
+.framify-studio__canvas[data-tool="select"] {
+	cursor: default;
+}
+.framify-studio__canvas[data-tool="delete"] {
+	cursor: not-allowed;
+}
+.framify-studio__canvas[data-tool="add"],
+.framify-studio__canvas[data-tool="convert"] {
+	cursor: copy;
 }
