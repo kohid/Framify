@@ -1,0 +1,1405 @@
+/**
+ * Framify - Live Preview Frontend Styles
+ *
+ * Every colour here comes from a token. The tokens themselves, and the theme
+ * picker component, live in framify-themes.css - load that first.
+ */
+
+/* ============================================================
+   1. BASE
+   ============================================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    font-family: var(--fr-sans);
+    background: #f0f0f1;
+}
+
+html {
+    margin: 0 !important;
+}
+
+/* Shared label voice: the chrome speaks in the same face as the code. */
+.editor-header h3,
+.editor-tab,
+.viewport-selector label,
+.modal-header h2,
+.code-type-btn,
+.modal-footer button,
+.css-save-btn,
+.jquery-save-btn,
+.php-save-btn,
+.html-save-btn,
+.edit-code-btn,
+.framify-url-rule-new button,
+.fr-theme__name,
+.fr-eyebrow {
+    font-family: var(--fr-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    font-weight: 600;
+}
+
+:focus-visible {
+    outline: 2px solid var(--fr-accent);
+    outline-offset: 2px;
+}
+
+/* ============================================================
+   3. LAYOUT
+   ============================================================ */
+
+#framify-live-wrapper {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+}
+
+#framify-preview-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+#framify-preview-frame {
+    width: 100%;
+    height: 100%;
+    border: 1px solid #ddd;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+/* ============================================================
+   4. EDITOR SHELL
+   ============================================================ */
+
+#framify-floating-editor {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: var(--fr-dock-width);
+    height: 600px;
+    background: var(--fr-bg);
+    color: var(--fr-text);
+    border: 1px solid var(--fr-line);
+    border-radius: var(--fr-radius);
+    box-shadow: var(--fr-shadow);
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#framify-floating-editor.collapsed {
+    width: 52px !important;
+    height: 52px !important;
+    border-radius: 50%;
+}
+
+#framify-floating-editor.collapsed .editor-body,
+#framify-floating-editor.collapsed .editor-footer {
+    display: none !important;
+}
+
+#framify-floating-editor.collapsed .editor-header h3,
+#framify-floating-editor.collapsed .editor-controls button:not(.toggle-collapse) {
+    display: none !important;
+}
+
+#framify-floating-editor.collapsed .editor-header {
+    cursor: pointer;
+    justify-content: center;
+    border-bottom: none;
+    height: 100%;
+    padding: 0;
+}
+
+/* --- Resize handles --------------------------------------- */
+.resize-handle {
+    position: absolute;
+    z-index: 1000;
+    background: transparent;
+}
+
+.resize-handle-n { top: 0; left: 0; right: 0; height: 5px; cursor: ns-resize; }
+.resize-handle-s { bottom: 0; left: 0; right: 0; height: 5px; cursor: ns-resize; }
+.resize-handle-e { top: 0; right: 0; bottom: 0; width: 5px; cursor: ew-resize; }
+.resize-handle-w { top: 0; left: 0; bottom: 0; width: 5px; cursor: ew-resize; }
+.resize-handle-ne { top: 0; right: 0; width: 15px; height: 15px; cursor: nesw-resize; }
+.resize-handle-nw { top: 0; left: 0; width: 15px; height: 15px; cursor: nwse-resize; }
+.resize-handle-se { bottom: 0; right: 0; width: 15px; height: 15px; cursor: nwse-resize; }
+.resize-handle-sw { bottom: 0; left: 0; width: 15px; height: 15px; cursor: nesw-resize; }
+
+#framify-floating-editor.collapsed .resize-handle {
+    display: none;
+}
+
+#framify-floating-editor.resizing {
+    user-select: none;
+}
+
+#framify-floating-editor.resizing * {
+    pointer-events: none;
+}
+
+/* ============================================================
+   5. HEADER
+   ============================================================ */
+
+.editor-header {
+    background: var(--fr-chrome);
+    color: var(--fr-chrome-ink);
+    padding: 0 8px 0 14px;
+    height: 42px;
+    border-bottom: 1px solid var(--fr-chrome-line);
+    cursor: move;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.editor-header h3 {
+    color: var(--fr-chrome-ink);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    margin: 0;
+    opacity: 0.85;
+}
+
+.editor-controls {
+    display: flex;
+    gap: 2px;
+}
+
+.editor-controls button {
+    background: transparent;
+    border: none;
+    color: var(--fr-chrome-ink);
+    width: 28px;
+    height: 28px;
+    border-radius: var(--fr-radius-xs);
+    cursor: pointer;
+    opacity: 0.55;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s, opacity 0.15s;
+}
+
+.editor-controls button:hover {
+    opacity: 1;
+    background: var(--fr-accent-soft);
+}
+
+.editor-controls button svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* ============================================================
+   6. TABS
+   ============================================================ */
+
+.editor-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--fr-bg);
+    min-height: 0;
+}
+
+.editor-tabs {
+    display: flex;
+    background: var(--fr-surface);
+    border-bottom: 1px solid var(--fr-line);
+    flex-shrink: 0;
+}
+
+.editor-tab {
+    flex: 1;
+    padding: 10px 8px;
+    background: transparent;
+    border: none;
+    color: var(--fr-text-dim);
+    cursor: pointer;
+    font-size: 11px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.editor-tab:hover {
+    color: var(--fr-text);
+}
+
+.editor-tab.active {
+    color: var(--fr-accent);
+    border-bottom-color: var(--fr-accent);
+}
+
+.editor-content {
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+    position: relative;
+}
+
+.editor-pane {
+    display: none;
+    height: 100%;
+    flex-direction: column;
+    position: relative;
+}
+
+.editor-pane.active {
+    display: flex;
+}
+
+/* ============================================================
+   7. PANE CONTROLS
+   ============================================================ */
+
+.pane-selector {
+    padding: 10px 12px;
+    background: var(--fr-surface);
+    border-bottom: 1px solid var(--fr-line);
+    flex-shrink: 0;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.pane-selector select {
+    flex: 1;
+    min-width: 150px;
+    height: 34px;
+    padding: 0 10px;
+    background: var(--fr-surface-2);
+    color: var(--fr-text);
+    border: 1px solid var(--fr-line);
+    border-radius: var(--fr-radius-sm);
+    font-size: 12px;
+    font-family: var(--fr-sans);
+}
+
+.pane-selector select:focus {
+    border-color: var(--fr-accent);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--fr-accent-soft);
+}
+
+.edit-code-btn {
+    display: none;
+    height: 34px;
+    padding: 0 14px;
+    background: transparent;
+    border: 1px solid var(--fr-line-strong);
+    color: var(--fr-text);
+    border-radius: var(--fr-radius-sm);
+    cursor: pointer;
+    font-size: 10px;
+    white-space: nowrap;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.edit-code-btn:hover {
+    background: var(--fr-accent);
+    border-color: var(--fr-accent);
+    color: var(--fr-accent-ink);
+}
+
+/* --- Find & replace ---------------------------------------- */
+.search-box {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    min-width: 280px;
+    background: var(--fr-surface-2);
+    border: 1px solid var(--fr-line);
+    border-radius: var(--fr-radius-sm);
+    padding: 5px;
+    gap: 5px;
+}
+
+.search-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.replace-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding-top: 5px;
+    border-top: 1px solid var(--fr-line);
+}
+
+.search-box input {
+    flex: 1;
+    padding: 6px 8px;
+    background: var(--fr-bg);
+    color: var(--fr-text);
+    border: 1px solid var(--fr-line);
+    border-radius: var(--fr-radius-xs);
+    font-size: 12px;
+    font-family: var(--fr-mono);
+    outline: none;
+    min-width: 0;
+}
+
+.search-box input:focus {
+    border-color: var(--fr-accent);
+    box-shadow: 0 0 0 3px var(--fr-accent-soft);
+}
+
+.search-prev,
+.search-next,
+.search-close,
+.toggle-replace {
+    background: transparent;
+    border: 1px solid var(--fr-line);
+    color: var(--fr-text-dim);
+    width: 26px;
+    height: 26px;
+    border-radius: var(--fr-radius-xs);
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s, color 0.15s;
+    padding: 0;
+    line-height: 1;
+}
+
+.search-prev:hover,
+.search-next:hover,
+.search-close:hover,
+.toggle-replace:hover {
+    background: var(--fr-accent-soft);
+    color: var(--fr-text);
+}
+
+.toggle-replace.active {
+    transform: rotate(180deg);
+}
+
+.search-prev svg,
+.search-next svg,
+.toggle-replace svg,
+.accordion-toggle svg {
+    width: 12px;
+    height: 12px;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.accordion-toggle {
+    display: inline-flex;
+    align-items: center;
+}
+
+.search-counter {
+    color: var(--fr-text-dim);
+    font-family: var(--fr-mono);
+    font-size: 10px;
+    padding: 0 6px;
+    white-space: nowrap;
+    min-width: 50px;
+    text-align: center;
+}
+
+.replace-one,
+.replace-all {
+    background: transparent;
+    border: 1px solid var(--fr-line);
+    color: var(--fr-text-dim);
+    padding: 0 10px;
+    height: 26px;
+    border-radius: var(--fr-radius-xs);
+    cursor: pointer;
+    font-family: var(--fr-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.replace-one:hover,
+.replace-all:hover {
+    background: var(--fr-accent);
+    border-color: var(--fr-accent);
+    color: var(--fr-accent-ink);
+}
+
+.search-highlight {
+    background-color: var(--fr-accent-soft);
+    border: 1px solid var(--fr-accent);
+}
+
+.CodeMirror-selected {
+    background-color: var(--fr-accent-soft) !important;
+}
+
+.CodeMirror {
+    flex: 1 !important;
+    height: auto !important;
+    font-size: 13px;
+}
+
+/* Let the code surface sit on the theme's own background so the panel reads
+   as one object. Syntax colours still come from the CodeMirror theme. */
+.CodeMirror,
+.CodeMirror-gutters {
+    background: var(--fr-bg) !important;
+}
+
+.CodeMirror-gutters {
+    border-right: 1px solid var(--fr-line) !important;
+}
+
+/* Autocomplete menu - Tab, or Ctrl-Space, in the CSS pane.
+   Overrides the addon's default white popup so it belongs to the theme. */
+.CodeMirror-hints {
+    position: absolute;
+    z-index: 99999999;
+    margin: 0;
+    padding: 4px;
+    list-style: none;
+    max-height: 15em;
+    overflow-y: auto;
+    background: var(--fr-surface);
+    border: 1px solid var(--fr-line-strong);
+    border-radius: var(--fr-radius-sm);
+    box-shadow: var(--fr-shadow);
+    font-family: var(--fr-mono);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.CodeMirror-hint {
+    margin: 0;
+    padding: 3px 10px;
+    border-radius: var(--fr-radius-xs);
+    white-space: pre;
+    color: var(--fr-text);
+    cursor: pointer;
+}
+
+.CodeMirror-hint:hover {
+    background: var(--fr-accent-soft);
+}
+
+li.CodeMirror-hint-active,
+li.CodeMirror-hint-active:hover {
+    background: var(--fr-accent);
+    color: var(--fr-accent-ink);
+}
+
+.CodeMirror-disabled {
+    opacity: 0.55;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
+.CodeMirror-disabled .CodeMirror-cursor {
+    display: none !important;
+}
+
+/* ============================================================
+   8. ACTIONS
+   ============================================================ */
+
+.css-save-btn,
+.jquery-save-btn,
+.php-save-btn,
+.html-save-btn {
+    display: none;
+    position: absolute;
+    bottom: 14px;
+    right: 14px;
+    padding: 9px 18px;
+    background: var(--fr-accent);
+    border: none;
+    color: var(--fr-accent-ink);
+    border-radius: var(--fr-radius-sm);
+    cursor: pointer;
+    font-size: 11px;
+    box-shadow: 0 4px 14px var(--fr-accent-soft);
+    transition: background-color 0.15s, transform 0.15s;
+    z-index: 10;
+}
+
+.css-save-btn:hover,
+.jquery-save-btn:hover,
+.php-save-btn:hover,
+.html-save-btn:hover {
+    background: var(--fr-accent-hover);
+    transform: translateY(-1px);
+}
+
+.css-save-btn:disabled,
+.jquery-save-btn:disabled,
+.php-save-btn:disabled,
+.html-save-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.add-code-floating {
+    width: 34px;
+    height: 34px;
+    background: var(--fr-accent);
+    border: none;
+    border-radius: var(--fr-radius-sm);
+    color: var(--fr-accent-ink);
+    font-size: 20px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.15s, transform 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.add-code-floating:hover {
+    background: var(--fr-accent-hover);
+    transform: translateY(-1px);
+}
+
+/* ============================================================
+   9. FOOTER
+   ============================================================ */
+
+.editor-footer {
+    padding: 8px 12px;
+    background: var(--fr-surface);
+    border-top: 1px solid var(--fr-line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.settings-btn {
+    width: 34px;
+    height: 34px;
+    background: transparent;
+    border: 1px solid var(--fr-line-strong);
+    border-radius: var(--fr-radius-sm);
+    color: var(--fr-text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.settings-btn:hover {
+    background: var(--fr-accent-soft);
+    border-color: var(--fr-accent);
+    color: var(--fr-accent);
+}
+
+.settings-btn svg {
+    width: 15px;
+    height: 15px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.viewport-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.viewport-selector label {
+    color: var(--fr-text-dim);
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.viewport-selector select {
+    height: 30px;
+    padding: 0 8px;
+    background: var(--fr-surface-2);
+    color: var(--fr-text);
+    border: 1px solid var(--fr-line);
+    border-radius: var(--fr-radius-xs);
+    font-family: var(--fr-mono);
+    font-size: 11px;
+}
+
+.viewport-selector select:focus {
+    border-color: var(--fr-accent);
+    outline: none;
+}
+
+.back-to-admin {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    padding: 10px 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: var(--fr-radius-sm);
+    text-decoration: none;
+    color: #2271b1;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 999998;
+    transition: all 0.2s;
+}
+
+.back-to-admin:hover {
+    background: #2271b1;
+    color: #fff;
+}
+
+/* ============================================================
+   10. MODALS
+   ============================================================ */
+
+#framify-add-modal,
+#framify-settings-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--fr-scrim);
+    z-index: 9999999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+#framify-settings-modal {
+    z-index: 99999999;
+}
+
+#framify-add-modal.active,
+#framify-settings-modal.active {
+    display: flex !important;
+}
+
+.modal-content {
+    background: var(--fr-bg);
+    color: var(--fr-text);
+    border: 1px solid var(--fr-line);
+    border-radius: var(--fr-radius);
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    /* Flex items default to min-width:auto, which stops the modal shrinking
+       below its content on narrow screens. */
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--fr-shadow);
+}
+
+.modal-header {
+    background: var(--fr-chrome);
+    color: var(--fr-chrome-ink);
+    padding: 0 10px 0 20px;
+    height: 52px;
+    border-bottom: 1px solid var(--fr-chrome-line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.modal-header h2 {
+    color: var(--fr-chrome-ink);
+    margin: 0;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--fr-chrome-ink);
+    width: 32px;
+    height: 32px;
+    border-radius: var(--fr-radius-xs);
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+    opacity: 0.6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s, opacity 0.15s;
+}
+
+.modal-close:hover {
+    opacity: 1;
+    background: var(--fr-accent-soft);
+}
+
+.modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.modal-field {
+    margin-bottom: 20px;
+}
+
+.modal-field label {
+    display: block;
+    color: var(--fr-text-dim);
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.modal-field input[type="text"],
+.modal-field input[type="number"],
+.modal-field select {
+    width: 100%;
+    height: 44px;
+    padding: 0 14px;
+    background: var(--fr-surface-2);
+    border: 1px solid var(--fr-line);
+    border-radius: var(--fr-radius-sm);
+    color: var(--fr-text);
+    font-size: 14px;
+    font-family: var(--fr-sans);
+}
+
+.modal-field input:focus,
+.modal-field select:focus {
+    border-color: var(--fr-accent);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--fr-accent-soft);
+}
+
+.modal-accordion {
+    margin-bottom: 15px;
+    border: 1px solid var(--fr-line);
+    border-radius: var(--fr-radius-sm);
+    overflow: hidden;
+}
+
+.accordion-header {
+    background: var(--fr-surface);
+    padding: 12px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+    transition: background-color 0.15s;
+}
+
+.accordion-header:hover {
+    background: var(--fr-surface-2);
+}
+
+.accordion-header h3 {
+    margin: 0;
+    color: var(--fr-text);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.accordion-toggle {
+    color: var(--fr-text-dim);
+    font-size: 14px;
+    transition: transform 0.2s;
+}
+
+.modal-accordion.active .accordion-toggle {
+    transform: rotate(180deg);
+}
+
+.accordion-body {
+    display: none;
+    padding: 15px;
+    background: var(--fr-surface);
+}
+
+.modal-accordion.active .accordion-body {
+    display: block;
+}
+
+.framify-option-wrapper {
+    padding: 15px 10px 26px;
+    border-bottom: 1px solid var(--fr-line);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.framify-option-wrapper .framify-option {
+    width: 50%;
+}
+
+.framify-option-wrapper .framify-option select {
+    width: 100%;
+    height: 40px;
+}
+
+.framify-option label {
+    color: var(--fr-text);
+    margin-bottom: 5px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.framify-option select,
+.framify-option input[type="text"],
+.framify-option input[type="number"] {
+    background: var(--fr-surface-2);
+    border: 1px solid var(--fr-line);
+    border-radius: var(--fr-radius-xs);
+    color: var(--fr-text);
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: var(--fr-sans);
+}
+
+.framify-option select:focus,
+.framify-option input:focus {
+    border-color: var(--fr-accent);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--fr-accent-soft);
+}
+
+.framify-option input[type="checkbox"] {
+    accent-color: var(--fr-accent);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.framify-option .description {
+    color: var(--fr-text-dim);
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.framify-option #modal-new-rule-type,
+.framify-option #modal-new-rule-value {
+    font-size: 14px;
+    border-radius: var(--fr-radius-sm);
+    height: 44px;
+    padding: 0 14px;
+}
+
+#modal-priority {
+    text-align: center;
+    width: 72px;
+    height: 32px;
+}
+
+.url-rule-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background: var(--fr-surface-2);
+    border: 1px solid var(--fr-line);
+    margin-bottom: 8px;
+    border-radius: var(--fr-radius-sm);
+}
+
+.url-rule-item .rule-type {
+    font-weight: 600;
+    color: var(--fr-accent);
+    margin-right: 10px;
+    font-size: 13px;
+}
+
+.url-rule-item .rule-value {
+    flex: 1;
+    color: var(--fr-text-dim);
+    font-family: var(--fr-mono);
+    font-size: 12px;
+}
+
+.url-rule-item .rule-remove {
+    color: var(--fr-danger);
+    text-decoration: none;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 8px;
+}
+
+.framify-url-rule-new {
+    margin-top: 15px;
+}
+
+.framify-url-rule-new select,
+.framify-url-rule-new input {
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.framify-url-rule-new button {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: 1px dashed var(--fr-line-strong);
+    color: var(--fr-text-dim);
+    border-radius: var(--fr-radius-sm);
+    cursor: pointer;
+    font-size: 11px;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.framify-url-rule-new button:hover {
+    background: var(--fr-accent-soft);
+    border-color: var(--fr-accent);
+    border-style: solid;
+    color: var(--fr-accent);
+}
+
+.modal-footer {
+    padding: 14px 20px;
+    background: var(--fr-surface);
+    border-top: 1px solid var(--fr-line);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
+.modal-footer button {
+    padding: 9px 18px;
+    border: none;
+    border-radius: var(--fr-radius-sm);
+    cursor: pointer;
+    font-size: 11px;
+    transition: background-color 0.15s, transform 0.15s;
+}
+
+.btn-cancel {
+    background: transparent;
+    border: 1px solid var(--fr-line-strong) !important;
+    color: var(--fr-text-dim);
+}
+
+.btn-cancel:hover {
+    background: var(--fr-surface-2);
+    color: var(--fr-text);
+}
+
+.btn-save {
+    background: var(--fr-accent);
+    color: var(--fr-accent-ink);
+}
+
+.btn-save:hover {
+    background: var(--fr-accent-hover);
+    transform: translateY(-1px);
+}
+
+.btn-delete {
+    background: transparent;
+    border: 1px solid var(--fr-danger) !important;
+    color: var(--fr-danger);
+}
+
+.btn-delete:hover {
+    background: var(--fr-danger);
+    color: #fff;
+}
+
+.code-type-selector {
+    display: flex;
+    gap: 6px;
+    padding: 10px;
+    background: var(--fr-surface);
+    border-bottom: 1px solid var(--fr-line);
+    flex-shrink: 0;
+}
+
+.code-type-btn {
+    flex: 1;
+    padding: 9px 8px;
+    background: transparent;
+    border: 1px solid var(--fr-line);
+    color: var(--fr-text-dim);
+    border-radius: var(--fr-radius-sm);
+    cursor: pointer;
+    font-size: 11px;
+    text-align: center;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.code-type-btn:hover {
+    border-color: var(--fr-accent);
+    color: var(--fr-text);
+}
+
+.code-type-btn.active {
+    background: var(--fr-accent);
+    border-color: var(--fr-accent);
+    color: var(--fr-accent-ink);
+}
+
+/* ============================================================
+   12. DOCK & FLOAT SYSTEM
+   ============================================================ */
+
+#framify-floating-editor.dock-float {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: var(--fr-dock-width);
+    height: 600px;
+    border-radius: var(--fr-radius);
+    z-index: 999999;
+}
+
+#framify-floating-editor.dock-float .resize-handle {
+    display: block;
+}
+
+#framify-floating-editor.dock-float .dock-resize-handle {
+    display: none !important;
+}
+
+#framify-live-wrapper:has(#framify-floating-editor.dock-float) #framify-preview-container {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    flex: 1 !important;
+}
+
+#framify-live-wrapper:has(#framify-floating-editor.dock-float) #framify-preview-frame {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+}
+
+/* --- Dock left --------------------------------------------- */
+#framify-floating-editor.dock-left {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    right: auto !important;
+    width: var(--fr-dock-width);
+    height: 100vh !important;
+    border-radius: 0 !important;
+    border-width: 0 1px 0 0;
+    z-index: 999999;
+}
+
+#framify-floating-editor.dock-left .resize-handle {
+    display: none !important;
+}
+
+#framify-floating-editor.dock-left .dock-resize-handle {
+    display: block !important;
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: ew-resize;
+    background: transparent;
+    z-index: 10;
+    transition: background 0.2s;
+}
+
+#framify-floating-editor.dock-left .dock-resize-handle:hover {
+    background: var(--fr-accent);
+}
+
+#framify-live-wrapper:has(#framify-floating-editor.dock-left) #framify-preview-container {
+    position: fixed !important;
+    left: var(--fr-dock-width) !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transition: left 0.3s ease;
+}
+
+#framify-live-wrapper:has(#framify-floating-editor.dock-left) #framify-preview-frame {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* --- Dock right -------------------------------------------- */
+#framify-floating-editor.dock-right {
+    position: fixed !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: auto !important;
+    width: var(--fr-dock-width);
+    height: 100vh !important;
+    border-radius: 0 !important;
+    border-width: 0 0 0 1px;
+    z-index: 999999;
+}
+
+#framify-floating-editor.dock-right .resize-handle {
+    display: none !important;
+}
+
+#framify-floating-editor.dock-right .dock-resize-handle {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: ew-resize;
+    background: transparent;
+    z-index: 10;
+    transition: background 0.2s;
+}
+
+#framify-floating-editor.dock-right .dock-resize-handle:hover {
+    background: var(--fr-accent);
+}
+
+#framify-live-wrapper:has(#framify-floating-editor.dock-right) #framify-preview-container {
+    position: fixed !important;
+    left: 0 !important;
+    right: var(--fr-dock-width) !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transition: right 0.3s ease;
+}
+
+#framify-live-wrapper:has(#framify-floating-editor.dock-right) #framify-preview-frame {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* --- Dock bottom ------------------------------------------- */
+#framify-floating-editor.dock-bottom {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    width: 100% !important;
+    height: var(--fr-dock-height);
+    border-radius: 0 !important;
+    border-width: 1px 0 0 0;
+    z-index: 999999;
+}
+
+#framify-floating-editor.dock-bottom .resize-handle {
+    display: none !important;
+}
+
+#framify-floating-editor.dock-bottom .dock-resize-handle {
+    display: block !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6px;
+    cursor: ns-resize;
+    background: transparent;
+    z-index: 10;
+    transition: background 0.2s;
+}
+
+#framify-floating-editor.dock-bottom .dock-resize-handle:hover {
+    background: var(--fr-accent);
+}
+
+#framify-live-wrapper:has(#framify-floating-editor.dock-bottom) #framify-preview-container {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: var(--fr-dock-height) !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transition: bottom 0.3s ease;
+}
+
+#framify-live-wrapper:has(#framify-floating-editor.dock-bottom) #framify-preview-frame {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* --- Active dock indicator --------------------------------- */
+.dock-position-btn {
+    opacity: 0.45;
+}
+
+.dock-position-btn:hover {
+    opacity: 0.85;
+}
+
+#framify-floating-editor.dock-float .dock-position-btn[data-position="float"],
+#framify-floating-editor.dock-left .dock-position-btn[data-position="left"],
+#framify-floating-editor.dock-right .dock-position-btn[data-position="right"],
+#framify-floating-editor.dock-bottom .dock-position-btn[data-position="bottom"] {
+    opacity: 1 !important;
+    color: var(--fr-accent) !important;
+    background: var(--fr-accent-soft) !important;
+}
+
+/* --- Dock-specific chrome tweaks ---------------------------- */
+#framify-floating-editor.dock-bottom .editor-header,
+#framify-floating-editor.dock-bottom .editor-footer,
+#framify-floating-editor.dock-left .editor-header,
+#framify-floating-editor.dock-left .editor-footer,
+#framify-floating-editor.dock-right .editor-header,
+#framify-floating-editor.dock-right .editor-footer {
+    border-radius: 0;
+}
+
+#framify-floating-editor.dock-bottom .editor-tab,
+#framify-floating-editor.dock-bottom .pane-selector {
+    padding: 6px 10px;
+}
+
+/* ============================================================
+   13. RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 1024px) {
+    #framify-floating-editor.dock-left,
+    #framify-floating-editor.dock-right {
+        --fr-dock-width: 350px;
+    }
+
+    #framify-live-wrapper:has(#framify-floating-editor.dock-left) #framify-preview-container {
+        left: 350px !important;
+    }
+
+    #framify-live-wrapper:has(#framify-floating-editor.dock-right) #framify-preview-container {
+        right: 350px !important;
+    }
+
+    #framify-floating-editor.dock-bottom {
+        --fr-dock-height: 300px;
+    }
+
+    #framify-live-wrapper:has(#framify-floating-editor.dock-bottom) #framify-preview-container {
+        bottom: 300px !important;
+    }
+}
+
+@media (max-width: 720px) {
+    .fr-theme-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 440px) {
+    .fr-theme-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .framify-option-wrapper {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .framify-option-wrapper .framify-option {
+        width: 100%;
+    }
+
+    .modal-footer {
+        flex-wrap: wrap;
+    }
+
+    .fr-theme-status {
+        margin-right: 0;
+        width: 100%;
+        margin-bottom: 8px;
+    }
+}
+
+/* ============================================================
+   14. REDUCED MOTION
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    html.fr-theming #framify-floating-editor,
+    html.fr-theming #framify-floating-editor *,
+    html.fr-theming .modal-content,
+    html.fr-theming .modal-content * {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+
+    .fr-theme:hover,
+    .btn-save:hover,
+    .add-code-floating:hover,
+    .css-save-btn:hover,
+    .jquery-save-btn:hover,
+    .php-save-btn:hover,
+    .html-save-btn:hover {
+        transform: none;
+    }
+}

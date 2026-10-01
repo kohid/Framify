@@ -1,0 +1,178 @@
+/**
+ * Framify - Elementor Floating Shapes (frontend + editor preview)
+ *
+ * Three nested layers per shape, each with one job, so the motions never
+ * fight over one transform: the shape box drifts and fades, the sway box
+ * wobbles across the drift, and the svg spins. Only transform and opacity
+ * animate, so the compositor does the work.
+ *
+ * Numbers come from assets/framify-shapes.js as custom properties:
+ *   wrapper: --fs-w, --fs-h  (band size in px, unitless, re-measured on resize)
+ *   shape:   --fs-dur, --fs-delay, --fs-o, --fs-dx, --fs-dy,
+ *            --fs-sx, --fs-sy, --fs-sd, --fs-sdelay, --fs-r0, --fs-rot
+ *
+ * File: assets/framify-shapes.css
+ */
+
+/* A stacking context keeps the layer's z-index local: the overlay's 5 must
+   not rise above a sticky header elsewhere on the page. */
+.framify-fs-host {
+	isolation: isolate;
+}
+
+/* Spacer host (its static .elementor-widget-container): kept positioned
+   by class while a layer holds it, whichever module set the inline
+   position first (see framify-elementor.css). */
+.elementor-widget-spacer > .elementor-widget-container.framify-fs-host {
+	position: relative;
+}
+
+/*
+ * Image widget photo frames (FramifyFx.photoFrame in framify-shapes.js):
+ * Floating Shapes / Text layers sit in a frame the script sizes to the
+ * img's offset box. The widget stays positioned while a frame exists, and
+ * the img is lifted to z-index 1 (as Organic Shape does) so the Behind
+ * frame (0, after Organic's deco blob in tree order) paints under the
+ * photo and the Over frame (3, above the image grain layer's 2) over it.
+ * Nothing here takes clicks: the link / lightbox on the img still works.
+ */
+.framify-fx-photo {
+	position: relative;
+}
+
+.framify-fx-photo img {
+	position: relative;
+	z-index: 1;
+}
+
+.framify-fx-photo > .framify-fx-frame {
+	position: absolute;
+	z-index: 0;
+	pointer-events: none;
+}
+
+.framify-fx-photo > .framify-fx-frame--over {
+	z-index: 3;
+}
+
+/*
+ * Background layer: z-index 0, inserted after Elementor's own background
+ * layers (container ::before overlay, a legacy Section's
+ * .elementor-background-overlay div, video/slideshow). z-index -1 would
+ * paint under the ::before background overlay, hiding the shapes whenever
+ * an overlay colour is set. At 0 the layer paints in tree order among the
+ * positioned elements: after the overlay, before every widget and child
+ * container (Elementor makes those position: relative), so content stays
+ * on top without being touched.
+ */
+.framify-fs {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	z-index: 0;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+.framify-fs--left {
+	right: auto;
+}
+
+.framify-fs--right {
+	left: auto;
+}
+
+/* Above content; pointer-events: none (inherited) lets clicks through. */
+.framify-fs--overlay {
+	z-index: 5;
+}
+
+.framify-fs__shape {
+	position: absolute;
+	opacity: 0;
+	will-change: transform, opacity;
+	animation: framify-fs-drift var(--fs-dur, 12s) linear var(--fs-delay, 0s) infinite;
+}
+
+.framify-fs__sway {
+	width: 100%;
+	height: 100%;
+	animation: framify-fs-sway var(--fs-sd, 5s) ease-in-out var(--fs-sdelay, 0s) infinite alternate;
+}
+
+.framify-fs__shape svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+	/* Non-scaling outlines are sized in px; let a thick one on a small
+	   shape overhang the 100-unit box instead of being cut flat. */
+	overflow: visible;
+	transform: rotate(var(--fs-r0, 0deg));
+	animation: framify-fs-spin var(--fs-dur, 12s) linear var(--fs-delay, 0s) infinite;
+}
+
+.framify-fs--nospin .framify-fs__shape svg {
+	animation: none;
+	transform: none;
+}
+
+/* Fade in over the first 15%, out over the last 15%: shapes never pop. */
+@keyframes framify-fs-drift {
+	0% {
+		transform: translate3d(0, 0, 0);
+		opacity: 0;
+	}
+	15% {
+		opacity: var(--fs-o, 0.8);
+	}
+	85% {
+		opacity: var(--fs-o, 0.8);
+	}
+	100% {
+		transform: translate3d(var(--fs-dx, 0px), var(--fs-dy, 0px), 0);
+		opacity: 0;
+	}
+}
+
+@keyframes framify-fs-sway {
+	from {
+		transform: translate3d(calc(-1 * var(--fs-sx, 0px)), calc(-1 * var(--fs-sy, 0px)), 0);
+	}
+	to {
+		transform: translate3d(var(--fs-sx, 0px), var(--fs-sy, 0px), 0);
+	}
+}
+
+@keyframes framify-fs-spin {
+	from {
+		transform: rotate(var(--fs-r0, 0deg));
+	}
+	to {
+		transform: rotate(calc(var(--fs-r0, 0deg) + var(--fs-rot, 0deg)));
+	}
+}
+
+/* Off-screen: stop spending frames. Toggled by an IntersectionObserver. */
+.framify-fs.is-paused .framify-fs__shape,
+.framify-fs.is-paused .framify-fs__sway,
+.framify-fs.is-paused svg {
+	animation-play-state: paused;
+}
+
+/* Reduced motion: the script draws a still scatter with inline opacity.
+   The media query is a second line of defence if it changes after build. */
+.framify-fs--still .framify-fs__shape,
+.framify-fs--still .framify-fs__sway,
+.framify-fs--still svg {
+	animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.framify-fs .framify-fs__shape,
+	.framify-fs .framify-fs__sway,
+	.framify-fs svg {
+		animation: none;
+	}
+}

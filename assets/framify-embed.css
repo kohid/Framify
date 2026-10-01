@@ -1,0 +1,214 @@
+/* ================================================================
+   Framify — embedded tools
+
+   Two things live here: the frame around a working tool, and the inert
+   demo shown to anyone who cannot use one.
+
+   Everything paints from the --fr-* tokens in framify-themes.css, which
+   must load first. The theme attribute sits on the embed wrapper rather
+   than <html>, because a shortcode does not own the document it lands in.
+================================================================ */
+
+.framify-embed {
+    display: block;
+    width: 100%;
+    margin: 24px 0;
+    border: 1px solid var(--fr-line);
+    border-radius: var(--fr-radius);
+    background: var(--fr-bg);
+    color: var(--fr-text);
+    font-family: var(--fr-sans);
+    overflow: hidden;
+    box-shadow: var(--fr-shadow);
+}
+
+.framify-embed__frame {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: var(--fr-bg);
+}
+
+/* ================================================================
+   DEMO
+================================================================ */
+.framify-embed--demo {
+    /* Inert by definition: nothing in here responds to a click, so it
+       should not invite one. */
+    cursor: default;
+    user-select: none;
+}
+
+.fr-demo {
+    display: flex;
+    flex-direction: column;
+}
+
+.fr-demo__bar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 14px;
+    height: 38px;
+    background: var(--fr-chrome);
+    color: var(--fr-chrome-ink);
+    border-bottom: 1px solid var(--fr-chrome-line);
+}
+
+.fr-demo__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--fr-chrome-ink);
+    opacity: 0.3;
+    flex-shrink: 0;
+}
+
+.fr-demo__title {
+    margin-left: 6px;
+    font-family: var(--fr-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.fr-demo__title strong {
+    color: var(--fr-accent);
+    font-weight: 600;
+}
+
+/* The score sits opposite the wordmark, the way it does in the analyser. */
+.fr-demo__score {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid var(--fr-accent);
+    font-family: var(--fr-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--fr-accent);
+}
+
+.fr-demo__tabs {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    height: 34px;
+    padding: 0 14px;
+    background: var(--fr-surface);
+    border-bottom: 1px solid var(--fr-line);
+    font-family: var(--fr-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--fr-text-dim);
+}
+
+.fr-demo__tabs .is-on {
+    color: var(--fr-accent);
+    box-shadow: inset 0 -2px 0 var(--fr-accent);
+}
+
+.fr-demo__code {
+    margin: 0;
+    padding: 16px 14px;
+    background: var(--fr-bg);
+    font-family: var(--fr-mono);
+    font-size: 12px;
+    line-height: 1.9;
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.fr-demo__ln {
+    display: inline-block;
+    width: 22px;
+    color: var(--fr-tok-com);
+    opacity: 0.65;
+}
+
+/* Same token names the theme picker uses, so a new theme styles the demo
+   without anyone touching this file. */
+.fr-demo__code .t-sel  { color: var(--fr-tok-sel); }
+.fr-demo__code .t-prop { color: var(--fr-tok-prop); }
+.fr-demo__code .t-val  { color: var(--fr-tok-val); }
+.fr-demo__code .t-punc { color: var(--fr-tok-punc); }
+.fr-demo__code .t-com  { color: var(--fr-tok-com); }
+
+.fr-demo__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0 14px;
+    height: 42px;
+    background: var(--fr-surface);
+    border-top: 1px solid var(--fr-line);
+    font-size: 11px;
+    color: var(--fr-text-dim);
+}
+
+.fr-demo__btn {
+    padding: 6px 16px;
+    border-radius: var(--fr-radius-sm);
+    background: var(--fr-accent);
+    color: var(--fr-accent-ink);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* ================================================================
+   DEMO — analyser check rows
+================================================================ */
+.fr-demo__checks {
+    display: flex;
+    flex-direction: column;
+}
+
+.fr-demo__check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--fr-line);
+    font-size: 12px;
+}
+
+.fr-demo__check:last-child {
+    border-bottom: 0;
+}
+
+.fr-demo__mark {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.fr-demo__check.is-pass .fr-demo__mark { background: var(--fr-pass); }
+.fr-demo__check.is-warn .fr-demo__mark { background: var(--fr-warn); }
+.fr-demo__check.is-fail .fr-demo__mark { background: var(--fr-fail); }
+
+.fr-demo__label {
+    color: var(--fr-text);
+    font-weight: 600;
+}
+
+.fr-demo__value {
+    margin-left: auto;
+    font-family: var(--fr-mono);
+    font-size: 11px;
+    color: var(--fr-text-dim);
+}
+
+/* ================================================================
+   NARROW
+================================================================ */
+@media (max-width: 520px) {
+    .fr-demo__tabs { gap: 12px; }
+    .fr-demo__code { font-size: 11px; }
+    .fr-demo__value { display: none; }
+}

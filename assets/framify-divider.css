@@ -1,0 +1,70 @@
+/**
+ * Framify - Elementor Shape Divider
+ *
+ * Mirrors Elementor's own .elementor-shape: a full-width strip at the
+ * container's top or bottom edge (1px past it, so no hairline shows on a
+ * fractional pixel), the svg centred in it at Width % (the strip clips the
+ * overflow sideways) and Height px, both written by the panel's selectors
+ * on {{WRAPPER}} > .framify-dv--top|bottom > svg. The host container is
+ * positioned and isolated by FramifyFx.claimHost (.framify-fs-host), so
+ * z-index 2 (Bring to front) stays inside it.
+ *
+ * File: assets/framify-divider.css
+ */
+
+.framify-dv {
+	position: absolute;
+	left: 0;
+	width: 100%;
+	z-index: 0;
+	overflow: hidden;
+	line-height: 0;
+	direction: ltr;
+	pointer-events: none;
+}
+
+/* Clip only sideways where supported: the Liquid ripple may reach a little
+   past the svg box on its free edge. */
+@supports (overflow-x: clip) {
+	.framify-dv {
+		overflow-x: clip;
+		overflow-y: visible;
+	}
+}
+
+.framify-dv--top {
+	top: -1px;
+}
+
+/* The art is drawn for the top edge; Bottom turns it round (like
+   Elementor's .elementor-shape-bottom). */
+.framify-dv--bottom {
+	bottom: -1px;
+	transform: rotate(180deg);
+}
+
+.framify-dv--front {
+	z-index: 2;
+}
+
+.framify-dv > svg {
+	display: block;
+	position: relative;
+	left: 50%;
+	width: calc(100% + 1.3px);
+	height: 80px;
+	overflow: visible;
+	transform: translateX(-50%);
+}
+
+.framify-dv--flip > svg {
+	transform: translateX(-50%) scaleX(-1);
+}
+
+.framify-dv--upside > svg {
+	transform: translateX(-50%) scaleY(-1);
+}
+
+.framify-dv--flip.framify-dv--upside > svg {
+	transform: translateX(-50%) scale(-1, -1);
+}

@@ -1,0 +1,170 @@
+/**
+ * Framify - Elementor Floating Text (frontend + editor preview)
+ *
+ * The layer and its words. Motion itself runs through the Web Animations
+ * API in assets/framify-text.js; this file only sets the resting boxes,
+ * the caret and the stacking.
+ *
+ * Per word (one positioned box, one job per nested span):
+ *   .framify-ft__word  the chip: position, tilt, colour, measured box;
+ *                      typography, background, border, radius, padding
+ *                      (Elementor's controls target this class). The
+ *                      script writes each word's final font size inline
+ *                      here (random, Min font size to Typography size), so
+ *                      em padding / radius scale with the word. It only
+ *                      ever fades, and only when dressed.
+ *   .framify-ft__mask  text opacity (Max opacity), clip box for Rise;
+ *                      inherits the word's size
+ *   .framify-ft__text  the in/out animation, text shadow
+ *   .framify-ft__ch    one letter, for the per-letter animations
+ *
+ * File: assets/framify-text.css
+ */
+
+/*
+ * Same stacking as Floating Shapes (see framify-shapes.css): the host
+ * carries .framify-fs-host (isolation), the background layer is z-index 0
+ * after Elementor's background children, the overlay is above content.
+ * Text sits just above shapes in both modes: in the background by tree
+ * order (the script inserts it after a .framify-fs layer; a higher
+ * z-index there would lift it over the content), as an overlay by
+ * z-index 6 against the shapes' 5.
+ */
+.framify-ft {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	z-index: 0;
+	overflow: hidden;
+	pointer-events: none;
+	/* Editorial defaults; the Typography control overrides them. */
+	line-height: 1.1;
+	letter-spacing: -0.01em;
+}
+
+.framify-ft--left {
+	right: auto;
+}
+
+.framify-ft--right {
+	left: auto;
+}
+
+.framify-ft--overlay {
+	z-index: 6;
+}
+
+/*
+ * The word is a flex box so its height is the mask's line alone (no
+ * anonymous line-box strut around the inline-block mask, which would
+ * unbalance chip padding). border-box: the script fixes width / height to
+ * the measured offset box, which already includes padding and border.
+ * font-size here is only the fallback max; Typography overrides it and the
+ * script's inline per-word size overrides both.
+ */
+.framify-ft__word {
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: flex;
+	align-items: center;
+	box-sizing: border-box;
+	margin: 0;
+	white-space: pre;
+	font-size: 28px;
+	font-weight: 600;
+	line-height: inherit;
+	transform-origin: 50% 50%;
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+/*
+ * Chip (a Background mode is on). Crafted defaults, a soft pill with
+ * roomy sides, which the Padding / Border radius controls override (their
+ * selector is more specific). The background is --ft-bg (Fixed: written by
+ * the colour control; From palette: set per word by the script) at the
+ * Background opacity --ft-bg-a. The color-mix() line sits in @supports:
+ * a declaration with var() always parses, so as a plain second line it
+ * would override the opaque fallback and resolve to transparent in
+ * browsers without color-mix().
+ */
+.framify-ft--chip .framify-ft__word {
+	padding: 0.3em 0.8em;
+	border-radius: 999px;
+	background-color: var(--ft-bg, transparent);
+}
+
+@supports (background-color: color-mix(in srgb, red 50%, transparent)) {
+	.framify-ft--chip .framify-ft__word {
+		background-color: color-mix(in srgb, var(--ft-bg, transparent) calc(var(--ft-bg-a, 1) * 100%), transparent);
+	}
+}
+
+/* Rendered but unseen while the script measures its box. */
+.framify-ft__word.is-measuring {
+	visibility: hidden;
+}
+
+/* No font-size: it inherits the word's final (inline) size. */
+.framify-ft__mask {
+	display: inline-block;
+	vertical-align: top;
+}
+
+.framify-ft__word--rise .framify-ft__mask {
+	overflow: hidden;
+	/* Room for descenders and accents inside the clip. */
+	padding: 0.06em 0 0.12em;
+	margin: -0.06em 0 -0.12em;
+}
+
+.framify-ft__text {
+	display: inline-block;
+	opacity: 0;
+	backface-visibility: hidden;
+}
+
+.framify-ft__ch {
+	display: inline-block;
+	white-space: pre;
+}
+
+/* Outline style: the word's colour becomes the stroke. The script only
+   applies this where -webkit-text-stroke is supported (else solid). */
+.framify-ft__word--outline {
+	-webkit-text-fill-color: transparent;
+	-webkit-text-stroke-width: var(--ft-stroke, 1px);
+	-webkit-text-stroke-color: currentColor;
+}
+
+/* Typewriter caret: thin, the word's colour, blinking only while held. */
+.framify-ft__caret {
+	display: inline-block;
+	width: 0.06em;
+	min-width: 1px;
+	height: 0.9em;
+	margin-left: 0.04em;
+	vertical-align: -0.08em;
+	background: currentColor;
+	-webkit-text-fill-color: currentColor;
+	animation: framify-ft-caret 1s steps(1) infinite;
+}
+
+@keyframes framify-ft-caret {
+	50% {
+		opacity: 0;
+	}
+}
+
+.framify-ft.is-paused .framify-ft__caret {
+	animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.framify-ft__caret {
+		animation: none;
+	}
+}

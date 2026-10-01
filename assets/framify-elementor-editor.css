@@ -1,0 +1,23 @@
+/**
+ * Framify - Elementor editor panel
+ * Framify tab icon: Elementor's own "shape" glyph (eicon-shape). The generic
+ * .elementor-panel-navigation-tab span:before rule already sets the eicons
+ * font and sizing; each tab only supplies its glyph, like Content/Style do.
+ */
+.elementor-tab-control-framify span:before {
+	content: "\e98a";
+}
+
+/* Float on a top-level container: the editor script puts this class on the
+   panel (#elementor-panel) while such a container is open; the section
+   heading and every Float control (framify_float, framify_float_*) are
+   hidden. */
+.framify-float-off [class*="elementor-control-framify_float"] {
+	display: none !important;
+}
+
+/* Shape Divider on a NESTED container (the inverse of Float): the section
+   heading, the Top / Bottom tabs and every framify_org_dv_* control. */
+.framify-divider-off [class*="elementor-control-framify_org_dv_"] {
+	display: none !important;
+}

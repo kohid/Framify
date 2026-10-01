@@ -1,0 +1,445 @@
+/**
+ * Framify - Theme tokens and the theme picker component.
+ *
+ * Loaded by both the floating editor and the WP admin settings page, so a
+ * theme is defined in exactly one place. Theme blocks are dual-scoped:
+ * [data-framify-theme] paints a real UI, [data-preview-theme] paints the
+ * miniature inside a picker card.
+ */
+
+/* ============================================================
+   1. TOKENS
+   ============================================================ */
+
+:root {
+    --fr-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --fr-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    --fr-radius: 10px;
+    --fr-radius-sm: 6px;
+    --fr-radius-xs: 4px;
+
+    --fr-dock-width: 450px;
+    --fr-dock-height: 400px;
+}
+
+/* --- Daylight: light, cool paper, indigo ------------------- */
+[data-framify-theme="daylight"],
+[data-preview-theme="daylight"] {
+    --fr-bg: #ffffff;
+    --fr-surface: #f4f6f9;
+    --fr-surface-2: #eaeef4;
+    --fr-line: #dfe4ec;
+    --fr-line-strong: #c4cdda;
+    --fr-text: #1b2333;
+    --fr-text-dim: #5f6b80;
+    --fr-accent: #3b5bdb;
+    --fr-accent-hover: #2f4bc4;
+    --fr-accent-ink: #ffffff;
+    --fr-accent-soft: rgba(59, 91, 219, 0.10);
+    --fr-danger: #d92d20;
+    --fr-danger-hover: #b42318;
+    --fr-chrome: #eef1f6;
+    --fr-chrome-ink: #1b2333;
+    --fr-chrome-line: #d7dde7;
+    --fr-shadow: 0 12px 40px rgba(27, 35, 51, 0.16);
+    --fr-scrim: rgba(27, 35, 51, 0.42);
+
+    /* Darkened against white - the stock #22c55e/#f59e0b sit near 1.9:1 here. */
+    --fr-pass: #0b7a5a;
+    --fr-warn: #9a6400;
+    --fr-fail: #c92a1f;
+    --fr-pass-soft: rgba(11, 122, 90, 0.10);
+    --fr-warn-soft: rgba(154, 100, 0, 0.10);
+    --fr-fail-soft: rgba(201, 42, 31, 0.10);
+
+    --fr-tok-sel: #3b5bdb;
+    --fr-tok-prop: #1b2333;
+    --fr-tok-val: #0b7a5a;
+    --fr-tok-punc: #8892a4;
+    --fr-tok-com: #9aa4b6;
+}
+
+/* --- Graphite: neutral dark, blue accent (default) --------- */
+[data-framify-theme="graphite"],
+[data-preview-theme="graphite"] {
+    --fr-bg: #16181c;
+    --fr-surface: #1d2026;
+    --fr-surface-2: #242831;
+    --fr-line: #2c313a;
+    --fr-line-strong: #3a414d;
+    --fr-text: #e4e7ec;
+    --fr-text-dim: #8b929e;
+    --fr-accent: #5b9dff;
+    --fr-accent-hover: #7ab0ff;
+    --fr-accent-ink: #0b1220;
+    --fr-accent-soft: rgba(91, 157, 255, 0.14);
+    --fr-danger: #ff6b6b;
+    --fr-danger-hover: #ff8585;
+    --fr-chrome: #101216;
+    --fr-chrome-ink: #f0f2f5;
+    --fr-chrome-line: #262b33;
+    --fr-shadow: 0 14px 44px rgba(0, 0, 0, 0.55);
+    --fr-scrim: rgba(6, 8, 11, 0.72);
+
+    --fr-pass: #55d98d;
+    --fr-warn: #f5b544;
+    --fr-fail: #ff6b6b;
+    --fr-pass-soft: rgba(85, 217, 141, 0.14);
+    --fr-warn-soft: rgba(245, 181, 68, 0.14);
+    --fr-fail-soft: rgba(255, 107, 107, 0.14);
+
+    --fr-tok-sel: #5b9dff;
+    --fr-tok-prop: #c3cad6;
+    --fr-tok-val: #7fd6a8;
+    --fr-tok-punc: #6b7382;
+    --fr-tok-com: #5c646f;
+}
+
+/* --- Ember: warm dark, amber accent ----------------------- */
+[data-framify-theme="ember"],
+[data-preview-theme="ember"] {
+    --fr-bg: #1a1613;
+    --fr-surface: #221d18;
+    --fr-surface-2: #2b2520;
+    --fr-line: #3a322a;
+    --fr-line-strong: #4d4237;
+    --fr-text: #f0e6d8;
+    --fr-text-dim: #a08f7a;
+    --fr-accent: #f0a13a;
+    --fr-accent-hover: #ffb455;
+    --fr-accent-ink: #1a1613;
+    --fr-accent-soft: rgba(240, 161, 58, 0.14);
+    --fr-danger: #ef6b52;
+    --fr-danger-hover: #ff8168;
+    --fr-chrome: #131009;
+    --fr-chrome-ink: #f7edde;
+    --fr-chrome-line: #33291d;
+    --fr-shadow: 0 14px 44px rgba(0, 0, 0, 0.6);
+    --fr-scrim: rgba(12, 9, 6, 0.74);
+
+    /* The accent is amber here, so a stock amber warn would read as ordinary
+       chrome rather than a severity. Warn is pulled to yellow and fail to true
+       red, keeping the traffic-light triad discriminable against orange chrome. */
+    --fr-pass: #7ec850;
+    --fr-warn: #e8c547;
+    --fr-fail: #f0524d;
+    --fr-pass-soft: rgba(126, 200, 80, 0.15);
+    --fr-warn-soft: rgba(232, 197, 71, 0.15);
+    --fr-fail-soft: rgba(240, 82, 77, 0.15);
+
+    --fr-tok-sel: #f0a13a;
+    --fr-tok-prop: #d9c9b2;
+    --fr-tok-val: #b5c46b;
+    --fr-tok-punc: #8a7860;
+    --fr-tok-com: #6f6152;
+}
+
+/* --- Blueprint: deep navy, cyan accent -------------------- */
+[data-framify-theme="blueprint"],
+[data-preview-theme="blueprint"] {
+    --fr-bg: #0d1b2a;
+    --fr-surface: #132638;
+    --fr-surface-2: #1a3247;
+    --fr-line: #234358;
+    --fr-line-strong: #305a74;
+    --fr-text: #dbeaf5;
+    --fr-text-dim: #7d9bb3;
+    --fr-accent: #22d3ee;
+    --fr-accent-hover: #56e1f5;
+    --fr-accent-ink: #04222b;
+    --fr-accent-soft: rgba(34, 211, 238, 0.13);
+    --fr-danger: #ff7a7a;
+    --fr-danger-hover: #ff9494;
+    --fr-chrome: #091624;
+    --fr-chrome-ink: #e6f4fb;
+    --fr-chrome-line: #1b3348;
+    --fr-shadow: 0 14px 44px rgba(2, 10, 20, 0.65);
+    --fr-scrim: rgba(4, 12, 22, 0.75);
+
+    --fr-pass: #4ade80;
+    --fr-warn: #fbbf24;
+    --fr-fail: #ff7a7a;
+    --fr-pass-soft: rgba(74, 222, 128, 0.13);
+    --fr-warn-soft: rgba(251, 191, 36, 0.13);
+    --fr-fail-soft: rgba(255, 122, 122, 0.13);
+
+    --fr-tok-sel: #22d3ee;
+    --fr-tok-prop: #b8d4e8;
+    --fr-tok-val: #9ae6b4;
+    --fr-tok-punc: #6b8ca6;
+    --fr-tok-com: #55738b;
+}
+
+/* --- Contrast: maximum legibility -------------------------- */
+[data-framify-theme="contrast"],
+[data-preview-theme="contrast"] {
+    --fr-bg: #ffffff;
+    --fr-surface: #f2f2f2;
+    --fr-surface-2: #e6e6e6;
+    --fr-line: #1a1a1a;
+    --fr-line-strong: #000000;
+    --fr-text: #000000;
+    --fr-text-dim: #333333;
+    --fr-accent: #0033cc;
+    --fr-accent-hover: #0026a3;
+    --fr-accent-ink: #ffffff;
+    --fr-accent-soft: rgba(0, 51, 204, 0.10);
+    --fr-danger: #b00000;
+    --fr-danger-hover: #8a0000;
+    --fr-chrome: #000000;
+    --fr-chrome-ink: #ffffff;
+    --fr-chrome-line: #000000;
+    --fr-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    --fr-scrim: rgba(0, 0, 0, 0.6);
+
+    /* All three clear 7:1 on white - this theme exists for legibility, so a
+       status colour that only just passes would defeat the point of picking it. */
+    --fr-pass: #006622;
+    --fr-warn: #7a4b00;
+    --fr-fail: #b00000;
+    --fr-pass-soft: rgba(0, 102, 34, 0.12);
+    --fr-warn-soft: rgba(122, 75, 0, 0.12);
+    --fr-fail-soft: rgba(176, 0, 0, 0.12);
+
+    --fr-tok-sel: #0033cc;
+    --fr-tok-prop: #000000;
+    --fr-tok-val: #006622;
+    --fr-tok-punc: #444444;
+    --fr-tok-com: #555555;
+}
+
+
+/* ============================================================
+   2. THEME PICKER - the signature element
+   Each card is a miniature of the editor rendered in its own
+   theme, showing real CSS in that theme's syntax colours. You
+   pick a theme by reading code in it.
+   ============================================================ */
+
+#framify-settings-modal .modal-content {
+    max-width: 720px;
+}
+
+.fr-eyebrow {
+    display: block;
+    font-size: 10px;
+    color: var(--fr-text-dim);
+    letter-spacing: 0.14em;
+    margin-bottom: 6px;
+}
+
+.fr-theme-intro {
+    font-family: var(--fr-sans);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--fr-text-dim);
+    margin-bottom: 20px;
+    max-width: 46ch;
+}
+
+.fr-theme-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.fr-theme {
+    display: block;
+    width: 100%;
+    padding: 0;
+    background: var(--fr-bg);
+    border: 1px solid var(--fr-line);
+    border-radius: var(--fr-radius-sm);
+    overflow: hidden;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.fr-theme:hover {
+    transform: translateY(-2px);
+}
+
+.fr-theme[aria-checked="true"] {
+    box-shadow: 0 0 0 2px var(--fr-accent);
+    border-color: var(--fr-accent);
+}
+
+/* The miniature */
+.fr-theme__bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 16px;
+    padding: 0 7px;
+    background: var(--fr-chrome);
+    border-bottom: 1px solid var(--fr-chrome-line);
+}
+
+.fr-theme__dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--fr-chrome-ink);
+    opacity: 0.35;
+}
+
+.fr-theme__tabs {
+    display: flex;
+    gap: 10px;
+    height: 18px;
+    padding: 0 7px;
+    align-items: center;
+    background: var(--fr-surface);
+    border-bottom: 1px solid var(--fr-line);
+    font-family: var(--fr-mono);
+    font-size: 7px;
+    letter-spacing: 0.08em;
+    color: var(--fr-text-dim);
+}
+
+.fr-theme__tabs .is-on {
+    color: var(--fr-accent);
+    box-shadow: inset 0 -2px 0 var(--fr-accent);
+}
+
+.fr-theme__code {
+    display: block;
+    padding: 8px 7px;
+    background: var(--fr-bg);
+    font-family: var(--fr-mono);
+    font-size: 9px;
+    line-height: 1.7;
+    white-space: pre;
+    overflow: hidden;
+}
+
+.fr-theme__ln {
+    display: inline-block;
+    width: 12px;
+    color: var(--fr-tok-com);
+    opacity: 0.7;
+}
+
+.t-sel  { color: var(--fr-tok-sel); }
+.t-prop { color: var(--fr-tok-prop); }
+.t-val  { color: var(--fr-tok-val); }
+.t-punc { color: var(--fr-tok-punc); }
+.t-com  { color: var(--fr-tok-com); }
+
+/* The label strip */
+.fr-theme__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 9px 10px;
+    background: var(--fr-surface);
+    border-top: 1px solid var(--fr-line);
+}
+
+.fr-theme__name {
+    font-family: var(--fr-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    font-weight: 600;
+    font-size: 10px;
+    color: var(--fr-text);
+}
+
+.fr-theme__blurb {
+    display: block;
+    font-family: var(--fr-sans);
+    font-size: 10px;
+    letter-spacing: 0;
+    text-transform: none;
+    font-weight: 400;
+    color: var(--fr-text-dim);
+    margin-top: 2px;
+}
+
+.fr-theme__check {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    border: 1px solid var(--fr-line-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fr-theme[aria-checked="true"] .fr-theme__check {
+    background: var(--fr-accent);
+    border-color: var(--fr-accent);
+}
+
+.fr-theme__check svg {
+    width: 9px;
+    height: 9px;
+    fill: none;
+    stroke: var(--fr-accent-ink);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;
+}
+
+.fr-theme[aria-checked="true"] .fr-theme__check svg {
+    opacity: 1;
+}
+
+/* Save status — replaces the Apply button, since picking applies */
+.fr-theme-status {
+    margin-right: auto;
+    font-family: var(--fr-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fr-text-dim);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.fr-theme-status::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.5;
+}
+
+.fr-theme-status.is-saved {
+    color: var(--fr-accent);
+}
+
+.fr-theme-status.is-error {
+    color: var(--fr-danger);
+}
+
+/* The one orchestrated moment: the room changes light. Applied only
+   while a theme swap is in flight, so it costs nothing the rest of the time. */
+html.fr-theming #framify-floating-editor,
+html.fr-theming #framify-floating-editor *,
+html.fr-theming #fseo-app,
+html.fr-theming #fseo-app *,
+html.fr-theming .modal-content,
+html.fr-theming .modal-content * {
+    transition: background-color 0.3s ease, color 0.3s ease,
+                border-color 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.fr-theming #framify-floating-editor,
+    html.fr-theming #framify-floating-editor *,
+    html.fr-theming #fseo-app,
+    html.fr-theming #fseo-app *,
+    html.fr-theming .modal-content,
+    html.fr-theming .modal-content * {
+        transition-duration: 0.01ms !important;
+    }
+}
+

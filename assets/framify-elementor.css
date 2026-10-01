@@ -1,0 +1,131 @@
+/**
+ * Framify - Elementor Organic Shape (frontend + editor preview)
+ */
+
+/* Image widget: the widget is the positioning/stacking context, so the deco
+   blob can sit behind the clipped image without escaping the widget. */
+.framify-organic {
+	position: relative;
+	isolation: isolate;
+}
+
+.framify-organic img {
+	position: relative;
+	z-index: 1;
+	transform-origin: 50% 50%;
+}
+
+/* Container, deco mode: blob sits behind every child. */
+.framify-organic-container {
+	isolation: isolate;
+}
+
+/* Spacer: the host is its (static) .elementor-widget-container. Each
+   module's script sets an inline position: relative only when it finds the
+   host static and removes it on teardown, so this class rule (with its
+   twin for .framify-fs-host in framify-shapes.css) keeps the host
+   positioned while Organic Shape or a Floating Shapes / Text layer is
+   still there. */
+.elementor-widget-spacer > .elementor-widget-container.framify-organic-container {
+	position: relative;
+}
+
+/* Positioned and sized from the Placement controls by the script. */
+.framify-organic__deco {
+	position: absolute;
+	z-index: 0;
+	pointer-events: none;
+	overflow: visible;
+	transform-origin: 50% 50%;
+}
+
+.framify-organic-container > .framify-organic__deco {
+	z-index: -1;
+}
+
+/* Spacer, Clip mode: carries the Spacer's background (copied by the
+   script, which also sets the insets) and is the only thing clipped, so a
+   deco blob behind it can spill past the shape. Same z-index as the deco,
+   inserted after it, so it paints over it. */
+.framify-organic-container > .framify-organic__fill {
+	position: absolute;
+	z-index: -1;
+	pointer-events: none;
+}
+
+/* Container Clip mode with a moving custom shape ("bleed"): the container
+   stays clipped while its background paints in an oversized fill, so the
+   shape's outward motion has something to reveal past the box. Elementor's
+   background overlay (the container's ::before) and background video /
+   slideshow layers would still end flat at the box, so they reach the same
+   margins (per side, --framify-bleed-t/r/b/l, set by the script) with the
+   fill's grown corner radii. The same offsets as Elementor's own rules
+   (frontend.css: -border, 100% + borders), plus the margins. */
+.e-con.framify-organic-bleed::before,
+.e-con.framify-organic-bleed > .elementor-background-slideshow,
+:is(.e-con.framify-organic-bleed, .e-con.framify-organic-bleed > .e-con-inner) > .elementor-background-video-container {
+	top: calc(0px - var(--border-top-width, 0px) - var(--framify-bleed-t, 0px));
+	left: calc(0px - var(--border-left-width, 0px) - var(--framify-bleed-l, 0px));
+	width: calc(max(100% + var(--border-left-width, 0px) + var(--border-right-width, 0px), 100%) + var(--framify-bleed-l, 0px) + var(--framify-bleed-r, 0px));
+	height: calc(max(100% + var(--border-top-width, 0px) + var(--border-bottom-width, 0px), 100%) + var(--framify-bleed-t, 0px) + var(--framify-bleed-b, 0px));
+	border-top-left-radius: var(--framify-bleed-tl, 0px);
+	border-top-right-radius: var(--framify-bleed-tr, 0px);
+	border-bottom-right-radius: var(--framify-bleed-br, 0px);
+	border-bottom-left-radius: var(--framify-bleed-bl, 0px);
+}
+
+/* Holds the <clipPath> definition; never painted. */
+.framify-organic__defs {
+	position: absolute;
+	width: 0;
+	height: 0;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+/* Float: a gentle bob on any widget. Animates the individual translate and
+   rotate properties, not transform, so it adds to Elementor's own Transform
+   and Motion Effects instead of replacing them. */
+.elementor-element.framify-float-yes {
+	animation: framify-float var(--framify-float-t, 4s) ease-in-out var(--framify-float-delay, 0s) infinite alternate;
+}
+
+/* Containers: Float only moves a nested container (Elementor gives it
+   .e-child, a top-level one .e-parent). A top-level container with Float
+   saved stays still; this outranks the rule above and leaves widgets alone. */
+.e-con.framify-float-yes:not(.e-child) {
+	animation: none;
+}
+
+@keyframes framify-float {
+	from {
+		translate: 0 0;
+		rotate: 0deg;
+	}
+	to {
+		translate: 0 calc(-1 * var(--framify-float-d, 12px));
+		rotate: var(--framify-float-r, 0deg);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.elementor-element.framify-float-yes {
+		animation: none;
+	}
+}
+
+/* Clip-mode grain: fills the container; the container's clip cuts it. */
+.framify-organic__grain {
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+}
+
+/* Image widget grain: over the img (z-index 1), sized to its box and cut by
+   its clip by the script; clicks and hovers pass through to the image. */
+.framify-organic > .framify-organic__image-grain {
+	position: absolute;
+	z-index: 2;
+	pointer-events: none;
+}

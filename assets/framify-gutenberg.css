@@ -1,0 +1,978 @@
+/**
+ * Framify - Gutenberg Settings Panel (Elementor-style)
+ * File: assets/framify-gutenberg.css
+ */
+
+/* ================================================================
+   CSS RESET FOR FRAMIFY CONTROLS
+================================================================ */
+.frm-settings-panel *,
+.frm-settings-panel *::before,
+.frm-settings-panel *::after {
+    box-sizing: border-box;
+}
+
+/* ================================================================
+   SETTINGS PANEL WRAPPER
+================================================================ */
+.frm-settings-panel {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    color: #1e1e1e;
+    background: #f0f0f1;
+    min-height: 100%;
+}
+
+/* ================================================================
+   TAB BAR  (Content / Style / Advanced)
+================================================================ */
+.frm-settings-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    background: #1e1e2d;
+    border-bottom: 2px solid #2d2d3f;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.frm-tab-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 10px 4px 9px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    color: rgba(255,255,255,0.45);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+    line-height: 1;
+    margin-bottom: -2px;
+}
+
+.frm-tab-btn:hover {
+    color: rgba(255,255,255,0.8);
+    background: rgba(255,255,255,0.04);
+}
+
+.frm-tab-btn.is-active {
+    color: #fff;
+    border-bottom-color: #667eea;
+    background: rgba(102,126,234,0.08);
+}
+
+.frm-tab-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+/* ================================================================
+   TAB PANE
+================================================================ */
+.frm-tab-pane {
+    padding: 0 0 24px;
+}
+
+/* ================================================================
+   SECTION LABEL (like Elementor's grey caps divider)
+================================================================ */
+.frm-section-label {
+    padding: 8px 12px 4px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #8c8f94;
+    background: #f0f0f1;
+    border-top: 1px solid #ddd;
+    margin-top: 2px;
+}
+
+.frm-divider {
+    border: none;
+    border-top: 1px solid #ddd;
+    margin: 10px 0 0;
+}
+
+.frm-inner-divider {
+    border: none;
+    border-top: 1px dashed #e5e5e5;
+    margin: 12px 0;
+}
+
+/* ================================================================
+   SETTINGS GROUP (collapsible sub-section)
+================================================================ */
+.frm-settings-group {
+    background: #fff;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.frm-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    padding: 10px 14px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1e1e1e;
+    transition: background 0.15s;
+}
+
+.frm-group-toggle:hover {
+    background: #f6f7f7;
+}
+
+.frm-settings-group.is-open .frm-group-toggle {
+    background: #f6f7f7;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.frm-group-caret {
+    font-size: 10px;
+    color: #888;
+    width: 12px;
+    flex-shrink: 0;
+}
+
+.frm-group-title {
+    flex: 1;
+}
+
+.frm-group-body {
+    padding: 12px 14px 14px;
+    background: #fff;
+}
+
+/* ================================================================
+   CONTROL ROW (label + control)
+================================================================ */
+.frm-control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 0;
+    min-height: 32px;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.frm-control-row:last-child {
+    border-bottom: none;
+}
+
+.frm-control-label {
+    font-size: 11px;
+    color: #555;
+    font-weight: 500;
+    flex-shrink: 0;
+    min-width: 95px;
+    max-width: 110px;
+}
+
+/* ================================================================
+   COLOR CONTROL
+================================================================ */
+.frm-color-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #f6f7f7;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 2px 6px 2px 3px;
+    flex: 1;
+    min-width: 0;
+    max-width: 130px;
+    transition: border-color 0.15s;
+}
+
+.frm-color-wrap:focus-within {
+    border-color: #667eea;
+    background: #fff;
+}
+
+.frm-color-swatch {
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 0;
+    background: none;
+    flex-shrink: 0;
+}
+
+.frm-color-text {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 11px;
+    font-family: 'Menlo', 'Monaco', monospace;
+    color: #333;
+    outline: none;
+    min-width: 0;
+    width: 70px;
+}
+
+/* ================================================================
+   SLIDER CONTROL
+================================================================ */
+.frm-slider-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+}
+
+.frm-slider-row .frm-control-label {
+    max-width: 100%;
+    min-width: unset;
+}
+
+.frm-slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.frm-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 3px;
+    background: linear-gradient(to right, #667eea var(--val, 50%), #ddd var(--val, 50%));
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+.frm-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #667eea;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(102,126,234,0.4);
+    cursor: pointer;
+}
+
+.frm-slider-number-wrap {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    background: #f6f7f7;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 2px 6px;
+    flex-shrink: 0;
+}
+
+.frm-slider-number-wrap:focus-within {
+    border-color: #667eea;
+    background: #fff;
+}
+
+.frm-slider-number {
+    width: 36px;
+    border: none;
+    background: transparent;
+    font-size: 11px;
+    text-align: center;
+    outline: none;
+    color: #333;
+    -moz-appearance: textfield;
+}
+
+.frm-slider-number::-webkit-inner-spin-button,
+.frm-slider-number::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+}
+
+.frm-unit {
+    font-size: 9px;
+    color: #999;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+/* ================================================================
+   SEGMENTED SELECT (replaces button group)
+================================================================ */
+.frm-segmented-select {
+    flex: 1;
+    min-width: 0;
+    max-width: 150px;
+    padding: 5px 8px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 6px;
+    background: #f6f7f7;
+    font-size: 11px;
+    color: #333;
+    outline: none;
+    cursor: pointer;
+    appearance: auto;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.frm-segmented-select:focus {
+    border-color: #667eea;
+    background: #fff;
+    box-shadow: 0 0 0 2px rgba(102,126,234,0.12);
+}
+
+/* ================================================================
+   DIMENSIONS CONTROL
+================================================================ */
+.frm-dims-block {
+    padding: 5px 0;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.frm-dims-block:last-child {
+    border-bottom: none;
+}
+
+.frm-dims-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.frm-link-btn {
+    background: transparent;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 6px;
+    color: #888;
+    transition: all 0.15s;
+    line-height: 1;
+}
+
+.frm-link-btn.is-linked {
+    background: #eef0ff;
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.frm-dims-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 4px;
+}
+
+.frm-dim-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.frm-dim-input {
+    width: 100%;
+    text-align: center;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 5px;
+    padding: 5px 2px;
+    font-size: 11px;
+    color: #333;
+    background: #f9f9f9;
+    outline: none;
+    -moz-appearance: textfield;
+    transition: border-color 0.15s;
+}
+
+.frm-dim-input:focus {
+    border-color: #667eea;
+    background: #fff;
+}
+
+.frm-dim-input::-webkit-inner-spin-button,
+.frm-dim-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+}
+
+.frm-dim-label {
+    font-size: 9px;
+    color: #aaa;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+/* ================================================================
+   TYPOGRAPHY GROUP
+================================================================ */
+.frm-typography-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* ================================================================
+   SELECT
+================================================================ */
+.frm-select {
+    flex: 1;
+    min-width: 0;
+    max-width: 140px;
+    padding: 5px 8px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 6px;
+    background: #f6f7f7;
+    font-size: 11px;
+    color: #333;
+    outline: none;
+    cursor: pointer;
+    appearance: auto;
+    transition: border-color 0.15s;
+}
+
+.frm-select:focus {
+    border-color: #667eea;
+    background: #fff;
+}
+
+/* ================================================================
+   TOGGLE (iOS-style switch)
+================================================================ */
+.frm-toggle-row {
+    min-height: 34px;
+}
+
+.frm-toggle-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.frm-checkbox {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.frm-toggle-label {
+    display: block;
+    width: 36px;
+    height: 20px;
+    background: #ccc;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+    position: relative;
+}
+
+.frm-toggle-label::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: left 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.frm-checkbox:checked + .frm-toggle-label {
+    background: #667eea;
+}
+
+.frm-checkbox:checked + .frm-toggle-label::after {
+    left: 18px;
+}
+
+/* ================================================================
+   FIELDS (text input / textarea / label / help)
+================================================================ */
+.frm-field {
+    padding: 5px 0;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.frm-field:last-child {
+    border-bottom: none;
+}
+
+.frm-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.frm-input {
+    display: block;
+    width: 100%;
+    padding: 7px 10px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #333;
+    background: #f9f9f9;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.frm-input:focus {
+    border-color: #667eea;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(102,126,234,0.08);
+}
+
+.frm-textarea {
+    display: block;
+    width: 100%;
+    padding: 7px 10px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #333;
+    background: #f9f9f9;
+    outline: none;
+    resize: vertical;
+    transition: border-color 0.15s, background 0.15s;
+    font-family: inherit;
+    line-height: 1.5;
+}
+
+.frm-textarea:focus {
+    border-color: #667eea;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(102,126,234,0.08);
+}
+
+.frm-help {
+    display: block;
+    font-size: 10px;
+    color: #999;
+    margin-top: 3px;
+}
+
+/* ================================================================
+   ITEM ACTIONS (move up/down/remove)
+================================================================ */
+.frm-item-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #e8e8e8;
+}
+
+.frm-action-btn {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 6px;
+    background: #f6f7f7;
+    font-size: 11px;
+    font-weight: 600;
+    color: #555;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+}
+
+.frm-action-btn:hover:not(:disabled) {
+    background: #667eea;
+    border-color: #667eea;
+    color: #fff;
+}
+
+.frm-action-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.frm-action-btn--danger:hover:not(:disabled) {
+    background: #e53935 !important;
+    border-color: #e53935 !important;
+}
+
+/* ================================================================
+   ADD ITEM BUTTON
+================================================================ */
+.frm-add-item-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: calc(100% - 24px);
+    margin: 10px 12px;
+    padding: 9px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    letter-spacing: 0.3px;
+}
+
+.frm-add-item-btn:hover {
+    opacity: 0.88;
+    transform: translateY(-1px);
+}
+
+.frm-add-item-btn:active {
+    transform: scale(0.98);
+}
+
+/* ================================================================
+   SIDEBAR — Widget Library
+================================================================ */
+.framify-sidebar .components-panel__body {
+    padding: 0;
+}
+
+.framify-sidebar__inner {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: #f8f9ff;
+}
+
+.framify-sidebar__header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 18px 16px 14px;
+    color: #fff;
+}
+
+.framify-sidebar__logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: #fff;
+    margin-bottom: 4px;
+}
+
+.framify-sidebar__subtitle {
+    font-size: 11px;
+    color: rgba(255,255,255,0.75);
+    margin: 0;
+}
+
+.framify-sidebar__search {
+    padding: 12px 12px 8px;
+    background: #fff;
+    border-bottom: 1px solid #e8eaed;
+}
+
+.framify-sidebar__search-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1.5px solid #e0e3eb;
+    border-radius: 8px;
+    font-size: 13px;
+    outline: none;
+    background: #f8f9ff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+    color: #333;
+}
+
+.framify-sidebar__search-input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
+    background: #fff;
+}
+
+.framify-sidebar__notice {
+    margin: 10px 12px 0;
+    padding: 8px 12px;
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #2e7d32;
+    font-weight: 500;
+}
+
+.framify-sidebar__category {
+    padding: 12px 12px 4px;
+}
+
+.framify-sidebar__cat-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: #9ba3b8;
+    margin-bottom: 8px;
+    padding-left: 2px;
+}
+
+.framify-sidebar__grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.framify-widget-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: #fff;
+    border: 1.5px solid #e8eaed;
+    border-radius: 10px;
+    cursor: grab;
+    transition: all 0.18s ease;
+    user-select: none;
+}
+
+.framify-widget-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 2px 12px rgba(102,126,234,0.15);
+    transform: translateY(-1px);
+}
+
+.framify-widget-card:active {
+    cursor: grabbing;
+    transform: scale(0.98);
+    border-color: #764ba2;
+}
+
+.framify-widget-card__icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #f0f2ff, #e8e4ff);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.framify-widget-card__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.framify-widget-card__label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a2e;
+    line-height: 1.3;
+}
+
+.framify-widget-card__desc {
+    display: block;
+    font-size: 11px;
+    color: #888;
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.framify-widget-card__add {
+    width: 22px;
+    height: 22px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 50%;
+    color: #fff;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+    line-height: 1;
+}
+
+.framify-widget-card:hover .framify-widget-card__add {
+    opacity: 1;
+}
+
+.framify-sidebar__empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: #aaa;
+}
+
+.framify-sidebar__empty span {
+    font-size: 36px;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.framify-sidebar__empty p {
+    font-size: 13px;
+    margin: 0;
+}
+
+.framify-sidebar__footer {
+    margin-top: auto;
+    padding: 14px 16px;
+    font-size: 11px;
+    color: #aaa;
+    text-align: center;
+    border-top: 1px solid #eee;
+    background: #fff;
+}
+
+/* ================================================================
+   ACCORDION BLOCK — Canvas editor shell
+================================================================ */
+.framify-accordion-editor {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ================================================================
+   DASHICON PICKER
+================================================================ */
+.frm-dashicon-picker {
+    padding: 4px 0;
+}
+
+.frm-dashicon-search {
+    display: block;
+    width: 100%;
+    padding: 6px 10px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 11px;
+    outline: none;
+    margin-bottom: 8px;
+    background: #f9f9f9;
+    color: #333;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+
+.frm-dashicon-search:focus {
+    border-color: #667eea;
+    background: #fff;
+}
+
+.frm-dashicon-current {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    background: #f0f2ff;
+    border: 1.5px solid #c5cae9;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.frm-dashicon-current-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #667eea;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.frm-dashicon-slug {
+    font-size: 10px;
+    color: #555;
+    font-family: 'Menlo', 'Monaco', monospace;
+    background: #e8eaff;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: auto;
+}
+
+.frm-dashicon-group {
+    margin-bottom: 4px;
+}
+
+.frm-dashicon-group-toggle {
+    display: block;
+    width: 100%;
+    padding: 5px 4px;
+    background: transparent;
+    border: none;
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+    text-align: left;
+    transition: color 0.15s;
+}
+
+.frm-dashicon-group-toggle:hover {
+    color: #667eea;
+}
+
+.frm-dashicon-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+    padding: 4px 0;
+}
+
+.frm-dashicon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1;
+    padding: 5px;
+    background: #f5f5f5;
+    border: 1.5px solid #e8e8e8;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.12s;
+    font-size: 15px;
+    color: #555;
+}
+
+.frm-dashicon-btn .dashicons {
+    font-size: 15px;
+    width: 15px;
+    height: 15px;
+    line-height: 1;
+}
+
+.frm-dashicon-btn:hover {
+    background: #eef0ff;
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.frm-dashicon-btn.is-selected {
+    background: #667eea;
+    border-color: #667eea;
+    color: #fff;
+}
+
+.frm-dashicon-btn.is-selected .dashicons {
+    color: #fff;
+}
+
+.frm-dashicon-empty {
+    font-size: 11px;
+    color: #aaa;
+    padding: 8px 4px;
+    display: block;
+    text-align: center;
+    grid-column: 1 / -1;
+}
