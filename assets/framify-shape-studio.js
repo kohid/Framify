@@ -12,6 +12,10 @@
 	'use strict';
 
 	var DATA = window.framifyShapeStudio;
+	var MAX_SIZE = 2000;
+	var MIN_BOX = 520;
+	var context = 'framify_org_shape';
+	var showTab = function () {};
 	var modal = null;
 
 	if ( ! DATA ) {
@@ -86,15 +90,154 @@
 		}
 	}
 
-	function saved( body ) {
-		body.innerHTML = '';
-		body.appendChild( el( 'p', 'framify-studio__done', 'Saved. Save your page, then reload the editor to pick it on the Uploaded tab.' ) );
-		var reload = el( 'button', 'framify-studio__btn framify-studio__btn--primary', 'Reload editor' );
-		reload.type = 'button';
-		reload.addEventListener( 'click', function () {
-			window.location.reload();
+	/* ---------- live refresh of the Shape pickers (no reload) ---------- */
+
+	var LIB_CONTROLS = [ 'framify_org_shape_lib', 'framify_org_deco_shape_lib' ];
+
+	// The editor keeps each element type's control definitions in its own
+	// config; find our two picker definitions wherever this Elementor
+	// version stores them.
+	function findControls() {
+		var found = [];
+		var seen = new WeakSet();
+		var visits = 0;
+		function walk( o, depth ) {
+			if ( ! o || 'object' !== typeof o || depth > 8 || seen.has( o ) || ++visits > 300000 ) {
+				return;
+			}
+			seen.add( o );
+			if ( LIB_CONTROLS.indexOf( o.name ) !== -1 && o.options && 'object' === typeof o.options ) {
+				found.push( o );
+			}
+			Object.keys( o ).forEach( function ( key ) {
+				try {
+					walk( o[ key ], depth + 1 );
+				} catch ( e ) {}
+			} );
+		}
+		var ed = window.elementor || {};
+		[ ed.config, ed.widgetsCache ].forEach( function ( root ) {
+			walk( root, 0 );
 		} );
-		body.appendChild( reload );
+		return found;
+	}
+
+	function previewLibrary() {
+		var frame = window.elementor && window.elementor.$preview && window.elementor.$preview[ 0 ];
+		var win = frame && frame.contentWindow;
+		if ( win && win.framifyOrganic ) {
+			win.framifyOrganic.library = win.framifyOrganic.library || {};
+			return win.framifyOrganic.library;
+		}
+		return null;
+	}
+
+	// Re-render any open Shape picker so it shows the current options.
+	function rerenderPickers() {
+		var panel = window.elementor && window.elementor.getPanelView && window.elementor.getPanelView();
+		var page = panel && panel.getCurrentPageView && panel.getCurrentPageView();
+		if ( ! page || ! page.children ) {
+			return;
+		}
+		var defs = findControls();
+		page.children.each( function ( view ) {
+			var cname = view.model && view.model.get && view.model.get( 'name' );
+			if ( LIB_CONTROLS.indexOf( cname ) === -1 ) {
+				return;
+			}
+			var def = defs.filter( function ( d ) {
+				return d.name === cname;
+			} )[ 0 ];
+			if ( def ) {
+				view.model.set( 'options', Object.assign( {}, def.options ) );
+			}
+			view.render();
+		} );
+	}
+
+	function addShapeLive( shape ) {
+		var defs = findControls();
+		if ( ! defs.length ) {
+			return false;
+		}
+		defs.forEach( function ( def ) {
+			def.options[ shape.id ] = { title: shape.title, image: shape.thumb };
+			if ( ! def.default ) {
+				def.default = shape.id;
+			}
+		} );
+		var lib = previewLibrary();
+		if ( lib ) {
+			lib[ shape.id ] = shape.svg;
+		}
+		rerenderPickers();
+		var panel = window.elementor.getPanelView().$el[ 0 ];
+		return !! ( panel && panel.querySelector( 'input[value="' + shape.id + '"]' ) );
+	}
+
+	function removeShapeLive( id ) {
+		findControls().forEach( function ( def ) {
+			delete def.options[ id ];
+		} );
+		var lib = previewLibrary();
+		if ( lib ) {
+			delete lib[ id ];
+		}
+		rerenderPickers();
+	}
+
+	// Pick the new shape on the element being edited, on the Uploaded tab.
+	function applyShape( id ) {
+		var panel = window.elementor.getPanelView();
+		var page = panel.getCurrentPageView();
+		var view = page && page.getOption && page.getOption( 'editedElementView' );
+		var container = view && view.getContainer && view.getContainer();
+		if ( ! container || ! window.$e ) {
+			return false;
+		}
+		var settings = {};
+		settings[ context + '_source' ] = 'library';
+		settings[ context + '_lib' ] = id;
+		window.$e.run( 'document/elements/settings', { container: container, settings: settings } );
+		return true;
+	}
+
+	function saved( body, shape, again ) {
+		body.innerHTML = '';
+		var live = false;
+		var applied = false;
+		try {
+			live = shape && addShapeLive( shape );
+			applied = live && applyShape( shape.id );
+		} catch ( e ) {
+			live = false;
+		}
+		if ( shape ) {
+			DATA.shapes.push( { id: shape.id, title: shape.title, thumb: shape.thumb, svg: shape.svg, source: 'user' } );
+		}
+		var done = live ?
+			( applied ? 'Saved and applied to this element.' : 'Saved. It is now on the Uploaded tab.' ) :
+			'Saved. Save your page, then reload the editor to pick it on the Uploaded tab.';
+		body.appendChild( el( 'p', 'framify-studio__done', done ) );
+		var row = el( 'div', 'framify-studio__row' );
+		if ( live ) {
+			var closeB = el( 'button', 'framify-studio__btn framify-studio__btn--primary', 'Done' );
+			closeB.type = 'button';
+			closeB.addEventListener( 'click', close );
+			row.appendChild( closeB );
+			var another = el( 'button', 'framify-studio__btn', 'Add another' );
+			another.type = 'button';
+			another.addEventListener( 'click', again );
+			row.appendChild( another );
+		} else {
+			var reload = el( 'button', 'framify-studio__btn framify-studio__btn--primary', 'Reload editor' );
+			reload.type = 'button';
+			reload.addEventListener( 'click', function () {
+				window.location.reload();
+			} );
+			row.appendChild( reload );
+		}
+		body.appendChild( row );
 	}
 
 	function nameField( value ) {
@@ -320,7 +463,7 @@
 		var input = el( 'input' );
 		input.type = 'number';
 		input.min = 100;
-		input.max = 900;
+		input.max = MAX_SIZE;
 		input.step = 10;
 		input.value = value;
 		wrap.appendChild( input );
@@ -358,7 +501,7 @@
 		}
 
 		function record() {
-			history.push( clone( model ) );
+			history.push( { model: clone( model ), active: active } );
 			if ( history.length > 60 ) {
 				history.shift();
 			}
@@ -366,9 +509,12 @@
 
 		function undo() {
 			if ( history.length ) {
-				model = history.pop();
-				sel = null;
-				active = -1;
+				var prev = history.pop();
+				model = prev.model;
+				// Back to the path the pen was building, so the next click
+				// continues it instead of starting a new one.
+				active = model.paths[ prev.active ] && ! model.paths[ prev.active ].closed ? prev.active : -1;
+				sel = active >= 0 ? { pi: active, ni: model.paths[ active ].nodes.length - 1 } : null;
 				paint();
 			}
 		}
@@ -697,8 +843,8 @@
 		frameLabel.appendChild( frame );
 		frameLabel.appendChild( el( 'span', '', 'Keep the canvas frame (do not crop to the drawing)' ) );
 		function resize() {
-			var nw = Math.min( 900, Math.max( 100, parseInt( wField.input.value, 10 ) || W ) );
-			var nh = Math.min( 900, Math.max( 100, parseInt( hField.input.value, 10 ) || H ) );
+			var nw = Math.min( MAX_SIZE, Math.max( 100, parseInt( wField.input.value, 10 ) || W ) );
+			var nh = Math.min( MAX_SIZE, Math.max( 100, parseInt( hField.input.value, 10 ) || H ) );
 			wField.input.value = nw;
 			hField.input.value = nh;
 			if ( nw === W && nh === H ) {
@@ -722,7 +868,15 @@
 			H = nh;
 			canvas.width = W;
 			canvas.height = H;
+			fitBox();
 			paint();
+		}
+		// The window grows with the canvas (scrolls past the screen).
+		function fitBox() {
+			var box = body.closest( '.framify-studio__box' );
+			if ( box ) {
+				box.style.width = Math.max( MIN_BOX, W + 34 ) + 'px';
+			}
 		}
 		wField.input.addEventListener( 'change', resize );
 		hField.input.addEventListener( 'change', resize );
@@ -762,7 +916,9 @@
 			msg.textContent = 'Saving...';
 			post( 'framify_shape_save', { name: name.input.value, d: shape.d, vb: shape.vb } ).then( function ( res ) {
 				if ( res && res.success ) {
-					saved( body );
+					saved( body, res.data, function () {
+						showTab( 0 );
+					} );
 				} else {
 					msg.textContent = ( res && res.data && res.data.message ) || 'Could not save.';
 				}
@@ -772,6 +928,7 @@
 		} );
 		body.appendChild( save );
 		body.appendChild( msg );
+		fitBox();
 		paint();
 	}
 
@@ -827,7 +984,9 @@
 			msg.textContent = 'Saving...';
 			post( 'framify_shape_save', { name: name.input.value, svg: shape.text } ).then( function ( res ) {
 				if ( res && res.success ) {
-					saved( body );
+					saved( body, res.data, function () {
+						showTab( 0 );
+					} );
 				} else {
 					msg.textContent = ( res && res.data && res.data.message ) || 'Could not save.';
 				}
@@ -881,7 +1040,15 @@
 					post( 'framify_shape_delete', { id: shape.id } ).then( function ( res ) {
 						if ( res && res.success ) {
 							row.remove();
-							msg.textContent = 'Deleted. Reload the editor to refresh the pickers.';
+							DATA.shapes = DATA.shapes.filter( function ( sh ) {
+								return sh.id !== shape.id;
+							} );
+							try {
+								removeShapeLive( shape.id );
+								msg.textContent = 'Deleted.';
+							} catch ( e ) {
+								msg.textContent = 'Deleted. Reload the editor to refresh the pickers.';
+							}
 						} else {
 							msg.textContent = ( res && res.data && res.data.message ) || 'Could not delete.';
 						}
@@ -898,8 +1065,9 @@
 		body.appendChild( msg );
 	}
 
-	function open() {
+	function open( prefix ) {
 		close();
+		context = 'string' === typeof prefix ? prefix : 'framify_org_shape';
 		modal = el( 'div', 'framify-studio' );
 		var box = el( 'div', 'framify-studio__box' );
 		var head = el( 'div', 'framify-studio__head' );
@@ -922,6 +1090,7 @@
 			return b;
 		} );
 		function show( i ) {
+			box.style.width = '';
 			buttons.forEach( function ( b, j ) {
 				b.classList.toggle( 'is-active', i === j );
 			} );
@@ -938,12 +1107,17 @@
 			}
 		} );
 		document.body.appendChild( modal );
+		showTab = show;
 		show( 0 );
 	}
 
 	function ready() {
 		if ( window.elementor && window.elementor.channels && window.elementor.channels.editor ) {
-			window.elementor.channels.editor.on( 'framify:shapeStudio', open );
+			[ 'framify_org_shape', 'framify_org_deco_shape' ].forEach( function ( prefix ) {
+				window.elementor.channels.editor.on( 'framify:shapeStudio:' + prefix, function () {
+					open( prefix );
+				} );
+			} );
 		}
 	}
 

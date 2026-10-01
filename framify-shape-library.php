@@ -174,7 +174,14 @@ class Framify_Shape_Library {
             wp_send_json_error(array('message' => 'Could not write the file.'), 500);
         }
         self::reset();
-        wp_send_json_success(array('id' => 'lib_u_' . sanitize_key(pathinfo($file, PATHINFO_FILENAME))));
+        $id  = 'lib_u_' . sanitize_key(pathinfo($file, PATHINFO_FILENAME));
+        $all = self::all();
+        wp_send_json_success(array(
+            'id'    => $id,
+            'title' => isset($all[$id]) ? $all[$id]['title'] : $name,
+            'thumb' => isset($all[$id]) ? $all[$id]['thumb'] : '',
+            'svg'   => isset($all[$id]) ? $all[$id]['svg'] : '',
+        ));
     }
 
     public static function ajax_delete() {

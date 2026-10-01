@@ -356,7 +356,7 @@ class Framify_Elementor {
             'type'        => $cm::BUTTON,
             'label_block' => true,
             'text'        => esc_html__( 'Draw or upload a shape', 'framify' ),
-            'event'       => 'framify:shapeStudio',
+            'event'       => 'framify:shapeStudio:' . $prefix,
             'condition'   => $condition + array( $prefix . '_source' => 'library' ),
         ) );
     }

@@ -101,6 +101,56 @@ const { chromium } = require( process.env.PLAYWRIGHT_MODULE || 'playwright' );
   let und = await save('undo');
   ok('undo removes the last placed point (square again)', und && und.d === sq.d);
 
+
+  // Undo keeps the pen's connection to the points already placed.
+  await p.evaluate(() => openStudio());
+  const bu = await p.locator('canvas.framify-studio__canvas').boundingBox();
+  const XU = (x) => bu.x + x * bu.width / 340, YU = (y) => bu.y + y * bu.height / 340;
+  await tool('Pen');
+  for (const [x, y] of [[60,60],[280,60],[280,280]]) await p.mouse.click(XU(x), YU(y));
+  await p.mouse.click(XU(60), YU(280));
+  await p.getByRole('button', { name: 'Undo', exact: true }).click();   // removes (60,280); pen path stays open
+  await p.mouse.click(XU(60), YU(280));                                  // continue the SAME path
+  await p.mouse.click(XU(60), YU(60));                                   // close on the first point
+  let cont = await save('cont');
+  ok('undo: the pen continues the open path (one closed square, not a second path)', cont && cont.d === sq.d);
+
+  // Canvas up to 2000 and the window grows with it.
+  await p.evaluate(() => openStudio());
+  const si = p.locator('.framify-studio__size input');
+  await si.nth(0).fill('5000'); await si.nth(0).dispatchEvent('change');
+  const big = await p.locator('canvas.framify-studio__canvas').evaluate(e => [e.width, e.height]);
+  ok('canvas width is capped at 2000', big[0] === 2000);
+  const bw = await p.locator('.framify-studio__box').evaluate(e => e.style.width);
+  ok('the window grows with the canvas (2034px, capped to the screen by CSS)', bw === '2034px');
+  await si.nth(0).fill('300'); await si.nth(0).dispatchEvent('change');
+  ok('a small canvas keeps the minimum window width', await p.locator('.framify-studio__box').evaluate(e => e.style.width) === '520px');
+
+  // Saving updates the pickers live (no reload) and selects the new shape.
+  await tool('Pen');
+  const bl = await p.locator('canvas.framify-studio__canvas').boundingBox();
+  for (const [x, y] of [[60,60],[240,60],[240,260]]) await p.mouse.click(bl.x + x * bl.width / 300, bl.y + y * bl.height / 340);
+  await p.mouse.click(bl.x + 60 * bl.width / 300, bl.y + 60 * bl.height / 340);
+  await p.locator('.framify-studio__field input').fill('Live');
+  await p.getByRole('button', { name: 'Save shape' }).click();
+  await p.waitForTimeout(150);
+  const msgTxt = await p.locator('.framify-studio__done').textContent();
+  ok('save: applied live, no reload needed', /applied/.test(msgTxt) && !(await p.getByRole('button', { name: 'Reload editor' }).count()));
+  ok('save: the picker definition and the preview library got the new shape', await p.evaluate(() => 'lib_u_live' in libDef.options && 'lib_u_live' in decoDef.options && 'lib_u_live' in elementor.$preview[0].contentWindow.framifyOrganic.library));
+  ok('save: the new shape is picked on the Uploaded tab', await p.evaluate(() => window.__applied && window.__applied.settings.framify_org_shape_source === 'library' && window.__applied.settings.framify_org_shape_lib === 'lib_u_live'));
+  await p.getByRole('button', { name: 'Done', exact: true }).click();
+
+  // The Deco Blob button targets the deco picker.
+  await p.evaluate(() => openStudio('framify_org_deco_shape'));
+  await tool('Pen');
+  const bd = await p.locator('canvas.framify-studio__canvas').boundingBox();
+  for (const [x, y] of [[60,60],[240,60],[240,260]]) await p.mouse.click(bd.x + x * bd.width / 340, bd.y + y * bd.height / 340);
+  await p.mouse.click(bd.x + 60 * bd.width / 340, bd.y + 60 * bd.height / 340);
+  await p.locator('.framify-studio__field input').fill('Deco');
+  await p.getByRole('button', { name: 'Save shape' }).click();
+  await p.waitForTimeout(150);
+  ok('deco context: applies framify_org_deco_shape_source / _lib', await p.evaluate(() => window.__applied.settings.framify_org_deco_shape_source === 'library' && window.__applied.settings.framify_org_deco_shape_lib === 'lib_u_deco'));
+
   // Canvas size + keep frame.
   await p.evaluate(() => openStudio());
   const ins = p.locator('.framify-studio__size input');

@@ -54,7 +54,8 @@
 	background: rgba(0, 0, 0, .55);
 }
 .framify-studio__box {
-	width: min(520px, 96vw);
+	width: 520px;
+	max-width: 96vw;
 	max-height: 92vh;
 	overflow: auto;
 	background: #fff;

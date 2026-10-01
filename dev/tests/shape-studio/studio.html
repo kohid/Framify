@@ -3,9 +3,30 @@
 window.__posts=[];
 window.framifyShapeStudio={ajaxUrl:'/x',nonce:'n',shapes:[]};
 var handler=null;
-window.elementor={channels:{editor:{on:function(n,f){handler=f;}}},on:function(){}};
-window.fetch=function(u,o){window.__posts.push(Object.fromEntries(o.body.entries()));return Promise.resolve({json:function(){return Promise.resolve({success:true})}})};
-window.openStudio=function(){handler();};
+var handlers={};
+// Minimal stand-in for the editor: control definitions, the open panel page
+// with one Shape picker view, the preview frame and $e.run.
+var libDef={name:'framify_org_shape_lib',options:{},default:''};
+var decoDef={name:'framify_org_deco_shape_lib',options:{},default:''};
+var panel=document.createElement('div'); panel.id='elementor-panel'; document.body.appendChild(panel);
+var pickerModel={attrs:{name:'framify_org_shape_lib',options:{}},get:function(k){return this.attrs[k]},set:function(k,v){this.attrs[k]=v}};
+var pickerView={model:pickerModel,render:function(){panel.innerHTML='';Object.keys(this.model.attrs.options).forEach(function(id){var i=document.createElement('input');i.setAttribute('value',id);panel.appendChild(i);});}};
+window.__applied=null;
+window.$e={run:function(cmd,args){window.__applied={cmd:cmd,settings:args.settings};}};
+window.elementor={channels:{editor:{on:function(n,f){handlers[n]=f;handler=f;}}},on:function(){},
+  config:{elements:{container:{controls:{a:libDef,b:decoDef}}}},widgetsCache:{},
+  $preview:[{contentWindow:{framifyOrganic:{library:{}}}}],
+  getPanelView:function(){
+    var page={
+      children:{each:function(fn){fn(pickerView);}},
+      getOption:function(){return {getContainer:function(){return {id:'c1'};}};}
+    };
+    return {$el:[panel],getCurrentPageView:function(){return page;}};
+  }
+};
+window.__handlers=handlers;
+window.fetch=function(u,o){window.__posts.push(Object.fromEntries(o.body.entries()));return Promise.resolve({json:function(){return Promise.resolve({success:true,data:{id:'lib_u_'+(o.body.get('name')||'x').toLowerCase(),title:o.body.get('name')||'x',thumb:'data:image/svg+xml,t',svg:'<svg><path d="'+(o.body.get('d')||'M0 0')+'"/></svg>'}})}})};
+window.openStudio=function(k){(handlers['framify:shapeStudio:'+(k||'framify_org_shape')]||handler)();};
 </script>
 <script src="../../../assets/framify-shape-studio.js"></script>
 </body></html>
