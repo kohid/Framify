@@ -36,7 +36,7 @@ function near( a, b, eps ) {
 
 /* ---------- colours ---------- */
 
-check( 'parseColor reads #rgb, #rrggbb and #rrggbbaa', 'string' === typeof JSON.stringify( C.parseColor( '#fa0' ) ) && C.parseColor( '#fa0' ).join() === '255,170,0' && C.parseColor( '#10203040' ).join() === '16,32,48' && C.parseColor( '#FFE066' ).join() === '255,224,102' );
+check( 'parseColor reads #rgb, #rrggbb and #rrggbbaa', C.parseColor( '#fa0' ).join() === '255,170,0' && C.parseColor( '#10203040' ).join() === '16,32,48' && C.parseColor( '#FFE066' ).join() === '255,224,102' );
 check( 'parseColor reads rgb()/rgba() with commas, spaces and percentages', C.parseColor( 'rgb(1, 2, 3)' ).join() === '1,2,3' && C.parseColor( 'rgba(255 128 0 / 0.5)' ).join() === '255,128,0' && C.parseColor( 'rgb(100%, 0%, 50%)' ).join() === '255,0,128' );
 check( 'parseColor reads hsl()', C.parseColor( 'hsl(0, 100%, 50%)' ).join() === '255,0,0' && C.parseColor( 'hsl(120 100% 50%)' ).join() === '0,255,0' );
 check( 'parseColor refuses everything else (names, var(), junk, non-strings)', null === C.parseColor( 'red' ) && null === C.parseColor( 'var(--x)' ) && null === C.parseColor( '#12' ) && null === C.parseColor( '' ) && null === C.parseColor( null ) && null === C.parseColor( 42 ) && null === C.parseColor( 'rgb(a,b,c)' ) );
@@ -57,6 +57,7 @@ var stack = C.readStack( { framify_ef_stack: 'above', framify_ef_quality: 'high'
 check( 'readStack reads stack, quality and the three layers', 'above' === stack.stack && 'high' === stack.quality && stack.layers[ 0 ].type === 'cloud' && null === stack.layers[ 1 ] && stack.layers[ 2 ].type === 'flames' );
 var stack2 = C.readStack( { framify_ef_stack: 'sideways', framify_ef_quality: 'ultra' } );
 check( 'an unknown stack or quality falls back to under / medium', 'under' === stack2.stack && 'medium' === stack2.quality );
+check( 'a crafted quality such as constructor or __proto__ is not a quality', 'medium' === C.readStack( { framify_ef_quality: 'constructor' } ).quality && 'medium' === C.readStack( { framify_ef_quality: '__proto__' } ).quality && C.chooseBacking( 600, 400, 1, 'toString', 0 ).bw > 0 && isFinite( C.frameInterval( 'constructor', 0 ) ) );
 check( 'the control table has no duplicate keys and every type is covered', new Set( C.SPEC.map( function ( s ) { return s.key; } ) ).size === C.SPEC.length && C.TYPES.every( function ( t ) { return C.SPEC.some( function ( s ) { return s.types.indexOf( t ) > -1; } ); } ) );
 
 /* ---------- particle models ---------- */
@@ -85,7 +86,6 @@ var prev = null;
 var mono = true;
 var grows = true;
 var maxA = 0;
-var spr = C.mulberry32( 9 );
 for ( var i = 0; i <= 100; i++ ) {
 	sp.age = sp.life * i / 100;
 	var o = C.pose( sp, smoke, W, H, ref, sp.age, {} );
@@ -166,9 +166,9 @@ respawn.age = respawn.life - 0.001;
 C.advance( respawn, 0.05, vary, C.mulberry32( 11 ), ref, W );
 check( 'smoke and flames respawn with age 0 when their life ends', respawn.age === 0 && respawn.life !== firstLife );
 
-var big = ref * 2;
+var small = C.pose( particle( smoke, 5, W, H, false ), smoke, W, H, ref, 0, {} );
 var scaled = C.pose( particle( smoke, 5, W * 2, H * 2, false ), smoke, W * 2, H * 2, C.refOf( W * 2, H * 2 ), 0, {} );
-check( 'sizes follow the element size, not pixels (a bigger host gives a bigger particle)', scaled.w > u0.w || big >= ref );
+check( 'sizes follow the element size, not pixels (the same seed on a bigger host gives a bigger particle)', scaled.w > small.w );
 
 var fuzzOk = true;
 var kinds = [ 'cloud', 'smoke', 'flames' ];
@@ -222,7 +222,7 @@ check( 'a different seed gives a different particle', JSON.stringify( particle( 
 /* ---------- budget ---------- */
 
 function layers3( type, density ) {
-	return [ 1, 2, 3 ].map( function ( n ) {
+	return [ 1, 2, 3 ].map( function () {
 		return C.layerConfig( { framify_ef_1_type: type, framify_ef_1_density: density }, 1 );
 	} );
 }
@@ -245,7 +245,7 @@ check( 'chooseBacking: a huge host at dpr 3 stays under the pixel cap and above 
 check( 'chooseBacking: higher quality and level 0 give more pixels than low quality or level 3', C.chooseBacking( 800, 500, 1, 'high', 0 ).bw > C.chooseBacking( 800, 500, 1, 'low', 0 ).bw && C.chooseBacking( 800, 500, 1, 'medium', 0 ).bw > C.chooseBacking( 800, 500, 1, 'medium', 3 ).bw );
 check( 'chooseBacking: medium/low ignore the device pixel ratio, high caps it at 1.5', C.chooseBacking( 600, 400, 3, 'medium', 0 ).bw === C.chooseBacking( 600, 400, 1, 'medium', 0 ).bw && C.chooseBacking( 600, 400, 3, 'high', 0 ).bw === C.chooseBacking( 600, 400, 1.5, 'high', 0 ).bw );
 check( 'chooseBacking: a 0 x 0 host still gives a 1 x 1 canvas', C.chooseBacking( 0, 0, 1, 'medium', 0 ).bw === 1 );
-check( 'frameInterval: high is every frame, medium 30 fps, level 3 24 fps', 0 === C.frameInterval( 'high', 0 ) && near( C.frameInterval( 'medium', 0 ), 1000 / 30, 1e-6 ) && near( C.frameInterval( 'high', 3 ), 1000 / 24, 1e-6 ) );
+check( 'frameInterval: high is 60 fps (never faster, whatever the display), medium 30 fps, level 3 24 fps', near( C.frameInterval( 'high', 0 ), 1000 / 60, 1e-6 ) && near( C.frameInterval( 'medium', 0 ), 1000 / 30, 1e-6 ) && near( C.frameInterval( 'high', 3 ), 1000 / 24, 1e-6 ) );
 
 /* ---------- governor ---------- */
 
@@ -263,17 +263,15 @@ var g = C.newGovernor();
 check( 'governor: ignores the first 20 frames and tab stalls', -1 === feed( g, 20, 99, 99 ) && -1 === feed( g, 5, 99, 900 ) && 0 === g.level );
 check( 'governor: a slow 30-frame window steps the level down once, then again, capped at 3', 1 === feed( g, 30, 20, 60 ) && 2 === feed( g, 30, 20, 60 ) && 3 === feed( g, 30, 20, 60 ) && -1 === feed( g, 30, 20, 60 ) && 3 === g.level );
 check( 'governor: no recovery during the cool-down', -1 === feed( g, 120, 0.5, 16 ) && 3 === g.level );
-feed( g, 200, 0.5, 16 );
-check( 'governor: after the cool-down fast frames step back up, at most twice', g.level <= 2 && ( feed( g, 200, 0.5, 16 ), true ) && g.upgrades <= 2 && g.level >= 1 );
+feed( g, 400, 0.5, 16 );
+check( 'governor: after the cool-down fast frames step back up, but only twice (level 3 to 1)', 2 === g.upgrades && 1 === g.level );
+var steady = C.newGovernor();
+check( 'governor: on-time frames at a 30 fps cap or a 60 Hz display are not slow', -1 === feed( steady, 200, 2, 33 ) && 0 === steady.level && -1 === ( function () { var st = C.newGovernor(); return feed( st, 200, 2, 16.7 ); }() ) );
 var osc = C.newGovernor();
-var levels = [];
 for ( i = 0; i < 40; i++ ) {
-	var rr2 = feed( osc, 30, i % 2 ? 0.5 : 20, i % 2 ? 16 : 60 );
-	if ( rr2 >= 0 ) {
-		levels.push( rr2 );
-	}
+	feed( osc, 30, i % 2 ? 0.5 : 20, i % 2 ? 16 : 60 );
 }
-check( 'governor: alternating slow and fast windows do not oscillate (at most 2 recoveries ever)', osc.upgrades <= 2 );
+check( 'governor: alternating slow and fast windows give at most 2 recoveries in total', osc.upgrades <= 2 );
 
 /* ---------- misc ---------- */
 

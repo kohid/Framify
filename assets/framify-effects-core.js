@@ -19,27 +19,27 @@
 	var PREFIX = 'framify_ef_';
 	var TYPES = [ 'cloud', 'smoke', 'flames' ];
 	var QUALITIES = { low: { scale: 0.4, dpr: 1, fps: 30 }, medium: { scale: 0.6, dpr: 1, fps: 30 }, high: { scale: 0.85, dpr: 1.5, fps: 60 } };
-	var MAX_LAYER = { cloud: 16, smoke: 80, flames: 160 };
+	// Particles per layer at density 0 and 100: the upper bound is the per-layer cap.
 	var COUNT_RANGE = { cloud: [ 4, 16 ], smoke: [ 14, 80 ], flames: [ 30, 150 ] };
+	var LAYERS = 3;
 	var MAX_TOTAL = 260;
 	var FILL_BUDGET = 9;
 	var MAX_BACKING = 700000;
 	var DT_MAX = 0.05;
 	var LEVELS = [ { scale: 1, count: 1, fps: 0 }, { scale: 0.75, count: 0.8, fps: 0 }, { scale: 0.55, count: 0.6, fps: 30 }, { scale: 0.4, count: 0.4, fps: 24 } ];
 	var COLORS = { cloud: [ '#FFFFFF', '#AEB9CC' ], smoke: [ '#6F7480', '#D6D9DF' ], flames: [ '#FFE066', '#FF8A1F', '#D81E05' ] };
-	var ALL = TYPES;
 
 	// One row per per-layer control: the PHP side builds its controls from
 	// the same table (checked by the parity test), keys are
 	// framify_ef_{layer}_{key}. `types` lists the effects that use it.
 	var SPEC = [
-		{ key: 'opacity', kind: 'slider', min: 0.05, max: 1, step: 0.05, def: 0.7, types: ALL },
-		{ key: 'speed', kind: 'slider', min: 0.2, max: 3, step: 0.05, def: 1, types: ALL },
-		{ key: 'density', kind: 'slider', min: 0, max: 100, step: 1, def: 50, types: ALL },
-		{ key: 'size', kind: 'slider', min: 40, max: 250, step: 1, def: 100, types: ALL },
-		{ key: 'c1', kind: 'color', types: ALL },
-		{ key: 'c2', kind: 'color', types: ALL },
-		{ key: 'c3', kind: 'color', types: [ 'flames' ] },
+		{ key: 'opacity', kind: 'slider', min: 0.05, max: 1, step: 0.05, def: 0.7, types: TYPES },
+		{ key: 'speed', kind: 'slider', min: 0.2, max: 3, step: 0.05, def: 1, types: TYPES },
+		{ key: 'density', kind: 'slider', min: 0, max: 100, step: 1, def: 50, types: TYPES },
+		{ key: 'size', kind: 'slider', min: 40, max: 250, step: 1, def: 100, types: TYPES },
+		{ key: 'c1', kind: 'color', slot: 0, types: TYPES },
+		{ key: 'c2', kind: 'color', slot: 1, types: TYPES },
+		{ key: 'c3', kind: 'color', slot: 2, types: [ 'flames' ] },
 		{ key: 'dir', kind: 'select', options: [ 'right', 'left' ], def: 'right', types: [ 'cloud' ] },
 		{ key: 'softness', kind: 'slider', min: 0, max: 100, step: 1, def: 60, types: [ 'cloud' ] },
 		{ key: 'band', kind: 'slider', min: 0, max: 100, step: 1, def: 35, types: [ 'cloud' ] },
@@ -173,6 +173,11 @@
 		return stops[ stops.length - 1 ][ 1 ].slice();
 	}
 
+	// An own-property lookup, so a crafted value such as 'constructor' is not a quality.
+	function qualityOf( name ) {
+		return Object.prototype.hasOwnProperty.call( QUALITIES, name ) ? QUALITIES[ name ] : null;
+	}
+
 	/* ---------- settings ---------- */
 
 	// A slider arrives as { unit, size } (or a bare number in tests).
@@ -201,8 +206,7 @@
 			} else if ( 'select' === spec.kind ) {
 				cfg[ spec.key ] = spec.options.indexOf( v ) < 0 ? spec.def : v;
 			} else {
-				var slot = 'c1' === spec.key ? 0 : ( 'c2' === spec.key ? 1 : 2 );
-				cfg[ spec.key ] = parseColor( v ) || parseColor( COLORS[ type ][ slot ] );
+				cfg[ spec.key ] = parseColor( v ) || parseColor( COLORS[ type ][ spec.slot ] );
 			}
 		} );
 		if ( undefined !== density && ! isNaN( +density ) ) {
@@ -214,12 +218,12 @@
 	// The whole stack: the section's two switches and the three layers.
 	function readStack( s, density ) {
 		var layers = [];
-		for ( var n = 1; n <= 3; n++ ) {
+		for ( var n = 1; n <= LAYERS; n++ ) {
 			layers.push( layerConfig( s, n, density ? density( n ) : undefined ) );
 		}
 		return {
 			stack: 'above' === s[ PREFIX + 'stack' ] ? 'above' : 'under',
-			quality: QUALITIES[ s[ PREFIX + 'quality' ] ] ? s[ PREFIX + 'quality' ] : 'medium',
+			quality: qualityOf( s[ PREFIX + 'quality' ] ) ? s[ PREFIX + 'quality' ] : 'medium',
 			layers: layers
 		};
 	}
@@ -228,6 +232,11 @@
 
 	function refOf( W, H ) {
 		return clamp( Math.sqrt( Math.max( 1, W ) * Math.max( 1, H ) ), 240, 1400 );
+	}
+
+	// A cloud puff's radius for depth z (0 far, 1 near); its lane margin is 1.4 x.
+	function cloudRadius( cfg, z, ref ) {
+		return ref * 0.26 * cfg.size / 100 * ( 0.35 + 0.65 * z );
 	}
 
 	// Rough size of one particle's footprint, for the overdraw budget.
@@ -252,7 +261,7 @@
 			}
 			var range = COUNT_RANGE[ cfg.type ];
 			var n = Math.round( lerp( range[ 0 ], range[ 1 ], cfg.density / 100 ) * mult );
-			return Math.max( 1, Math.min( MAX_LAYER[ cfg.type ], n ) );
+			return Math.max( 1, n );
 		} );
 		var area = Math.max( 1, W * H );
 		var fill = 0;
@@ -281,7 +290,7 @@
 	// held under MAX_BACKING pixels. The browser upscales it, which is
 	// invisible on soft particles and is where the saving comes from.
 	function chooseBacking( W, H, dpr, quality, level ) {
-		var q = QUALITIES[ quality ] || QUALITIES.medium;
+		var q = qualityOf( quality ) || QUALITIES.medium;
 		var lv = LEVELS[ clamp( level | 0, 0, 3 ) ];
 		var area = Math.max( 1, W * H );
 		var s = q.scale * lv.scale * Math.min( dpr || 1, q.dpr );
@@ -289,11 +298,10 @@
 		return { bw: Math.max( 1, Math.round( W * s ) ), bh: Math.max( 1, Math.round( H * s ) ), scale: s };
 	}
 
-	// Frame interval in ms for the quality and governor level (0 = every rAF).
+	// Frame interval in ms for the quality and governor level.
 	function frameInterval( quality, level ) {
-		var q = QUALITIES[ quality ] || QUALITIES.medium;
-		var fps = LEVELS[ clamp( level | 0, 0, 3 ) ].fps || q.fps;
-		return 60 <= fps ? 0 : 1000 / fps;
+		var q = qualityOf( quality ) || QUALITIES.medium;
+		return 1000 / ( LEVELS[ clamp( level | 0, 0, 3 ) ].fps || q.fps );
 	}
 
 	function newGovernor() {
@@ -319,16 +327,19 @@
 		if ( g.n < 30 ) {
 			return -1;
 		}
-		var pressure = Math.max( g.work / g.n / 8, g.gap / g.n / ( targetMs * 1.5 ) );
+		// Work is judged against 8 ms; the gap against the frame interval the
+		// loop is aiming for, so a 30 fps cap or a 60 Hz display is not slow.
+		var load = g.work / g.n / 8;
+		var late = g.gap / g.n / targetMs;
 		g.n = 0;
 		g.work = 0;
 		g.gap = 0;
-		if ( pressure > 1 && g.level < 3 ) {
+		if ( ( load > 1 || late > 1.5 ) && g.level < 3 ) {
 			g.level++;
 			g.cool = 300;
 			return g.level;
 		}
-		if ( pressure < 0.35 && g.level > 0 && 0 === g.cool && g.upgrades < 2 ) {
+		if ( load < 0.35 && late < 1.15 && g.level > 0 && 0 === g.cool && g.upgrades < 2 ) {
 			g.level--;
 			g.upgrades++;
 			return g.level;
@@ -383,7 +394,7 @@
 	// Move a particle on by dt seconds (already clamped by the caller).
 	function advance( p, dt, cfg, rnd, ref, W ) {
 		if ( 'cloud' === cfg.type ) {
-			var r = ref * 0.26 * cfg.size / 100 * ( 0.35 + 0.65 * p.z );
+			var r = cloudRadius( cfg, p.z, ref );
 			var m = 1.4 * r;
 			var v = ( 14 * ref / 600 ) * cfg.speed * ( 0.25 + 0.75 * p.z );
 			p.u = ( p.u + dt * v / ( W + 2 * m ) ) % 1;
@@ -402,7 +413,7 @@
 		var u;
 		var r;
 		if ( 'cloud' === cfg.type ) {
-			r = ref * 0.26 * cfg.size / 100 * ( 0.35 + 0.65 * p.z );
+			r = cloudRadius( cfg, p.z, ref );
 			var m = 1.4 * r;
 			var x = -m + p.u * ( W + 2 * m );
 			out.x = 'left' === cfg.dir ? W - x : x;
@@ -446,18 +457,15 @@
 		TYPES: TYPES,
 		QUALITIES: QUALITIES,
 		SPEC: SPEC,
-		COLORS: COLORS,
 		LEVELS: LEVELS,
-		MAX_LAYER: MAX_LAYER,
+		LAYERS: LAYERS,
 		MAX_TOTAL: MAX_TOTAL,
 		FILL_BUDGET: FILL_BUDGET,
 		MAX_BACKING: MAX_BACKING,
 		DT_MAX: DT_MAX,
 		clamp: clamp,
-		lerp: lerp,
 		smoothstep: smoothstep,
 		easeOut: easeOut,
-		wobble: wobble,
 		mulberry32: mulberry32,
 		parseColor: parseColor,
 		mix: mix,

@@ -899,8 +899,10 @@ $ef_out = array();
 $ef_rc  = -1;
 @exec( 'node ' . escapeshellarg( __DIR__ . '/effects-core-test.js' ) . ' --schema 2>&1', $ef_out, $ef_rc );
 $ef_schema = 0 === $ef_rc ? json_decode( implode( "\n", $ef_out ), true ) : null;
-if ( ! $ef_schema ) {
+if ( 127 === $ef_rc ) {
     echo "SKIP effects schema parity: node not found\n";
+} elseif ( ! $ef_schema ) {
+    check( 'effects: node dev/tests/effects-core-test.js --schema prints the control table', false );
 } else {
     $ef_same = array_keys( $ef_params ) === array_column( $ef_schema['spec'], 'key' ) && array_keys( $ef_module->type_options() ) === $ef_schema['types'];
     foreach ( $ef_schema['spec'] as $row ) {
@@ -929,7 +931,6 @@ $ef_js   = file_get_contents( $ef_dir . 'framify-effects.js' );
 $ef_core = file_get_contents( $ef_dir . 'framify-effects-core.js' );
 $ef_css  = file_get_contents( $ef_dir . 'framify-effects.css' );
 $sh_js   = file_get_contents( $ef_dir . 'framify-shapes.js' );
-check( 'effects: JS effect types are the PHP ones', 1 === preg_match( "/var TYPES = \[ 'cloud', 'smoke', 'flames' \];/", $ef_core ) );
 check( 'effects: the handler attaches to containers and sections with the null skin and its own constructor id', false !== strpos( $ef_js, "attachHandler( 'container', BackgroundEffects, null );" ) && false !== strpos( $ef_js, "attachHandler( 'section', BackgroundEffects, null );" ) && false !== strpos( $ef_js, "return 'FramifyBackgroundEffects';" ) );
 check( 'effects: Floating Shapes / Text / Divider skip the effect canvas when inserting (BACKGROUND_CHILD has .framify-ef)', 1 === preg_match( "/var BACKGROUND_CHILD = '[^']*\.framify-ef';/", $sh_js ) );
 check( 'effects: stacking CSS puts Under at z-index -1 and Above at 0, clicks pass through', 1 === preg_match( '/\.framify-ef--under \{\s*z-index: -1;/', $ef_css ) && 1 === preg_match( '/\.framify-ef--above \{\s*z-index: 0;/', $ef_css ) && false !== strpos( $ef_css, 'pointer-events: none;' ) );
@@ -940,7 +941,7 @@ foreach ( array( $ef_js, $ef_core ) as $src ) {
         $ef_es5 = false;
     }
 }
-check( 'effects: JS stays ES5 (no arrows, template literals, let / const / class, spread) and tab-indented', $ef_es5 );
+check( 'effects: JS syntax guard (no arrows, template literals, let / const / class, spread, space indentation)', $ef_es5 );
 check( 'effects: no settings string reaches markup (no innerHTML, insertAdjacentHTML or eval)', ! preg_match( '/innerHTML|insertAdjacentHTML|\beval\(|new Function/', $ef_js . $ef_core ) );
 
 $ef_node = array();

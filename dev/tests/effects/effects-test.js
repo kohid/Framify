@@ -18,18 +18,19 @@ const ok = ( name, v ) => { console.log( ( v ? 'PASS ' : 'FAIL ' ) + name ); if 
       window[ 'fx_' + id ] = FramifyEffects.create( host, stackOf( raw ), createOpts );
       return host;
     };
-    // mean alpha (0-255) of a rectangle given as fractions of the canvas
+    // pixels of a rectangle given as fractions of the canvas
+    const region = ( id, x0, y0, x1, y1 ) => {
+      const cv = window[ 'fx_' + id ].stats().canvas, w = cv.width, h = cv.height;
+      return cv.getContext( '2d' ).getImageData( Math.floor( x0 * w ), Math.floor( y0 * h ), Math.max( 1, Math.floor( ( x1 - x0 ) * w ) ), Math.max( 1, Math.floor( ( y1 - y0 ) * h ) ) ).data;
+    };
+    // mean alpha (0-255)
     window.alphaIn = ( id, x0, y0, x1, y1 ) => {
-      const cv = window[ 'fx_' + id ].stats().canvas, ctx = cv.getContext( '2d' );
-      const w = cv.width, h = cv.height;
-      const d = ctx.getImageData( Math.floor( x0 * w ), Math.floor( y0 * h ), Math.max( 1, Math.floor( ( x1 - x0 ) * w ) ), Math.max( 1, Math.floor( ( y1 - y0 ) * h ) ) ).data;
+      const d = region( id, x0, y0, x1, y1 );
       let a = 0; for ( let i = 3; i < d.length; i += 4 ) { a += d[ i ]; }
       return a / ( d.length / 4 );
     };
     window.colorIn = ( id, x0, y0, x1, y1 ) => {
-      const cv = window[ 'fx_' + id ].stats().canvas, ctx = cv.getContext( '2d' );
-      const w = cv.width, h = cv.height;
-      const d = ctx.getImageData( Math.floor( x0 * w ), Math.floor( y0 * h ), Math.max( 1, Math.floor( ( x1 - x0 ) * w ) ), Math.max( 1, Math.floor( ( y1 - y0 ) * h ) ) ).data;
+      const d = region( id, x0, y0, x1, y1 );
       let r = 0, g = 0, bl = 0, n = 0;
       for ( let i = 0; i < d.length; i += 4 ) { if ( d[ i + 3 ] > 90 ) { r += d[ i ]; g += d[ i + 1 ]; bl += d[ i + 2 ]; n++; } }
       return n ? [ r / n, g / n, bl / n, n ] : null;
@@ -206,7 +207,7 @@ const ok = ( name, v ) => { console.log( ( v ? 'PASS ' : 'FAIL ' ) + name ); if 
   await p.evaluate( () => mount( 'gov', { framify_ef_quality: 'high', framify_ef_1_type: 'flames' }, {}, { now: window.slow } ) );
   await p.waitForTimeout( 3500 );
   const gov = await p.evaluate( () => { const s = fx_gov.stats(); return { level: s.level, px: s.backing[ 0 ] * s.backing[ 1 ] }; } );
-  ok( 'governor: frames that cost too much step the quality level up (and the backing store down)', gov.level >= 1 && gov.level <= 3 );
+  ok( 'governor: frames that cost too much raise the governor level (quality down)', gov.level >= 1 && gov.level <= 3 );
 
   ok( 'no page errors', 0 === errs.length );
   if ( errs.length ) { console.log( errs ); }

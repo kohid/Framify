@@ -251,7 +251,6 @@
 			planned: [ 0, 0 ]
 		};
 		var seed = cfg.seed >>> 0;
-		var rnd = Core.mulberry32( seed || 1 );
 		var dead = false;
 		var registered = false;
 
@@ -301,7 +300,10 @@
 			if ( Math.abs( b.bw - inst.bw ) > 8 || Math.abs( b.bh - inst.bh ) > 8 || ! inst.bw ) {
 				inst.bw = canvas.width = b.bw;
 				inst.bh = canvas.height = b.bh;
+				// Resizing clears the bitmap; refill it now, not a frame later.
+				return true;
 			}
+			return false;
 		}
 
 		function paint() {
@@ -366,7 +368,9 @@
 
 		function setLevel( level ) {
 			inst.level = level;
-			resizeBacking();
+			if ( resizeBacking() ) {
+				paint();
+			}
 			replan();
 		}
 
@@ -428,7 +432,7 @@
 			if ( ! changed ) {
 				return;
 			}
-			resizeBacking();
+			var cleared = resizeBacking();
 			var was = inst.planned;
 			if ( ! was[ 0 ] || Math.abs( w - was[ 0 ] ) > was[ 0 ] * 0.15 || Math.abs( h - was[ 1 ] ) > was[ 1 ] * 0.15 ) {
 				replan();
@@ -438,7 +442,7 @@
 			}
 			if ( inst.still ) {
 				drawStill();
-			} else if ( ! registered ) {
+			} else if ( cleared || ! registered ) {
 				paint();
 			}
 		}
@@ -562,6 +566,16 @@
 				return Fx.readResponsive( this, Core.PREFIX + n + '_density', 50, 0, 100 );
 			},
 
+			// One string for all layers' densities on this device.
+			densitySignature: function () {
+				var self = this;
+				var out = [];
+				for ( var n = 1; n <= Core.LAYERS; n++ ) {
+					out.push( self.density( n ) );
+				}
+				return out.join();
+			},
+
 			setup: function () {
 				var self = this;
 				var stack = Core.readStack( window.FramifyColor.settings( this ), function ( n ) {
@@ -573,9 +587,7 @@
 				stack.seed = hashOf( String( this.$element.data( 'id' ) || 'framify' ) );
 				var fx = this.fx = {
 					engine: create( Fx.hostOf( this ), stack ),
-					density: [ 1, 2, 3 ].map( function ( n ) {
-						return self.density( n );
-					} ).join(),
+					density: this.densitySignature(),
 					cleanup: []
 				};
 				// An editor device switch changes the responsive density
@@ -584,9 +596,7 @@
 				var onResize = function () {
 					cancelAnimationFrame( raf );
 					raf = requestAnimationFrame( function () {
-						if ( self.fx === fx && [ 1, 2, 3 ].map( function ( n ) {
-							return self.density( n );
-						} ).join() !== fx.density ) {
+						if ( self.fx === fx && self.densitySignature() !== fx.density ) {
 							self.rebuild();
 						}
 					} );
