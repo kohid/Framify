@@ -320,10 +320,10 @@ const { chromium } = require( process.env.PLAYWRIGHT_MODULE || 'playwright' );
   ok('dispersion: switching shows Direction and Particle shape, relabels Dots as Particles, hides Columns / Sizes / Runs', await p.evaluate(() => {
     const vis = (t) => { const e = [...document.querySelectorAll('label.framify-studio__range')].find(l => l.textContent.indexOf(t) === 0); return !!e && !e.hidden; };
     return vis('Particles') && !vis('Dots') && !vis('Columns') && !vis('Sizes') && !vis('Runs') && vis('Smallest') && vis('Variations')
-      && !document.querySelector('.framify-studio__section:nth-child(3)').hidden;
+      && ![...document.querySelectorAll('.framify-studio__section')].find(s => /Where the particles travel/.test(s.textContent)).hidden;
   }));
   ok('dispersion: the name defaults to Dispersion and tiles say particles', (await p.locator('.framify-studio__field input').inputValue()) === 'Dispersion' && /particles/.test(await p.locator('.framify-studio__caption').first().textContent()));
-  ok('dispersion: the 6 default tiles are all dispersion shapes (mass first)', await p.evaluate(() => framifyShapeStudio && true) && (await p.locator('.framify-studio__variant').count()) === 6);
+  ok('dispersion: 6 default tiles', (await p.locator('.framify-studio__variant').count()) === 6);
   const dsrc = await p.locator('.framify-studio__variant img').first().getAttribute('src');
   await p.getByRole('button', { name: 'Direction Down', exact: true }).click(); await p.waitForTimeout(100);
   ok('dispersion: choosing a Direction regenerates the tiles', (await p.locator('.framify-studio__variant img').first().getAttribute('src')) !== dsrc && (await p.getByRole('button', { name: 'Direction Down', exact: true }).getAttribute('aria-pressed')) === 'true');

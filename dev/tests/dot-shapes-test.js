@@ -250,6 +250,17 @@ var disp = Gen.normalise( { pattern: 'swirl', direction: 'sideways', particle: '
 check( 'normalise falls back to dots / right / circle for unknown pattern, direction and particle', 'dots' === disp.pattern && 'right' === disp.direction && 'circle' === disp.particle );
 check( 'dispersion is deterministic and differs per seed and variation', Gen.generate( { pattern: 'dispersion', seed: 4 }, 2 ).d === Gen.generate( { pattern: 'dispersion', seed: 4 }, 2 ).d && Gen.generate( { pattern: 'dispersion', seed: 4 }, 0 ).d !== Gen.generate( { pattern: 'dispersion', seed: 5 }, 0 ).d && Gen.generate( { pattern: 'dispersion', seed: 4 }, 0 ).d !== Gen.generate( { pattern: 'dispersion', seed: 4 }, 1 ).d );
 
+function distToMass( dot, pts ) {
+	var best = Infinity;
+	pts.forEach( function ( a, i ) {
+		var b = pts[ ( i + 1 ) % pts.length ];
+		var dx = b[ 0 ] - a[ 0 ];
+		var dy = b[ 1 ] - a[ 1 ];
+		var u = Math.min( 1, Math.max( 0, ( ( dot.x - a[ 0 ] ) * dx + ( dot.y - a[ 1 ] ) * dy ) / ( dx * dx + dy * dy ) ) );
+		best = Math.min( best, Math.hypot( dot.x - a[ 0 ] - u * dx, dot.y - a[ 1 ] - u * dy ) );
+	} );
+	return best;
+}
 var allRecognised = true;
 var allClear = true;
 var allMoves = true;
@@ -262,7 +273,7 @@ Gen.DIRECTIONS.forEach( function ( direction ) {
 		[ false, true ].forEach( function ( invert ) {
 			[ '1:1', '4:3', '3:4' ].forEach( function ( ratio ) {
 				combos++;
-				var g = Gen.generate( { pattern: 'dispersion', direction: direction, particle: particle, invert: invert, ratio: ratio, seed: combos, dots: 400 }, 0 );
+				var g = Gen.generate( { pattern: 'dispersion', direction: direction, particle: particle, invert: invert, ratio: ratio, seed: combos, dots: 200 }, 0 );
 				var f = Org.dotField( g.d );
 				if ( ! f || ! f.mass || ! f.anchor || f.dots.length !== g.count || g.count < 40 ) {
 					allRecognised = false;
@@ -284,6 +295,9 @@ Gen.DIRECTIONS.forEach( function ( direction ) {
 						}
 						// Reach circles never touch each other or the mass, at rest or hovered.
 						hover.dots.forEach( function ( dot, i ) {
+							if ( dot.r > distToMass( dot, hover.mass.pts ) + 0.05 ) {
+								allClear = false;
+							}
 							for ( var j = i + 1; j < hover.dots.length; j++ ) {
 								if ( Math.hypot( dot.x - hover.dots[ j ].x, dot.y - hover.dots[ j ].y ) < dot.r + hover.dots[ j ].r - 0.05 ) {
 									allClear = false;

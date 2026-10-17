@@ -583,6 +583,7 @@ check( 'library: Built-in | Uploaded tab + uploaded picker on the Organic Shape 
 check( 'library: uploaded shapes reach the script and run through the Custom pipeline (library svg -> custom paste); deco is static', false !== strpos( $org_js, 'out.framify_org_custom_svg = svg;' )
     && false !== strpos( $org_js, "var s = libraryShape( window.FramifyColor.settings( this ) );" ) && false !== strpos( $org_js, 'decoPair = { rest: libPath, hover: libPath };' ) );
 $sl = 'Framify_Shape_Library';
+check( 'library sanitiser: the path limit leaves room for the svg wrapper (a max-size path still saves under MAX_BYTES)', '' !== $sl::clean_d( str_repeat( 'M0 0 ', 9800 ) ) && '' === $sl::clean_d( str_repeat( 'M0 0 ', 9801 ) ) && strlen( $sl::build_svg( substr( str_repeat( 'M0 0 ', 9800 ), 0, $sl::MAX_D ), '0 0 1000 1000' ) ) < $sl::MAX_BYTES );
 check( 'library sanitiser: path data keeps only path characters; markup, script and url() are refused', 'M0 0 L10 10 Z' === $sl::clean_d( "M0 0\nL10  10 Z" ) && '' === $sl::clean_d( 'M0 0 <script>alert(1)</script>' ) && '' === $sl::clean_d( 'url(#x)' ) && '' === $sl::clean_d( '' ) );
 check( 'library sanitiser: viewBox must be four numbers (else 0 0 100 100); parse keeps only d + viewBox', '0 0 100 100' === $sl::clean_viewbox( '0 0 100 x' ) && '0 0 200 50' === $sl::clean_viewbox( '0,0,200,50' )
     && array( 'd' => 'M0 0L9 9Z', 'vb' => '0 0 40 30' ) === $sl::parse( '<svg viewBox="0 0 40 30" onload="x()"><script>1</script><path d="M0 0L9 9Z" fill="red"/></svg>' )

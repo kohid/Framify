@@ -1604,6 +1604,7 @@
 			fields.runs.hidden = disp;
 			dispSec.hidden = ! disp;
 			dotsSec.firstChild.textContent = disp ? 'Particles' : 'Dots';
+			invert.lastChild.textContent = disp ? 'Invert (particles become holes)' : 'Invert (dots become holes)';
 			dotsNote.textContent = disp ? 'Invert shows your image around the particles instead of through them.' : 'Runs groups dots into horizontal clusters. Invert shows your image around the dots instead of through them.';
 		}
 

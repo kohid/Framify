@@ -796,12 +796,19 @@
 			}
 			pitch = Math.min( pitch, dot.near );
 		} );
-		var field = { rest: parsePath( d ), dots: dots, pitch: pitch, minX: minX, maxX: maxX, mass: mass, anchor: null };
+		var field = { rest: parsePath( d ), dots: dots, pitch: pitch, minX: minX, maxX: maxX, mass: mass };
 		if ( mass ) {
-			// Each particle may swell to half its own nearest-neighbour gap and
-			// no further than the mass; a particle already closer keeps its size.
-			dots.forEach( function ( dot ) {
-				dot.cap = Math.min( dot.near / 2, polyDistance( dot.x, dot.y, mass.pts ) );
+			// Particles differ in size, so each one swells by half of the free gap
+			// to every neighbour (two caps then always add up to at most the
+			// distance between them), and stops a unit short of the mass.
+			dots.forEach( function ( dot, i ) {
+				var cap = Math.max( dot.r, polyDistance( dot.x, dot.y, mass.pts ) - 1 );
+				dots.forEach( function ( other, j ) {
+					if ( j !== i ) {
+						cap = Math.min( cap, ( Math.hypot( dot.x - other.x, dot.y - other.y ) + dot.r - other.r ) / 2 );
+					}
+				} );
+				dot.cap = Math.max( dot.r, cap );
 			} );
 			field.anchor = massAnchor( mass.pts );
 		} else {
@@ -861,6 +868,8 @@
 		var area = 0;
 		var convex = true;
 		var reach = 0;
+		var cx = sx / count;
+		var cy = sy / count;
 		for ( var k = 0; k < count; k++ ) {
 			var a = pts[ k ];
 			var b = pts[ ( k + 1 ) % count ];
@@ -870,12 +879,12 @@
 			if ( ( b[ 0 ] - a[ 0 ] ) * ( c[ 1 ] - b[ 1 ] ) - ( b[ 1 ] - a[ 1 ] ) * ( c[ 0 ] - b[ 0 ] ) >= 0 ) {
 				convex = false;
 			}
-			reach = Math.max( reach, Math.hypot( a[ 0 ] - sx / count, a[ 1 ] - sy / count ) );
+			reach = Math.max( reach, Math.hypot( a[ 0 ] - cx, a[ 1 ] - cy ) );
 		}
 		if ( ! ( area < 0 ) ) {
 			return null;
 		}
-		return { pts: pts, cx: sx / count, cy: sy / count, convex: convex, reach: reach };
+		return { pts: pts, cx: cx, cy: cy, convex: convex, reach: reach };
 	}
 
 	function polyDistance( x, y, pts ) {
@@ -893,7 +902,7 @@
 
 	// A point the whole mass can be seen from (inside its kernel): Drift
 	// expands about it, which can never push a particle into the mass. The
-	// area centre is tried first, then it is pulled toward each side of the
+	// vertex mean is tried first, then it is pulled toward each side of the
 	// mass; null when none works (the mass is not star-shaped).
 	function massAnchor( pts ) {
 		var minX = Infinity;
@@ -2189,7 +2198,8 @@
 				}
 				if ( field && ( 'dots' === s.framify_org_custom_motion || field.mass || field.dots.length > DOT_LIQUID_MAX ) ) {
 					// Dots stay in the paste's own units, like Gentle (fx.inner is
-					// left as set), and never leave their cells, so there is no
+					// left as set), and (except Drift, which the clip simply
+					// cuts off at the edge) stay inside their cells, so there is no
 					// motion inset or container bleed: fx.motion stays null.
 					// The style is only honoured when Dots was chosen: the control is
 					// hidden otherwise, and Elementor drops hidden controls from a

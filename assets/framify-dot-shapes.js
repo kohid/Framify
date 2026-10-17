@@ -17,7 +17,7 @@
  *
  * The Dispersion pattern uses the same contract with two additions, read by
  * the same recogniser: right after the optional outline comes one "mass", a
- * counter-clockwise polygon of 8+ straight edges (M x y L x y ... Z), then
+ * counter-clockwise polygon of 8-64 corners (M x y L x y ... Z), then
  * the particles, each either a circle as above or a convex counter-clockwise
  * polygon of 3 or 4 corners (M x y L x y L x y [L x y] Z). The mass is
  * star-shaped around an anchor point, which is what lets the Drift motion
@@ -41,7 +41,10 @@
 	// Where the particles travel. 'out' scatters from a mass in the middle.
 	var DIRECTIONS = [ 'right', 'left', 'down', 'up', 'out' ];
 	var PARTICLES = [ 'circle', 'square', 'triangle', 'diamond', 'mixed' ];
-	var KINDS = [ 'circle', 'square', 'triangle', 'diamond' ];
+	// 'mixed' picks one of the others for each particle.
+	var KINDS = PARTICLES.filter( function ( kind ) {
+		return 'mixed' !== kind;
+	} );
 	var RATIOS = { '1:1': [ 1, 1 ], '4:3': [ 4, 3 ], '3:4': [ 3, 4 ], '16:9': [ 16, 9 ] };
 
 	function clampInt( v, lim ) {
@@ -190,7 +193,9 @@
 		var horizontal = 'left' === o.direction || 'right' === o.direction;
 		var L = horizontal ? w : h;
 		var W = horizontal ? h : w;
-		var unit = Math.floor( VB / o.cols );
+		// Not the Columns setting: Dispersion has no such control, a value left
+		// over from Dots must not rescale its particles.
+		var unit = Math.floor( VB / LIMITS.cols[ 2 ] );
 		var rMin = Math.max( 3, unit * o.min / 200 );
 		var rMax = Math.max( rMin, unit * o.max / 200 );
 		var i;
@@ -248,9 +253,8 @@
 		}
 
 		// Particles, biggest (nearest the mass) first.
-		var want = o.dots;
 		var ts = [];
-		for ( i = 0; i < want; i++ ) {
+		for ( i = 0; i < o.dots; i++ ) {
 			ts.push( Math.pow( rng(), 1.6 ) );
 		}
 		ts.sort( function ( a, b ) {
@@ -275,9 +279,9 @@
 					aim = { right: 0, left: Math.PI, down: Math.PI / 2, up: -Math.PI / 2 }[ o.direction ];
 				}
 				aim += ( rng() - 0.5 ) * 0.7;
-				var p = particle( kind, Math.round( pos[ 0 ] ), Math.round( pos[ 1 ] ), r, aim );
 				var cx = Math.round( pos[ 0 ] );
 				var cy = Math.round( pos[ 1 ] );
+				var p = particle( kind, cx, cy, r, aim );
 				if ( cx - p.R < 1 || cy - p.R < 1 || cx + p.R > w - 1 || cy + p.R > h - 1
 					|| insidePoly( cx, cy, mass ) || edgeDistance( cx, cy, mass ) < p.R * 1.35 + 3 ) {
 					continue;
