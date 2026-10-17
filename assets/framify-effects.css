@@ -1,0 +1,32 @@
+/* Framify - Background Effects (cloud / smoke / flames canvas layers).
+   One layer per element; the canvas inside is sized by the script. The host
+   is isolated (.framify-fs-host, framify-shapes.css), so z-index -1 stays
+   inside it: above the host's own background, below Elementor's Background
+   Overlay (a positioned z-index:auto box). z-index 0 is the Above stack: the
+   same slot as Floating Shapes, after the overlay and below the content. */
+.framify-ef {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	overflow: hidden;
+	border-radius: inherit;
+	pointer-events: none;
+}
+.framify-ef--under {
+	z-index: -1;
+}
+.framify-ef--above {
+	z-index: 0;
+}
+.framify-ef__canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+@media print {
+	.framify-ef {
+		display: none;
+	}
+}

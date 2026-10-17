@@ -40,8 +40,10 @@
 	var FALLBACK_COLOR = '#F69216';
 	// Leading children that are Elementor's own background layers (and the
 	// editor's handles); the background layer goes after them so it paints
-	// above a background overlay. See the stacking note in the CSS.
-	var BACKGROUND_CHILD = '.elementor-element-overlay, .elementor-background-overlay, .elementor-background-video-container, .elementor-background-slideshow, .elementor-motion-effects-container';
+	// above a background overlay. See the stacking note in the CSS. The last
+	// entry is the Background Effects canvas (framify-effects.js): layers from
+	// this file insert after it, so shapes and text paint above an effect.
+	var BACKGROUND_CHILD = '.elementor-element-overlay, .elementor-background-overlay, .elementor-background-video-container, .elementor-background-slideshow, .elementor-motion-effects-container, .framify-ef';
 
 	/* ---------- shared helpers (window.FramifyFx) ----------
 	 *

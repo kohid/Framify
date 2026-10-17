@@ -833,5 +833,124 @@ if ( 127 === $node_rc || ( 1 === $node_rc && ! preg_grep( '/^(PASS|FAIL) /', $no
     check( 'dots: node dev/tests/dot-shapes-test.js ALL PASSED (' . count( preg_grep( '/^PASS /', $node_out ) ) . ' checks)', 0 === $node_rc && in_array( 'ALL PASSED', $node_out, true ) );
 }
 
+// 12. Background Effects (framify-elementor-effects.php): hooks, ids, live flags, defaults, JS parity.
+require dirname( __DIR__, 2 ) . '/framify-elementor-effects.php';
+$ef_module = new Framify_Elementor_Effects();
+$ef_hooks  = array();
+foreach ( array( 'container', 'section' ) as $ef_w ) {
+    foreach ( framify_hooked( 'elementor/element/' . $ef_w . '/_section_responsive/after_section_end' ) as $hook ) {
+        if ( 'Framify_Elementor_Effects' === get_class( $hook[1] ) && 'register_controls' === $hook[2] ) {
+            $ef_hooks[ $ef_w ] = $hook[0];
+        }
+    }
+}
+$ef_elsewhere = array();
+foreach ( array( 'spacer/section_spacer', 'image/section_style_caption', 'common/_section_style', 'column/_section_responsive' ) as $ef_h ) {
+    foreach ( framify_hooked( 'elementor/element/' . $ef_h . '/after_section_end' ) as $hook ) {
+        if ( 'Framify_Elementor_Effects' === get_class( $hook[1] ) ) {
+            $ef_elsewhere[] = $ef_h;
+        }
+    }
+}
+check( 'effects: hooked on containers and sections at priority 60 (after Organic 10, Shapes 20, Text 30, Float 40, Divider 50), nowhere else', array( 'container' => 60, 'section' => 60 ) === $ef_hooks && 0 === count( $ef_elsewhere ) );
+$ef_el = new Framify_Test_Element( 'container' );
+$ef_module->register_controls( $ef_el );
+check( 'effects: one section framify_ef_section "Background Effects" in the Framify tab', array( 'framify_ef_section' ) === array_keys( $ef_el->sections ) && Framify_Elementor::TAB === $ef_el->sections['framify_ef_section']['tab'] && 'Background Effects' === $ef_el->sections['framify_ef_section']['label'] && 0 === $ef_el->open );
+$ef_params = $ef_module->params();
+$ef_expect = array( 'framify_ef_stack', 'framify_ef_quality' );
+for ( $n = 1; $n <= 3; $n++ ) {
+    $ef_expect[] = 'framify_ef_' . $n . '_type';
+    foreach ( array_keys( $ef_params ) as $k ) {
+        $ef_expect[] = 'framify_ef_' . $n . '_' . $k;
+    }
+}
+check( 'effects: stack, quality, then three layers of type + the same controls, in order', $ef_expect === array_keys( $ef_el->controls ) );
+$ef_bad = array();
+foreach ( array_merge( array_keys( $ef_el->sections ), array_keys( $ef_el->controls ), array_keys( $ef_el->tabs['framify_ef_tabs'] ) ) as $id ) {
+    if ( 0 !== strpos( $id, 'framify_ef_' ) ) {
+        $ef_bad[] = $id;
+    }
+}
+check( 'effects: every section, tab and control id starts with framify_ef_ (no other handler reacts to them)', ! $ef_bad );
+$ef_live = true;
+foreach ( $ef_el->controls as $args ) {
+    $ef_live = $ef_live && ! empty( $args['frontend_available'] ) && 'none' === $args['render_type'];
+}
+check( 'effects: every control is frontend_available with render_type none', $ef_live );
+check( 'effects: three Layer tabs, controls filed under their own layer', array( 'framify_ef_tab_1', 'framify_ef_tab_2', 'framify_ef_tab_3' ) === array_keys( $ef_el->tabs['framify_ef_tabs'] )
+    && 'framify_ef_tab_2' === $ef_el->tab_of['framify_ef_2_speed'] && 'framify_ef_tab_3' === $ef_el->tab_of['framify_ef_3_type'] && null === $ef_el->tab_of['framify_ef_stack'] );
+check( 'effects: stack defaults to under, quality to medium', 'under' === $ef_el->controls['framify_ef_stack']['default'] && array( 'under', 'above' ) === array_keys( $ef_el->controls['framify_ef_stack']['options'] ) && 'medium' === $ef_el->controls['framify_ef_quality']['default'] );
+check( 'effects: each layer starts Off and offers off / cloud / smoke / flames', 'off' === $ef_el->controls['framify_ef_1_type']['default'] && array( 'off', 'cloud', 'smoke', 'flames' ) === array_keys( $ef_el->controls['framify_ef_3_type']['options'] ) );
+$ef_cond = true;
+$ef_col  = true;
+foreach ( $ef_params as $key => $spec ) {
+    $c = $ef_el->controls[ 'framify_ef_2_' . $key ];
+    $ef_cond = $ef_cond && array( 'framify_ef_2_type' => $spec['types'] ) === $c['condition'];
+    if ( 'color' === $spec['kind'] ) {
+        $ef_col = $ef_col && 'color' === $c['type'] && '' === $c['default'] && ! isset( $c['global'] );
+    }
+}
+check( 'effects: every layer control only shows for the effects that use it', $ef_cond );
+check( 'effects: colours are empty by default (the effect\'s own colour) and keep the Global Colour picker', $ef_col );
+check( 'effects: density is the one responsive control', ! empty( $ef_el->controls['framify_ef_1_density']['responsive'] ) && empty( $ef_el->controls['framify_ef_1_speed']['responsive'] ) );
+
+// The PHP table and SPEC in framify-effects-core.js must agree.
+$ef_out = array();
+$ef_rc  = -1;
+@exec( 'node ' . escapeshellarg( __DIR__ . '/effects-core-test.js' ) . ' --schema 2>&1', $ef_out, $ef_rc );
+$ef_schema = 0 === $ef_rc ? json_decode( implode( "\n", $ef_out ), true ) : null;
+if ( ! $ef_schema ) {
+    echo "SKIP effects schema parity: node not found\n";
+} else {
+    $ef_same = array_keys( $ef_params ) === array_column( $ef_schema['spec'], 'key' ) && array_keys( $ef_module->type_options() ) === $ef_schema['types'];
+    foreach ( $ef_schema['spec'] as $row ) {
+        $php = isset( $ef_params[ $row['key'] ] ) ? $ef_params[ $row['key'] ] : null;
+        if ( ! $php || $php['kind'] !== $row['kind'] || $php['types'] !== $row['types'] ) {
+            $ef_same = false;
+            continue;
+        }
+        if ( 'slider' === $row['kind'] ) {
+            $ef_same = $ef_same && (float) $php['min'] === (float) $row['min'] && (float) $php['max'] === (float) $row['max'] && (float) $php['step'] === (float) $row['step'] && (float) $php['def'] === (float) $row['def'];
+        } elseif ( 'select' === $row['kind'] ) {
+            $ef_same = $ef_same && array_keys( $php['options'] ) === $row['options'] && $php['def'] === $row['def'];
+        }
+    }
+    check( 'effects: PHP control table equals SPEC in framify-effects-core.js (keys, kinds, types, ranges, defaults)', $ef_same );
+    check( 'effects: the quality options are the ones the core knows', array_keys( $ef_el->controls['framify_ef_quality']['options'] ) === $ef_schema['qualities'] );
+}
+$ef_dir = dirname( __DIR__, 2 ) . '/assets/';
+$ef_php = file_get_contents( dirname( __DIR__, 2 ) . '/framify-elementor-effects.php' );
+check( 'effects: scripts depend on framify-shapes, framify-colors and the core; style on framify-shapes; versioned by file time',
+    false !== strpos( $ef_php, "array( 'elementor-frontend', 'framify-colors', 'framify-shapes', 'framify-effects-core' )" )
+    && false !== strpos( $ef_php, "array( 'framify-shapes' )" ) && false !== strpos( $ef_php, "\$this->asset_version( 'framify-effects.js' )" ) && false !== strpos( $ef_php, "\$this->asset_version( 'framify-effects-core.js' )" ) );
+check( 'effects: inert without the Framify tab or the Floating Shapes helpers', false !== strpos( $ef_php, "! class_exists( 'Framify_Elementor' ) || ! class_exists( 'Framify_Elementor_Shapes' )" ) );
+check( 'effects: loaded from framify.php after the divider, behind a file_exists guard', 1 === preg_match( "/framify-elementor-divider\.php';\s*\}.*if \( file_exists\( FRAMIFY_PLUGIN_DIR \. 'framify-elementor-effects\.php' \) \) \{\s*require_once FRAMIFY_PLUGIN_DIR \. 'framify-elementor-effects\.php';/s", $main_php ) );
+$ef_js   = file_get_contents( $ef_dir . 'framify-effects.js' );
+$ef_core = file_get_contents( $ef_dir . 'framify-effects-core.js' );
+$ef_css  = file_get_contents( $ef_dir . 'framify-effects.css' );
+$sh_js   = file_get_contents( $ef_dir . 'framify-shapes.js' );
+check( 'effects: JS effect types are the PHP ones', 1 === preg_match( "/var TYPES = \[ 'cloud', 'smoke', 'flames' \];/", $ef_core ) );
+check( 'effects: the handler attaches to containers and sections with the null skin and its own constructor id', false !== strpos( $ef_js, "attachHandler( 'container', BackgroundEffects, null );" ) && false !== strpos( $ef_js, "attachHandler( 'section', BackgroundEffects, null );" ) && false !== strpos( $ef_js, "return 'FramifyBackgroundEffects';" ) );
+check( 'effects: Floating Shapes / Text / Divider skip the effect canvas when inserting (BACKGROUND_CHILD has .framify-ef)', 1 === preg_match( "/var BACKGROUND_CHILD = '[^']*\.framify-ef';/", $sh_js ) );
+check( 'effects: stacking CSS puts Under at z-index -1 and Above at 0, clicks pass through', 1 === preg_match( '/\.framify-ef--under \{\s*z-index: -1;/', $ef_css ) && 1 === preg_match( '/\.framify-ef--above \{\s*z-index: 0;/', $ef_css ) && false !== strpos( $ef_css, 'pointer-events: none;' ) );
+$ef_es5 = true;
+foreach ( array( $ef_js, $ef_core ) as $src ) {
+    $code = preg_replace( array( '#/\*.*?\*/#s', '#^\s*//.*$#m' ), '', $src );
+    if ( preg_match( '/=>|`|\blet\s|\bconst\s|\bclass\s+\w|\.includes\(|Object\.assign|\.\.\./', $code ) || preg_match( '/^ +\S/m', $code ) ) {
+        $ef_es5 = false;
+    }
+}
+check( 'effects: JS stays ES5 (no arrows, template literals, let / const / class, spread) and tab-indented', $ef_es5 );
+check( 'effects: no settings string reaches markup (no innerHTML, insertAdjacentHTML or eval)', ! preg_match( '/innerHTML|insertAdjacentHTML|\beval\(|new Function/', $ef_js . $ef_core ) );
+
+$ef_node = array();
+$ef_nrc  = -1;
+@exec( 'node ' . escapeshellarg( __DIR__ . '/effects-core-test.js' ) . ' 2>&1', $ef_node, $ef_nrc );
+if ( 127 === $ef_nrc || ( 1 === $ef_nrc && ! preg_grep( '/^(PASS|FAIL) /', $ef_node ) ) ) {
+    echo "SKIP effects node test: node not found\n";
+} else {
+    check( 'effects: node dev/tests/effects-core-test.js ALL PASSED (' . count( preg_grep( '/^PASS /', $ef_node ) ) . ' checks)', 0 === $ef_nrc && in_array( 'ALL PASSED', $ef_node, true ) );
+}
+
 echo $failures ? "\n$failures FAILED\n" : "\nALL PASSED\n";
 exit( $failures ? 1 : 0 );

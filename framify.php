@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Framify
  * Description: Responsive live floating code editor with CSS, jQuery, and PHP snippets. Features multiple viewport previews and advanced instance management.
- * Version: 1.16.0
+ * Version: 1.17.0
  * Author: Jay Miralles
  * License: GPL v2 or later
  * Text Domain: framify
@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('FRAMIFY_VERSION', '1.16.0');
+define('FRAMIFY_VERSION', '1.17.0');
 // Unchanged: the schema did not move in 1.2.1, so no migration should run.
 define('FRAMIFY_DB_VERSION', '1.2.0');
 define('FRAMIFY_PLUGIN_DIR', plugin_dir_path(__FILE__));
@@ -1140,4 +1140,11 @@ if ( file_exists( FRAMIFY_PLUGIN_DIR . 'framify-elementor-text.php' ) ) {
 // active)
 if ( file_exists( FRAMIFY_PLUGIN_DIR . 'framify-elementor-divider.php' ) ) {
     require_once FRAMIFY_PLUGIN_DIR . 'framify-elementor-divider.php';
+}
+
+// Load Elementor Background Effects: cloud / smoke / flames canvas layers on
+// Sections and Containers, reusing the Floating Shapes helpers (inert unless
+// Elementor is active)
+if ( file_exists( FRAMIFY_PLUGIN_DIR . 'framify-elementor-effects.php' ) ) {
+    require_once FRAMIFY_PLUGIN_DIR . 'framify-elementor-effects.php';
 }

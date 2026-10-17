@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Framify Background Effects fixture</title>
+<style>
+	body { margin: 0; background: #20242c; font: 13px system-ui, sans-serif; color: #fff; }
+	.host { position: relative; width: 400px; height: 300px; background: #3a4150; margin: 4px; }
+	.host .content { position: relative; padding: 16px; font-weight: 600; }
+	.host .elementor-background-overlay { position: absolute; inset: 0; background: #1b4fd1; opacity: 1; }
+	.sheet { display: flex; flex-wrap: wrap; }
+</style>
+<link rel="stylesheet" href="../../../assets/framify-shapes.css">
+<link rel="stylesheet" href="../../../assets/framify-effects.css">
+</head>
+<body>
+<div id="stage" class="sheet"></div>
+<script src="../../../assets/framify-shapes.js"></script>
+<script src="../../../assets/framify-effects-core.js"></script>
+<script src="../../../assets/framify-effects.js"></script>
+<script>
+	// The test builds hosts and layers itself; this only offers a helper that
+	// turns raw control values into a stack, like the Elementor handler does.
+	window.makeHost = function ( id, opts ) {
+		opts = opts || {};
+		var host = document.createElement( 'div' );
+		host.className = 'host';
+		host.id = id;
+		if ( opts.style ) {
+			host.setAttribute( 'style', opts.style );
+		}
+		if ( opts.overlay ) {
+			var ov = document.createElement( 'div' );
+			ov.className = 'elementor-background-overlay';
+			ov.style.opacity = opts.overlay;
+			host.appendChild( ov );
+		}
+		var c = document.createElement( 'div' );
+		c.className = 'content';
+		c.textContent = opts.label || id;
+		host.appendChild( c );
+		document.getElementById( 'stage' ).appendChild( host );
+		return host;
+	};
+	window.stackOf = function ( raw, extra ) {
+		var s = window.FramifyEffectsCore.readStack( raw );
+		s.seed = ( extra && extra.seed ) || 7;
+		return s;
+	};
+</script>
+</body>
+</html>
