@@ -804,5 +804,33 @@ if ( 127 === $node_rc || ( 1 === $node_rc && ! preg_grep( '/^(PASS|FAIL) /', $no
     check( 'sanitiser: node dev/tests/divider-sanitiser-test.js ALL PASSED (' . count( preg_grep( '/^PASS /', $node_out ) ) . ' checks)', 0 === $node_rc && in_array( 'ALL PASSED', $node_out, true ) );
 }
 
+// 11. Dots motion + Generate tab (dot-grid shapes).
+$dot_php    = file_get_contents( dirname( __DIR__, 2 ) . '/framify-elementor.php' );
+$dot_studio = file_get_contents( dirname( __DIR__, 2 ) . '/assets/framify-shape-studio.js' );
+$dot_gen_js = file_get_contents( dirname( __DIR__, 2 ) . '/assets/framify-dot-shapes.js' );
+$dot_css    = file_get_contents( dirname( __DIR__, 2 ) . '/assets/framify-elementor-editor.css' );
+check( 'dots: Custom motion offers liquid, gentle and dots (default liquid)', array( 'liquid', 'gentle', 'dots' ) === array_keys( $con_c['framify_org_custom_motion']['options'] ) && 'liquid' === $con_c['framify_org_custom_motion']['default'] );
+$dot_style = $con_c['framify_org_dot_style'];
+$dot_terms = array();
+array_walk_recursive( $dot_style['conditions'], function ( $v, $k ) use ( &$dot_terms ) { $dot_terms[] = $k . '=' . ( is_array( $v ) ? implode( ',', $v ) : $v ); } );
+check( 'dots: framify_org_dot_style is breathe / twinkle / wave (default breathe), live, only with Dots chosen', array( 'breathe', 'twinkle', 'wave' ) === array_keys( $dot_style['options'] ) && 'breathe' === $dot_style['default'] && ! empty( $dot_style['frontend_available'] )
+    && in_array( 'value=dots', $dot_terms, true ) && in_array( 'name=framify_org_custom_motion', $dot_terms, true ) );
+check( 'dots: the generator is enqueued (asset_version) and the studio depends on it', false !== strpos( $dot_php, "'framify-dot-shapes'," ) && false !== strpos( $dot_php, "\$this->asset_version( 'framify-dot-shapes.js' )" ) && false !== strpos( $dot_php, "array( 'elementor-editor', 'framify-dot-shapes' )" ) );
+check( 'dots: the studio gets the shape quota from the server (maxUser = MAX_USER)', false !== strpos( $dot_php, "'maxUser' => Framify_Shape_Library::MAX_USER" ) );
+check( 'dots: studio registers the Generate tab only when the generator is loaded', false !== strpos( $dot_studio, "if ( window.FramifyDotShapes ) {" ) && false !== strpos( $dot_studio, "[ 'Generate', generateTab ]" ) );
+check( 'dots: generator has no DOM and no innerHTML, and exposes window.FramifyDotShapes', false === strpos( $dot_gen_js, 'document' ) && false === strpos( $dot_gen_js, 'innerHTML' ) && false !== strpos( $dot_gen_js, 'window.FramifyDotShapes = {' ) );
+check( 'dots: the Dots branch leaves fx.motion alone (no Image inset, no Container bleed) and render() has a dots blend hook', 1 === preg_match( "/if \\( field && \\( 'dots' === s\\.framify_org_custom_motion[^}]*?fx\\.dots = dotPair\\([^}]*?return;/s", $org_js ) && false !== strpos( $org_js, 'part.pair.blend' )
+    && 1 === preg_match( "/fx\\.dots = dotPair\\(([^;]*);\\s*return;/", $org_js ) && false === strpos( substr( $org_js, strpos( $org_js, 'fx.dots = dotPair(' ), 120 ), 'fx.motion' ) );
+check( 'dots: Generate tab styles exist in the editor stylesheet', false !== strpos( $dot_css, '.framify-studio__variant {' ) && false !== strpos( $dot_css, '.framify-studio__draw--gen {' ) );
+
+$node_out = array();
+$node_rc  = -1;
+@exec( 'node ' . escapeshellarg( __DIR__ . '/dot-shapes-test.js' ) . ' 2>&1', $node_out, $node_rc );
+if ( 127 === $node_rc || ( 1 === $node_rc && ! preg_grep( '/^(PASS|FAIL) /', $node_out ) ) ) {
+    echo "SKIP dots node test: node not found\n";
+} else {
+    check( 'dots: node dev/tests/dot-shapes-test.js ALL PASSED (' . count( preg_grep( '/^PASS /', $node_out ) ) . ' checks)', 0 === $node_rc && in_array( 'ALL PASSED', $node_out, true ) );
+}
+
 echo $failures ? "\n$failures FAILED\n" : "\nALL PASSED\n";
 exit( $failures ? 1 : 0 );

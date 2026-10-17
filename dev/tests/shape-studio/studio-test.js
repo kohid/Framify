@@ -224,6 +224,113 @@ const { chromium } = require( process.env.PLAYWRIGHT_MODULE || 'playwright' );
   const css = await p.locator('canvas.framify-studio__canvas').evaluate(e => { const r = e.getBoundingClientRect(); return [r.width / r.height, e.dataset.w / e.dataset.h]; });
   ok('wide canvas keeps its aspect ratio on screen (anchors are not stretched)', Math.abs(css[0] - css[1]) < 0.02);
 
+
+  // Generate tab: seeded dot patterns, several variations saved at once.
+  const gen = async () => { await p.evaluate(() => openStudio()); await p.getByRole('button', { name: 'Generate', exact: true }).click(); await p.waitForSelector('.framify-studio__variant'); };
+  const range = (label) => p.locator('label.framify-studio__range', { hasText: label }).locator('input');
+  const setRange = async (label, v) => { await range(label).fill(String(v)); await p.waitForTimeout(60); };
+  const DOT = /^(M0 0H\d+V\d+H0Z)?(M\d+ \d+a(\d+) \3 0 1 0 \d+ 0a\3 \3 0 1 0 -\d+ 0Z)+$/;
+  await gen();
+  ok('generate: 6 variations, all ticked by default', (await p.locator('.framify-studio__variant').count()) === 6 && (await p.locator('.framify-studio__variant.is-on').count()) === 6);
+  ok('generate: the Save button counts the ticked shapes', (await p.getByRole('button', { name: 'Save 6 shapes' }).count()) === 1);
+  await setRange('Variations', 8);
+  ok('generate: Variations = 8 shows 8 tiles', (await p.locator('.framify-studio__variant').count()) === 8);
+  const firstSrc = await p.locator('.framify-studio__variant img').first().getAttribute('src');
+  await p.getByRole('button', { name: 'Shuffle', exact: true }).click(); await p.waitForTimeout(80);
+  ok('generate: Shuffle gives different shapes', (await p.locator('.framify-studio__variant img').first().getAttribute('src')) !== firstSrc);
+  const seedIn = p.locator('.framify-studio__seedrow input');
+  await seedIn.fill('12345'); await p.waitForTimeout(80);
+  const s1 = await p.locator('.framify-studio__variant img').first().getAttribute('src');
+  await seedIn.fill('999'); await p.waitForTimeout(80);
+  await seedIn.fill('12345'); await p.waitForTimeout(80);
+  ok('generate: the same seed brings back the same shapes', (await p.locator('.framify-studio__variant img').first().getAttribute('src')) === s1);
+  await p.locator('.framify-studio__variant').first().click();
+  ok('generate: unticking a tile updates the count and Save label', (await p.locator('.framify-studio__variant.is-on').count()) === 7 && (await p.getByRole('button', { name: 'Save 7 shapes' }).count()) === 1);
+  await p.evaluate(() => { window.__posts.length = 0; window.__applied = null; });
+  await p.locator('.framify-studio__field input').fill('Dots');
+  await p.getByRole('button', { name: 'Save 7 shapes' }).click();
+  await p.waitForSelector('.framify-studio__done');
+  const gp = await p.evaluate(() => window.__posts.slice());
+  ok('generate: 7 posts, named "Dots 2" ... "Dots 8" (the unticked #1 is skipped)', gp.length === 7 && gp[0].name === 'Dots 2' && gp[6].name === 'Dots 8');
+  ok('generate: every posted path is canonical circles only and under the server cap', gp.every(x => DOT.test(x.d) && x.d.length < 50000 && /^0 0 \d+ \d+$/.test(x.vb)));
+  ok('generate: the done screen reports 7 shapes and the first is applied', /Saved 7 shapes/.test(await p.locator('.framify-studio__done').textContent()) && await p.evaluate(() => window.__applied && window.__applied.settings.framify_org_shape_lib === 'lib_u_dots 2'));
+  await p.getByRole('button', { name: 'Add another', exact: true }).click(); await p.waitForSelector('.framify-studio__variant');
+  ok('generate: "Add another" returns to Generate with the same settings but a NEW seed (no duplicate saves)', (await p.locator('.framify-studio__variant').count()) === 8 && (await p.locator('.framify-studio__seedrow input').inputValue()) !== '12345');
+  await p.locator('.framify-studio__draw--gen .framify-studio__switch').click(); await p.waitForTimeout(60);
+  await setRange('Variations', 1);
+  await p.evaluate(() => { window.__posts.length = 0; });
+  await p.locator('.framify-studio__field input').fill('Holes');
+  await p.getByRole('button', { name: 'Save 1 shape' }).click(); await p.waitForSelector('.framify-studio__done');
+  const hp = await p.evaluate(() => window.__posts.slice());
+  ok('generate: Invert posts an outline first, then the dots; a single shape keeps the bare name', hp.length === 1 && hp[0].name === 'Holes' && /^M0 0H\d+V\d+H0Z/.test(hp[0].d) && DOT.test(hp[0].d));
+  await gen();
+  await p.getByRole('button', { name: 'Ratio 4:3', exact: true }).click(); await p.waitForTimeout(60);
+  const vb43 = (await p.evaluate(() => 0)) || (await p.locator('.framify-studio__variant img').first().evaluate(i => i.style.aspectRatio));
+  const ar = vb43.split(' / ').map(Number);
+  ok('generate: ratio 4:3 gives a landscape sheet (about 1.33)', Math.abs(ar[0] / ar[1] - 4 / 3) < 0.12);
+  await setRange('Dots', 400); await setRange('Columns', 40);
+  const caption = await p.locator('.framify-studio__caption').first().textContent();
+  ok('generate: 400 dots at 40 columns stay in size (caption shows count and KB)', /400 dots/.test(caption) && /\d+\.\d KB/.test(caption) && parseFloat(caption.match(/(\d+\.\d) KB/)[1]) < 50);
+  await setRange('Smallest', 90);
+  ok('generate: raising Smallest above Largest pushes Largest up (kept in order)', +(await range('Largest').inputValue()) >= 90);
+  await p.evaluate(() => { const n = 98 - framifyShapeStudio.shapes.filter(s => s.source === 'user').length; for (let i = 0; i < n; i++) framifyShapeStudio.shapes.push({ id: 'x' + i, title: 'x', thumb: '', svg: '', source: 'user' }); });
+  await p.evaluate(() => { window.__posts.length = 0; });
+  await setRange('Variations', 6);
+  await p.getByRole('button', { name: 'Save 6 shapes' }).click(); await p.waitForTimeout(80);
+  ok('generate: with 98 of 100 slots used, saving 6 is blocked before any request', (await p.evaluate(() => window.__posts.length)) === 0 && /free slots/.test(await p.locator('.framify-studio__msg').last().textContent()));
+  await p.evaluate(() => { framifyShapeStudio.shapes = framifyShapeStudio.shapes.filter(s => s.source !== 'user'); });
+
+
+  // Real-browser geometry: winding of Invert, and the animated frames render.
+  await p.addScriptTag({ path: require('path').join(__dirname, '../../../assets/framify-elementor.js') });
+  const geo = await p.evaluate(() => {
+    const G = window.FramifyDotShapes, O = window.FramifyOrganicShape;
+    const inPath = (d, x, y) => document.createElement('canvas').getContext('2d').isPointInPath(new Path2D(d), x, y);
+    const out = {};
+    const plain = G.generate({ seed: 4, dots: 60, cols: 12 }, 0);
+    const inv = G.generate({ seed: 4, dots: 60, cols: 12, invert: true }, 0);
+    const fp = O.dotField(plain.d), fi = O.dotField(inv.d);
+    const vb = plain.vb.split(' ').map(Number);
+    const free = (f) => { for (let y = 25; y < vb[3]; y += 80) for (let x = 25; x < vb[2]; x += 80) if (!f.dots.some(d => Math.hypot(d.x - x, d.y - y) < d.r + 30)) return [x, y]; return null; };
+    const last = fp.dots[fp.dots.length - 1], gap = free(fp);
+    out.plainDotInside = inPath(plain.d, fp.dots[0].x, fp.dots[0].y);
+    out.plainGapOutside = !gap || !inPath(plain.d, gap[0], gap[1]);
+    out.invDotHole = !inPath(inv.d, fi.dots[0].x, fi.dots[0].y);
+    out.invGapFilled = !gap || inPath(inv.d, gap[0], gap[1]);
+    // the LAST dot of the path must still be drawn in the middle of an animation: a corrupted flag would truncate the path before it
+    out.lastDotDrawn = ['breathe', 'twinkle', 'wave'].every(style => inPath(O.dotPair(fp, style, 'strong').blend(0.5), last.x, last.y));
+    out.invFramesHole = ['breathe', 'twinkle', 'wave'].every(style => !inPath(O.dotPair(fi, style, 'strong').blend(0.6), fi.dots[fi.dots.length - 1].x, fi.dots[fi.dots.length - 1].y));
+    out.genericBlendBreaks = !inPath(O.blendPath(O.parsePath(plain.d), O.parsePath(plain.d), 0.5), last.x, last.y);
+    return out;
+  });
+  ok('browser: a plain dot is filled and an empty cell is not', geo.plainDotInside && geo.plainGapOutside);
+  ok('browser: Invert (outline + opposite winding) makes the dot a hole and fills the gap', geo.invDotHole && geo.invGapFilled);
+  ok('browser: the last dot is still drawn mid-animation in Breathe, Twinkle and Wave', geo.lastDotDrawn);
+  ok('browser: in Invert mode the dots stay holes mid-animation', geo.invFramesHole);
+  ok('browser: the generic blendPath really does break these paths (why dots have their own blender)', geo.genericBlendBreaks);
+
+
+  // Leaving the Generate tab (or closing the studio) while a batch is still saving
+  // must not draw the "Saved" screen over the new tab or touch the element.
+  await gen();
+  await p.evaluate(() => { window.__slow = window.fetch; window.fetch = (u, o) => new Promise(res => setTimeout(() => res(window.__slow(u, o)), 150)); window.__posts.length = 0; window.__applied = null; framifyShapeStudio.shapes = []; });
+  await setRange('Variations', 3);
+  await p.locator('.framify-studio__field input').fill('Late');
+  await p.getByRole('button', { name: 'Save 3 shapes' }).click();
+  await p.getByRole('button', { name: 'Draw', exact: true }).click();
+  await p.waitForTimeout(900);
+  ok('generate: switching tabs mid-save keeps the new tab (no Saved screen drawn over it)', (await p.locator('.framify-studio__done').count()) === 0 && (await p.locator('canvas.framify-studio__canvas').count()) === 1);
+  ok('generate: the shapes were still saved, listed and registered, but the element was not changed', await p.evaluate(() => window.__posts.length === 3 && framifyShapeStudio.shapes.length === 3 && 'lib_u_late 1' in libDef.options && window.__applied === null));
+  await gen();
+  await p.evaluate(() => { window.__posts.length = 0; window.__applied = null; });
+  await setRange('Variations', 2);
+  await p.locator('.framify-studio__field input').fill('Gone');
+  await p.getByRole('button', { name: 'Save 2 shapes' }).click();
+  await p.locator('.framify-studio__x').click();
+  await p.waitForTimeout(900);
+  ok('generate: closing the studio mid-save finishes quietly (saved and registered, element untouched)', (await p.locator('.framify-studio').count()) === 0 && await p.evaluate(() => window.__posts.length === 2 && 'lib_u_gone 1' in libDef.options && window.__applied === null));
+  await p.evaluate(() => { window.fetch = window.__slow; framifyShapeStudio.shapes = framifyShapeStudio.shapes.filter(s => s.source !== 'user'); });
+
   // Freehand.
   await p.evaluate(() => openStudio());
   const b6 = await p.locator('canvas.framify-studio__canvas').boundingBox();

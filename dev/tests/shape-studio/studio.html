@@ -28,5 +28,6 @@ window.__handlers=handlers;
 window.fetch=function(u,o){window.__posts.push(Object.fromEntries(o.body.entries()));return Promise.resolve({json:function(){return Promise.resolve({success:true,data:{id:'lib_u_'+(o.body.get('name')||'x').toLowerCase(),title:o.body.get('name')||'x',thumb:'data:image/svg+xml,t',svg:'<svg><path d="'+(o.body.get('d')||'M0 0')+'"/></svg>'}})}})};
 window.openStudio=function(k){(handlers['framify:shapeStudio:'+(k||'framify_org_shape')]||handler)();};
 </script>
+<script src="../../../assets/framify-dot-shapes.js"></script>
 <script src="../../../assets/framify-shape-studio.js"></script>
 </body></html>

@@ -2,7 +2,8 @@
  * Framify - Shape studio (Elementor editor window).
  *
  * Opened by the "Draw or upload a shape" button on the Uploaded tab of the
- * Organic Shape / Deco Blob Shape pickers. Tabs: Draw (freehand outline),
+ * Organic Shape / Deco Blob Shape pickers. Tabs: Draw (pen tools and
+ * freehand), Generate (seeded dot-grid patterns, see framify-dot-shapes.js),
  * Upload SVG, My shapes (download / delete). Saving posts only path data to
  * the server, which re-validates it and writes a clean SVG into
  * uploads/framify-shapes. The pickers are built by PHP, so a new shape needs
@@ -204,23 +205,10 @@
 		return true;
 	}
 
-	function saved( body, shape, again ) {
-		body.innerHTML = '';
-		var live = false;
-		var applied = false;
-		try {
-			live = shape && addShapeLive( shape );
-			applied = live && applyShape( shape.id );
-		} catch ( e ) {
-			live = false;
-		}
-		if ( shape ) {
-			DATA.shapes.push( { id: shape.id, title: shape.title, thumb: shape.thumb, svg: shape.svg, source: 'user' } );
-		}
-		var done = live ?
-			( applied ? 'Saved and applied to this element.' : 'Saved. It is now on the Uploaded tab.' ) :
-			'Saved. Save your page, then reload the editor to pick it on the Uploaded tab.';
-		body.appendChild( el( 'p', 'framify-studio__done', done ) );
+	// The "Saved" screen: a message and Done / Add another (or Reload editor
+	// when the pickers could not be refreshed live).
+	function doneView( body, live, text, again ) {
+		body.appendChild( el( 'p', 'framify-studio__done', text ) );
 		var row = el( 'div', 'framify-studio__row' );
 		if ( live ) {
 			var closeB = el( 'button', 'framify-studio__btn framify-studio__btn--primary', 'Done' );
@@ -240,6 +228,67 @@
 			row.appendChild( reload );
 		}
 		body.appendChild( row );
+	}
+
+	// A saved shape joins the studio's own list (My shapes, the slot count).
+	function remember( shape ) {
+		DATA.shapes.push( { id: shape.id, title: shape.title, thumb: shape.thumb, svg: shape.svg, source: 'user' } );
+	}
+
+	function saved( body, shape, again ) {
+		body.innerHTML = '';
+		var live = false;
+		var applied = false;
+		try {
+			live = shape && addShapeLive( shape );
+			applied = live && applyShape( shape.id );
+		} catch ( e ) {
+			live = false;
+		}
+		if ( shape ) {
+			remember( shape );
+		}
+		var done = live ?
+			( applied ? 'Saved and applied to this element.' : 'Saved. It is now on the Uploaded tab.' ) :
+			'Saved. Save your page, then reload the editor to pick it on the Uploaded tab.';
+		doneView( body, live, done, again );
+	}
+
+	// A batch finished after the person left the Generate tab (or closed the
+	// studio): the shapes are saved, so put them in the pickers and the list,
+	// but do not draw over the tab now showing or change the element.
+	function savedQuietly( shapes ) {
+		try {
+			shapes.forEach( addShapeLive );
+		} catch ( e ) {
+			// The pickers catch up on the next editor load.
+		}
+		shapes.forEach( remember );
+	}
+
+	// Several shapes at once (the Generate tab). The first is applied to the
+	// element so there is something to see; all of them are on the Uploaded
+	// tab. `failure` is a note when only part of the batch was saved.
+	function savedMany( body, shapes, again, failure ) {
+		body.innerHTML = '';
+		var live = shapes.length > 0;
+		var applied = false;
+		try {
+			shapes.forEach( function ( shape ) {
+				live = addShapeLive( shape ) && live;
+			} );
+			applied = live && applyShape( shapes[ 0 ].id );
+		} catch ( e ) {
+			live = false;
+		}
+		shapes.forEach( remember );
+		var text = 'Saved ' + shapes.length + ( 1 === shapes.length ? ' shape. ' : ' shapes. ' );
+		if ( live ) {
+			text += applied ? 'The first one is applied to this element; all are on the Uploaded tab.' : 'They are on the Uploaded tab.';
+		} else {
+			text += 'Save your page, then reload the editor to pick them on the Uploaded tab.';
+		}
+		doneView( body, live, failure ? text + ' ' + failure : text, again );
 	}
 
 	function nameField( value ) {
@@ -1324,6 +1373,296 @@
 		paint();
 	}
 
+	/* ---------- Generate tab: seeded dot-grid shapes ---------- */
+
+	// Index of the Generate tab in open()'s list (right after Draw). Only used
+	// from inside that tab, which exists only when the generator is loaded.
+	var GENERATE_TAB = 1;
+	// Remembered between visits, so "Add another" returns to the same settings.
+	var genMemory = null;
+
+	function rangeField( label, min, max, value, fmt ) {
+		var wrap = el( 'label', 'framify-studio__range' );
+		wrap.appendChild( el( 'span', '', label ) );
+		var input = el( 'input' );
+		input.type = 'range';
+		input.min = min;
+		input.max = max;
+		input.value = value;
+		var out = el( 'output', '', fmt ? fmt( value ) : String( value ) );
+		input.addEventListener( 'input', function () {
+			out.textContent = fmt ? fmt( input.value ) : input.value;
+		} );
+		wrap.appendChild( input );
+		wrap.appendChild( out );
+		wrap.input = input;
+		return wrap;
+	}
+
+	function userShapeCount() {
+		return DATA.shapes.filter( function ( shape ) {
+			return 'user' === shape.source;
+		} ).length;
+	}
+
+	function generateTab( body ) {
+		var Dots = window.FramifyDotShapes;
+		var L = Dots.LIMITS;
+		var opts = genMemory || Dots.normalise( { seed: Dots.randomSeed() } );
+		var shapes = [];
+		var ticks = [];
+		var frame = 0;
+		var fields = {};
+		var cap = DATA.maxUser || 100;
+
+		var layout = el( 'div', 'framify-studio__draw framify-studio__draw--gen' );
+		var stageWrap = el( 'div', 'framify-studio__stagewrap' );
+		var stage = el( 'div', 'framify-studio__stage framify-studio__stage--tiles' );
+		var tiles = el( 'div', 'framify-studio__variants' );
+		var bar = el( 'div', 'framify-studio__status' );
+		var hint = el( 'span', 'framify-studio__hint', 'Tick the shapes to keep. Dots are round when your element has the same proportions as the ratio.' );
+		var readout = el( 'span', 'framify-studio__readout' );
+		var inspector = el( 'aside', 'framify-studio__inspector' );
+		var msg = status();
+		var name = nameField( 'Dots' );
+		var save = el( 'button', 'framify-studio__btn framify-studio__btn--primary' );
+		save.type = 'button';
+		var room = el( 'p', 'framify-studio__note' );
+
+		function readoutText() {
+			var picked = ticks.filter( Boolean ).length;
+			readout.textContent = picked + ' of ' + shapes.length + ' selected';
+			save.textContent = 'Save ' + picked + ( 1 === picked ? ' shape' : ' shapes' );
+			save.disabled = ! picked;
+		}
+
+		function kb( bytes ) {
+			return ( bytes / 1000 ).toFixed( 1 ) + ' KB';
+		}
+
+		function renderTiles() {
+			while ( tiles.firstChild ) {
+				tiles.removeChild( tiles.firstChild );
+			}
+			shapes.forEach( function ( shape, i ) {
+				var card = el( 'label', 'framify-studio__variant ' + ( ticks[ i ] ? 'is-on' : 'is-off' ) );
+				var box = el( 'input' );
+				box.type = 'checkbox';
+				box.checked = ticks[ i ];
+				box.addEventListener( 'change', function () {
+					ticks[ i ] = box.checked;
+					card.classList.toggle( 'is-on', box.checked );
+					card.classList.toggle( 'is-off', ! box.checked );
+					readoutText();
+				} );
+				var img = el( 'img' );
+				img.alt = '';
+				img.src = thumbOf( shape );
+				var vb = shape.vb.split( ' ' );
+				img.style.aspectRatio = vb[ 2 ] + ' / ' + vb[ 3 ];
+				card.appendChild( box );
+				card.appendChild( el( 'span', 'framify-studio__tick' ) );
+				card.appendChild( img );
+				card.appendChild( el( 'span', 'framify-studio__caption', '#' + ( i + 1 ) + '  ' + shape.count + ' dots  ' + kb( shape.d.length ) ) );
+				tiles.appendChild( card );
+			} );
+			readoutText();
+		}
+
+		// One frame after the last change: every control feeds this, so
+		// dragging a slider regenerates once per frame, not per event.
+		function refresh() {
+			cancelAnimationFrame( frame );
+			frame = requestAnimationFrame( function () {
+				opts = Dots.normalise( opts );
+				genMemory = opts;
+				shapes = Dots.generateSet( opts );
+				ticks = shapes.map( function () {
+					return true;
+				} );
+				renderTiles();
+			} );
+		}
+
+		function bind( field, key ) {
+			field.input.addEventListener( 'input', function () {
+				opts[ key ] = +field.input.value;
+				if ( ( 'min' === key && opts.min > opts.max ) || ( 'max' === key && opts.max < opts.min ) ) {
+					// Keep the two size ends in order.
+					var other = 'min' === key ? 'max' : 'min';
+					opts[ other ] = opts[ key ];
+					fields[ other ].input.value = opts[ key ];
+					fields[ other ].input.dispatchEvent( new Event( 'input' ) );
+					return;
+				}
+				refresh();
+			} );
+			return field;
+		}
+
+		function range( key, label, fmt ) {
+			fields[ key ] = bind( rangeField( label, L[ key ][ 0 ], L[ key ][ 1 ], opts[ key ], fmt ), key );
+			return fields[ key ];
+		}
+		function pct( v ) {
+			return v + '%';
+		}
+
+		/* inspector */
+		var patternSec = section( 'Pattern' );
+		patternSec.appendChild( range( 'dots', 'Dots' ) );
+		patternSec.appendChild( range( 'variations', 'Variations' ) );
+		patternSec.appendChild( range( 'cols', 'Columns' ) );
+		var ratioRow = el( 'div', 'framify-studio__seg framify-studio__seg--4' );
+		var ratioButtons = {};
+		Object.keys( Dots.RATIOS ).forEach( function ( key ) {
+			var b = el( 'button', '', key );
+			b.type = 'button';
+			b.setAttribute( 'aria-label', 'Ratio ' + key );
+			b.addEventListener( 'click', function () {
+				opts.ratio = key;
+				Object.keys( ratioButtons ).forEach( function ( k ) {
+					ratioButtons[ k ].classList.toggle( 'is-active', k === key );
+				} );
+				refresh();
+			} );
+			ratioButtons[ key ] = b;
+			ratioRow.appendChild( b );
+		} );
+		ratioButtons[ opts.ratio ].classList.add( 'is-active' );
+		patternSec.appendChild( ratioRow );
+
+		var dotsSec = section( 'Dots' );
+		dotsSec.appendChild( range( 'min', 'Smallest', pct ) );
+		dotsSec.appendChild( range( 'max', 'Largest', pct ) );
+		dotsSec.appendChild( range( 'steps', 'Sizes' ) );
+		dotsSec.appendChild( range( 'runs', 'Runs' ) );
+		var invert = switchField( 'Invert (dots become holes)', opts.invert );
+		invert.input.addEventListener( 'change', function () {
+			opts.invert = invert.input.checked;
+			refresh();
+		} );
+		dotsSec.appendChild( invert );
+		dotsSec.appendChild( el( 'p', 'framify-studio__note', 'Runs groups dots into horizontal clusters. Invert shows your image around the dots instead of through them.' ) );
+
+		var seedSec = section( 'Seed' );
+		var seedRow = el( 'div', 'framify-studio__seedrow' );
+		var seedInput = el( 'input' );
+		seedInput.type = 'number';
+		seedInput.min = 0;
+		seedInput.max = 4294967295;
+		seedInput.value = opts.seed;
+		seedInput.setAttribute( 'aria-label', 'Seed' );
+		seedInput.addEventListener( 'input', function () {
+			opts.seed = ( +seedInput.value ) >>> 0;
+			refresh();
+		} );
+		var shuffle = el( 'button', 'framify-studio__btn', 'Shuffle' );
+		shuffle.type = 'button';
+		shuffle.addEventListener( 'click', function () {
+			opts.seed = Dots.randomSeed();
+			seedInput.value = opts.seed;
+			refresh();
+		} );
+		seedRow.appendChild( seedInput );
+		seedRow.appendChild( shuffle );
+		seedSec.appendChild( seedRow );
+		seedSec.appendChild( el( 'p', 'framify-studio__note', 'The same seed and settings always give the same shapes.' ) );
+
+		var saveSec = section( 'Save' );
+		saveSec.appendChild( name );
+		saveSec.appendChild( save );
+		saveSec.appendChild( room );
+		saveSec.appendChild( msg );
+
+		function updateRoom() {
+			room.textContent = 'Library: ' + userShapeCount() + ' of ' + cap + ' shapes used.';
+		}
+
+		save.addEventListener( 'click', function () {
+			var picks = shapes.map( function ( shape, i ) {
+				return { index: i, shape: shape };
+			} ).filter( function ( pick ) {
+				return ticks[ pick.index ];
+			} );
+			var base = name.input.value.trim();
+			var left = cap - userShapeCount();
+			updateRoom();
+			if ( ! picks.length ) {
+				msg.textContent = 'Tick at least one shape.';
+				return;
+			}
+			if ( ! base ) {
+				msg.textContent = 'Give the shapes a name.';
+				return;
+			}
+			if ( picks.length > left ) {
+				msg.textContent = 'Only ' + Math.max( 0, left ) + ' free slots left. Untick some, or delete shapes in My shapes.';
+				return;
+			}
+			save.disabled = true;
+			var done = [];
+			var failure = '';
+			var chain = Promise.resolve();
+			// One at a time, so the server's name de-duplication cannot race.
+			picks.forEach( function ( pick, n ) {
+				chain = chain.then( function () {
+					if ( failure ) {
+						return null;
+					}
+					msg.textContent = 'Saving ' + ( n + 1 ) + ' of ' + picks.length + '...';
+					return post( 'framify_shape_save', { name: 1 === picks.length ? base : base + ' ' + ( pick.index + 1 ), d: pick.shape.d, vb: pick.shape.vb } ).then( function ( res ) {
+						if ( res && res.success ) {
+							done.push( res.data );
+						} else {
+							failure = ( res && res.data && res.data.message ) || 'Could not save.';
+						}
+					} );
+				} );
+			} );
+			chain.catch( function () {
+				failure = failure || 'Could not save.';
+			} ).then( function () {
+				save.disabled = false;
+				if ( done.length ) {
+					// Next time start from fresh shapes, not the ones just saved.
+					opts.seed = Dots.randomSeed();
+					genMemory = opts;
+				}
+				if ( done.length && ( ! modal || ! layout.isConnected ) ) {
+					savedQuietly( done );
+				} else if ( done.length ) {
+					savedMany( body, done, function () {
+						showTab( GENERATE_TAB );
+					}, failure ? 'Saved ' + done.length + ' of ' + picks.length + ': ' + failure : '' );
+				} else {
+					msg.textContent = failure || 'Could not save.';
+					readoutText();
+				}
+			} );
+		} );
+
+		/* assemble */
+		stage.appendChild( tiles );
+		bar.appendChild( hint );
+		bar.appendChild( readout );
+		stageWrap.appendChild( stage );
+		stageWrap.appendChild( bar );
+		inspector.appendChild( patternSec );
+		inspector.appendChild( dotsSec );
+		inspector.appendChild( seedSec );
+		inspector.appendChild( saveSec );
+		layout.appendChild( stageWrap );
+		layout.appendChild( inspector );
+		body.appendChild( layout );
+		var box = body.closest( '.framify-studio__box' );
+		if ( box ) {
+			box.style.width = MIN_BOX + 'px';
+		}
+		updateRoom();
+		refresh();
+	}
+
 	function uploadTab( body ) {
 		var msg = status();
 		var name = nameField();
@@ -1476,6 +1815,11 @@
 		var tabs = el( 'div', 'framify-studio__tabs' );
 		var body = el( 'div', 'framify-studio__body' );
 		var defs = [ [ 'Draw', drawTab ], [ 'Upload SVG', uploadTab ], [ 'My shapes', mineTab ] ];
+		// The Generate tab needs the generator script; without it the tab is
+		// simply absent.
+		if ( window.FramifyDotShapes ) {
+			defs.splice( GENERATE_TAB, 0, [ 'Generate', generateTab ] );
+		}
 		var buttons = defs.map( function ( def, i ) {
 			var b = el( 'button', 'framify-studio__tab', def[ 0 ] );
 			b.type = 'button';

@@ -540,6 +540,103 @@
 	box-shadow: 0 1px 2px rgba(23, 32, 51, .18);
 }
 
+/* Generate tab: variation tiles, seed row. Sits beside the Draw layout and
+   reuses its sheet, status bar and inspector. */
+.framify-studio__draw--gen {
+	grid-template-columns: minmax(0, 1fr) 288px;
+}
+.framify-studio__seg--4 {
+	grid-template-columns: repeat(4, 1fr);
+}
+.framify-studio__draw--gen .framify-studio__range {
+	grid-template-columns: 74px 1fr 40px;
+}
+.framify-studio__stage--tiles {
+	place-items: start stretch;
+}
+.framify-studio__variants {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: 14px;
+	align-content: start;
+	width: 100%;
+}
+.framify-studio__variant {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 10px 10px 8px;
+	border: 1.5px solid var(--fs-line);
+	border-radius: var(--fs-radius);
+	background: #fff;
+	box-shadow: 0 1px 0 rgba(23, 32, 51, .06), 0 8px 24px rgba(23, 32, 51, .12);
+	cursor: pointer;
+	transition: border-color .15s, opacity .15s, box-shadow .15s;
+}
+.framify-studio__variant.is-on {
+	border-color: var(--fs-pen);
+}
+.framify-studio__variant.is-off {
+	opacity: .5;
+	box-shadow: none;
+}
+.framify-studio__variant input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+.framify-studio__tick {
+	position: absolute;
+	top: 8px;
+	left: 8px;
+	width: 18px;
+	height: 18px;
+	border: 1.5px solid #b9c2d4;
+	border-radius: 5px;
+	background: #fff;
+}
+.framify-studio__variant.is-on .framify-studio__tick {
+	border-color: var(--fs-pen);
+	background: var(--fs-pen);
+}
+.framify-studio__variant.is-on .framify-studio__tick::after {
+	content: "";
+	position: absolute;
+	left: 5px;
+	top: 1.5px;
+	width: 4px;
+	height: 9px;
+	border: solid #fff;
+	border-width: 0 2px 2px 0;
+	transform: rotate(45deg);
+}
+.framify-studio__variant input:focus-visible ~ .framify-studio__tick {
+	outline: 2px solid var(--fs-pen);
+	outline-offset: 2px;
+}
+.framify-studio__variant img {
+	display: block;
+	width: 100%;
+	height: auto;
+	object-fit: contain;
+}
+.framify-studio__caption {
+	font-family: var(--fs-mono);
+	font-size: 11px;
+	color: var(--fs-muted);
+	white-space: pre;
+}
+.framify-studio__seedrow {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 8px;
+}
+.framify-studio__seedrow input {
+	padding-right: 10px;
+}
+
+
 /* Buttons and fields. */
 .framify-studio__row {
 	display: flex;
@@ -680,6 +777,10 @@
 		grid-template-columns: 1fr;
 		grid-template-rows: auto minmax(260px, 1fr) auto;
 		height: auto;
+	}
+	.framify-studio__draw--gen {
+		grid-template-columns: 1fr;
+		grid-template-rows: minmax(260px, 1fr) auto;
 	}
 	.framify-studio__rail {
 		flex-direction: row;

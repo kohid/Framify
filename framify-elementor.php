@@ -688,9 +688,32 @@ class Framify_Elementor {
             'options'     => array(
                 'liquid' => esc_html__( 'Liquid (traced, rippling edge)', 'framify' ),
                 'gentle' => esc_html__( 'Gentle (exact shape, tilt and swell)', 'framify' ),
+                'dots'   => esc_html__( 'Dots (circle patterns: breathe, twinkle, wave)', 'framify' ),
             ),
-            'description' => esc_html__( 'Liquid traces your shape and ripples its edge, softening sharp corners. Gentle keeps it exact and moves it as a whole; use it for logos and icons.', 'framify' ),
+            'description' => esc_html__( 'Liquid traces your shape and ripples its edge, softening sharp corners. Gentle keeps it exact and moves it as a whole; use it for logos and icons. Dots animates each circle of a pattern made in the Shape studio Generate tab and lets you pick its style. Liquid switches to Dots (Breathe) on a pattern with more than 24 dots.', 'framify' ),
         ) + $custom_moving ) );
+
+        // Only offered with Dots chosen explicitly. Elementor leaves hidden
+        // controls out of a published page, so when Liquid hands a big dot
+        // pattern to Dots the style is always Breathe (the script ignores
+        // this value unless Dots was chosen, so the editor shows the same).
+        $element->add_control( 'framify_org_dot_style', $this->live( array(
+            'label'   => esc_html__( 'Dots style', 'framify' ),
+            'type'    => $cm::SELECT,
+            'default' => 'breathe',
+            'options' => array(
+                'breathe' => esc_html__( 'Breathe (all dots swell together)', 'framify' ),
+                'twinkle' => esc_html__( 'Twinkle (each dot its own size)', 'framify' ),
+                'wave'    => esc_html__( 'Wave (a sweep across the pattern)', 'framify' ),
+            ),
+        ) + $this->shape_condition(
+            $on,
+            array( 'custom' ),
+            array(
+                array( 'name' => 'framify_org_trigger', 'operator' => '!in', 'value' => array( 'auto', 'none' ) ),
+                array( 'name' => 'framify_org_custom_motion', 'operator' => '===', 'value' => 'dots' ),
+            )
+        ) ) );
 
         $element->add_control( 'framify_org_custom_amount', $this->live( array(
             'label'     => esc_html__( 'Motion amount', 'framify' ),
@@ -1186,12 +1209,21 @@ class Framify_Elementor {
             true
         );
 
-        // Shape studio (Uploaded tab): upload an SVG, draw freehand, manage
-        // the shapes saved in uploads/framify-shapes.
+        // The dot-grid generator (pure, no DOM) behind the studio's Generate tab.
+        wp_enqueue_script(
+            'framify-dot-shapes',
+            FRAMIFY_PLUGIN_URL . 'assets/framify-dot-shapes.js',
+            array(),
+            $this->asset_version( 'framify-dot-shapes.js' ),
+            true
+        );
+
+        // Shape studio (Uploaded tab): upload an SVG, draw freehand, generate
+        // dot patterns, manage the shapes saved in uploads/framify-shapes.
         wp_enqueue_script(
             'framify-shape-studio',
             FRAMIFY_PLUGIN_URL . 'assets/framify-shape-studio.js',
-            array( 'elementor-editor' ),
+            array( 'elementor-editor', 'framify-dot-shapes' ),
             $this->asset_version( 'framify-shape-studio.js' ),
             true
         );
@@ -1208,6 +1240,7 @@ class Framify_Elementor {
         wp_localize_script( 'framify-shape-studio', 'framifyShapeStudio', array(
             'ajaxUrl' => admin_url( 'admin-ajax.php' ),
             'nonce'   => wp_create_nonce( 'framify_shapes' ),
+            'maxUser' => Framify_Shape_Library::MAX_USER,
             'shapes'  => $mine,
         ) );
     }

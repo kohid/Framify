@@ -46,6 +46,22 @@
 		normal: { ripple: 3.5, rotate: 3, scale: 1.04 },
 		strong: { ripple: 5, rotate: 5, scale: 1.07 }
 	};
+	// Dots motion (a pattern of circles from Shape studio > Generate): how far
+	// each dot's radius moves at the hover pose, per "Motion amount".
+	var DOT_AMOUNT = { subtle: 0.3, normal: 0.7, strong: 1.5 };
+	var DOT_STYLES = { breathe: 1, twinkle: 1, wave: 1 };
+	// Above this many dots Liquid is skipped: its 400-sample trace drops every
+	// part shorter than 1% of the path, which is every dot of a large pattern.
+	var DOT_LIQUID_MAX = 24;
+	// The recogniser refuses bigger fields: the pitch search is O(n^2) and
+	// every frame rebuilds the whole path. The generator stops at 400.
+	var DOT_MAX = 600;
+	// One dot is 16 numbers in the path (M x y, then two arcs):
+	//   0 x-r  1 y  | arc 1: 2 rx  3 ry  4 rot  5 large  6 sweep  7 dx  8 dy
+	//                | arc 2: 9 rx 10 ry 11 rot 12 large 13 sweep 14 dx 15 dy
+	var DOT_TOKENS = 16;
+	// Wave: the share of the 0-1 animation the sweep takes to cross the shape.
+	var DOT_SPREAD = 0.6;
 	var REDUCE_MOTION = !! ( window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches );
 	// Wavy shapes are drawn with a straight right edge. These turn that edge to
 	// the chosen side inside the 0-100 box, which is still square at that
@@ -705,6 +721,142 @@
 		}
 		traceCache = { key: key, result: result };
 		return result;
+	}
+
+	/* ---------- custom shape: dot fields ----------
+	 *
+	 * A pattern made in Shape studio > Generate is a path of circle subpaths
+	 * in one exact form (see assets/framify-dot-shapes.js). dotField() accepts
+	 * only that form, so an ordinary shape never enters Dots motion.
+	 *
+	 * blendPath() cannot move these paths: it writes every number with
+	 * toFixed( 2 ), so an arc flag 1 becomes 1.00, which is not a valid flag
+	 * and the clip disappears. blendDots() keeps every number that does not
+	 * change (flags, rotation, the outline) exactly as written.
+	 */
+	var dotMemo = null;
+
+	function dotField( d ) {
+		d = String( d || '' ).trim();
+		if ( dotMemo && dotMemo.d === d ) {
+			return dotMemo.result;
+		}
+		var result = parseDotField( d );
+		dotMemo = { d: d, result: result };
+		return result;
+	}
+
+	function parseDotField( d ) {
+		var chunks = d ? d.split( /(?=M)/ ) : [];
+		if ( ! chunks.length || chunks.length > DOT_MAX + 1 ) {
+			return null;
+		}
+		var at = 0;
+		var first = 0;
+		if ( /^M0 0H[\d.]+V[\d.]+H0Z$/.test( chunks[ 0 ] ) ) {
+			at = chunks[ 0 ].match( NUMBER ).length;
+			first = 1;
+		}
+		var dots = [];
+		for ( var i = first; i < chunks.length; i++ ) {
+			// M x y  a rx ry rot large sweep dx dy  a rx ry rot large sweep dx dy  Z
+			if ( 'M##a#######a#######Z' !== chunks[ i ].replace( NUMBER, '#' ).replace( /[\s,]+/g, '' ) ) {
+				return null;
+			}
+			var n = chunks[ i ].match( NUMBER ).map( Number );
+			var r = n[ 2 ];
+			if ( ! ( r > 0 ) || n[ 3 ] !== r || n[ 9 ] !== r || n[ 10 ] !== r
+				|| 0 !== n[ 4 ] || 0 !== n[ 11 ] || 1 !== n[ 5 ] || 1 !== n[ 12 ] || 0 !== n[ 6 ] || 0 !== n[ 13 ]
+				|| 0 !== n[ 8 ] || 0 !== n[ 15 ] || Math.abs( n[ 7 ] - 2 * r ) > 0.011 || Math.abs( n[ 14 ] + 2 * r ) > 0.011 ) {
+				return null;
+			}
+			dots.push( { x: n[ 0 ] + r, y: n[ 1 ], r: r, at: at } );
+			at += DOT_TOKENS;
+		}
+		if ( ! dots.length || dots.length > DOT_MAX ) {
+			return null;
+		}
+		var pitch = Infinity;
+		var minX = Infinity;
+		var maxX = -Infinity;
+		dots.forEach( function ( dot, i ) {
+			minX = Math.min( minX, dot.x );
+			maxX = Math.max( maxX, dot.x );
+			for ( var j = i + 1; j < dots.length; j++ ) {
+				pitch = Math.min( pitch, Math.hypot( dot.x - dots[ j ].x, dot.y - dots[ j ].y ) );
+			}
+		} );
+		return { rest: parsePath( d ), dots: dots, pitch: pitch, minX: minX, maxX: maxX };
+	}
+
+	// A stable 0-1 value per dot index (the same on every rebuild).
+	function dotHash( i ) {
+		var v = Math.sin( ( i + 1 ) * 12.9898 ) * 43758.5453;
+		return v - Math.floor( v );
+	}
+
+	// Rest and hover poses with the same token skeleton. Radii never pass half
+	// the nearest-neighbour distance, so dots never merge (and in Invert mode
+	// two opposite-wound holes can never overlap and fill in).
+	function dotPair( field, style, amount ) {
+		var rest = field.rest;
+		var a = DOT_AMOUNT[ amount ] || DOT_AMOUNT.normal;
+		var cap = isFinite( field.pitch ) ? field.pitch / 2 : 0;
+		var span = field.maxX - field.minX || 1;
+		var nums = rest.nums.slice();
+		var delays = 'wave' === style ? rest.nums.map( function () {
+			return 0;
+		} ) : null;
+		field.dots.forEach( function ( dot, i ) {
+			var limit = cap ? Math.max( dot.r, cap ) : dot.r * 2;
+			var target = 'twinkle' === style ? dot.r * ( 1 + a * ( 1.4 * dotHash( i ) - 0.5 ) ) : dot.r * ( 1 + a );
+			var rt = Math.round( Math.min( limit, Math.max( dot.r * 0.2, target ) ) * 100 ) / 100;
+			var at = dot.at;
+			nums[ at ] = Math.round( ( dot.x - rt ) * 100 ) / 100;
+			nums[ at + 2 ] = nums[ at + 3 ] = nums[ at + 9 ] = nums[ at + 10 ] = rt;
+			nums[ at + 7 ] = Math.round( 2 * rt * 100 ) / 100;
+			nums[ at + 14 ] = -nums[ at + 7 ];
+			if ( delays ) {
+				var delay = DOT_SPREAD * ( dot.x - field.minX ) / span;
+				for ( var k = 0; k < DOT_TOKENS; k++ ) {
+					delays[ at + k ] = delay;
+				}
+			}
+		} );
+		var hover = { d: '', parts: rest.parts, nums: nums };
+		return {
+			rest: rest,
+			hover: hover,
+			blend: function ( t ) {
+				return blendDots( rest, hover, delays, t );
+			}
+		};
+	}
+
+	// Wave: dots on the left finish early, dots on the right start late; at 0
+	// and 1 every dot is exactly at rest / hover. The progress is clamped to
+	// 0-1 so the spring's overshoot cannot push a radius past its cap.
+	function dotProgress( t, delay ) {
+		if ( t <= 0 ) {
+			return 0;
+		}
+		if ( t >= 1 ) {
+			return 1;
+		}
+		return Math.min( 1, Math.max( 0, ( t - delay ) / ( 1 - DOT_SPREAD ) ) );
+	}
+
+	function blendDots( rest, hover, delays, t ) {
+		var out = rest.parts[ 0 ];
+		var all = Math.min( 1, Math.max( 0, t ) );
+		for ( var i = 0; i < rest.nums.length; i++ ) {
+			var a = rest.nums[ i ];
+			var b = hover.nums[ i ];
+			var k = delays ? dotProgress( t, delays[ i ] ) : all;
+			// Shortest form (123, not 123.00), so t = 0 is the original path.
+			out += ( a === b ? String( a ) : String( +( a + ( b - a ) * k ).toFixed( 2 ) ) ) + rest.parts[ i + 1 ];
+		}
+		return out;
 	}
 
 	/* ---------- full SVG documents (Shape Divider) ----------
@@ -1704,6 +1856,9 @@
 		svgGeometry: svgGeometry,
 		customTransform: customTransform,
 		traceCustom: traceCustom,
+		dotField: dotField,
+		dotPair: dotPair,
+		DOT_AMOUNT: DOT_AMOUNT,
 		parsePath: parsePath,
 		blendPath: blendPath,
 		elastic: elastic,
@@ -1831,6 +1986,9 @@
 					if ( fx.liquid ) {
 						return fx.liquid;
 					}
+					if ( fx.dots ) {
+						return fx.dots;
+					}
 					var path = parsePath( fx.custom.d );
 					return { rest: path, hover: path };
 				}
@@ -1849,11 +2007,30 @@
 			// a traced, rippling pair (already fitted into 0-100 units, so the
 			// inner transform keeps only the turn: flip/rotate + flat edge);
 			// Gentle keeps the raw path and animates fx.inner in render().
-			// Liquid falls back to Gentle when the paste can't be traced.
+			// Custom shapes only move when a real trigger is set. Dots moves
+			// each circle of a generated dot pattern (dotPair); Liquid hands a
+			// big dot pattern to Dots too, because tracing drops parts that
+			// small. Otherwise Liquid swaps in the traced pair, and falls back
+			// to Gentle when the paste can't be traced.
 			setupCustomMotion: function ( s ) {
 				var fx = this.fx;
 				var amount = CUSTOM_AMOUNT[ s.framify_org_custom_amount ] ? s.framify_org_custom_amount : 'normal';
 				fx.over = springOvershoot( resolveTrigger( s.framify_org_trigger, fx.family ), SPRING_PERIOD[ s.framify_org_spring ] );
+				var field = 'gentle' === s.framify_org_custom_motion ? null : dotField( fx.custom.d );
+				if ( 'dots' === s.framify_org_custom_motion && ! field ) {
+					this.warnDots( fx.custom.d );
+				}
+				if ( field && ( 'dots' === s.framify_org_custom_motion || field.dots.length > DOT_LIQUID_MAX ) ) {
+					// Dots stay in the paste's own units, like Gentle (fx.inner is
+					// left as set), and never leave their cells, so there is no
+					// motion inset or container bleed: fx.motion stays null.
+					// The style is only honoured when Dots was chosen: the control is
+					// hidden otherwise, and Elementor drops hidden controls from a
+					// published page, so Liquid's hand-off always uses Breathe (the
+					// editor must not preview something else).
+					fx.dots = dotPair( field, 'dots' === s.framify_org_custom_motion && DOT_STYLES[ s.framify_org_dot_style ] ? s.framify_org_dot_style : 'breathe', amount );
+					return;
+				}
 				if ( 'gentle' !== s.framify_org_custom_motion ) {
 					var traced = traceCustom( fx.custom, fx.customFit.box, amount, 'none' === fx.edge ? null : fx.custom.straight );
 					if ( traced ) {
@@ -1862,10 +2039,24 @@
 						fx.motion = { ripple: CUSTOM_AMOUNT[ amount ].ripple };
 						return;
 					}
+					if ( field ) {
+						// Liquid could not trace a small dot pattern: use Dots.
+						fx.dots = dotPair( field, 'breathe', amount );
+						return;
+					}
 					this.warnTrace( fx.custom.d );
 				}
 				fx.gentle = CUSTOM_AMOUNT[ amount ];
 				fx.motion = fx.gentle;
+			},
+
+			// Editor only, once per distinct path: Dots was chosen on a shape
+			// that is not a generated dot pattern.
+			warnDots: function ( d ) {
+				if ( elementorFrontend.isEditMode() && this.warnedDots !== d ) {
+					this.warnedDots = d;
+					window.console.warn( 'Framify: Dots motion needs a dot pattern from Shape studio > Generate; using another motion.' );
+				}
 			},
 
 			// Editor only, once per distinct paste: an explicit Flat edge side
@@ -1949,6 +2140,7 @@
 					customInner: '',
 					gentle: null,
 					liquid: null,
+					dots: null,
 					// Custom motion amounts ({ ripple } for Liquid, the Gentle
 					// entry otherwise) and the spring's overshoot, for the
 					// Image widget's motionInset().
@@ -2683,6 +2875,9 @@
 						if ( part.path.getAttribute( 'd' ) !== part.pair.rest.d ) {
 							part.path.setAttribute( 'd', part.pair.rest.d );
 						}
+					} else if ( part.pair.blend ) {
+						// Dots: its own blender (arc flags must stay integers).
+						part.path.setAttribute( 'd', part.pair.blend( fx.channels[ part.channel ].value ) );
 					} else {
 						part.path.setAttribute( 'd', blendPath( part.pair.rest, part.pair.hover, fx.channels[ part.channel ].value ) );
 					}
