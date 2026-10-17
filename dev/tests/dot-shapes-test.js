@@ -233,6 +233,102 @@ var recognised = true;
 check( 'blend never writes an arc flag as 1.00, and keeps the Invert outline untouched', flagsOk );
 check( 'every blended frame is still a valid dot field (round trip at t = -0.3 ... 1.37)', recognised );
 check( 'regression guard: the generic blendPath WOULD corrupt the flags (why dots have their own blender)', /\b1\.00\b/.test( Org.blendPath( Org.parsePath( d1 ), Org.parsePath( d1 ), 0.5 ) ) );
+/* ---------- Dispersion ---------- */
+
+var crypto = require( 'crypto' );
+var goldenSets = [];
+[ 1, 7, 99, 12345 ].forEach( function ( seed ) {
+	[ '1:1', '16:9' ].forEach( function ( ratio ) {
+		[ true, false ].forEach( function ( invert ) {
+			goldenSets.push( Gen.generateSet( { seed: seed, ratio: ratio, invert: invert, variations: 3, dots: 200, runs: seed % 3 * 40 } ) );
+		} );
+	} );
+} );
+check( 'Dots output is byte-identical to 1.15.0 (golden hash)', '46a2bb0792bfab0f1ed1e4af54e5d7069b7a530c' === crypto.createHash( 'sha1' ).update( JSON.stringify( goldenSets ) ).digest( 'hex' ) );
+
+var disp = Gen.normalise( { pattern: 'swirl', direction: 'sideways', particle: 'star' } );
+check( 'normalise falls back to dots / right / circle for unknown pattern, direction and particle', 'dots' === disp.pattern && 'right' === disp.direction && 'circle' === disp.particle );
+check( 'dispersion is deterministic and differs per seed and variation', Gen.generate( { pattern: 'dispersion', seed: 4 }, 2 ).d === Gen.generate( { pattern: 'dispersion', seed: 4 }, 2 ).d && Gen.generate( { pattern: 'dispersion', seed: 4 }, 0 ).d !== Gen.generate( { pattern: 'dispersion', seed: 5 }, 0 ).d && Gen.generate( { pattern: 'dispersion', seed: 4 }, 0 ).d !== Gen.generate( { pattern: 'dispersion', seed: 4 }, 1 ).d );
+
+var allRecognised = true;
+var allClear = true;
+var allMoves = true;
+var integers = true;
+var smallEnough = true;
+var counts = true;
+var combos = 0;
+Gen.DIRECTIONS.forEach( function ( direction ) {
+	Gen.PARTICLES.forEach( function ( particle ) {
+		[ false, true ].forEach( function ( invert ) {
+			[ '1:1', '4:3', '3:4' ].forEach( function ( ratio ) {
+				combos++;
+				var g = Gen.generate( { pattern: 'dispersion', direction: direction, particle: particle, invert: invert, ratio: ratio, seed: combos, dots: 400 }, 0 );
+				var f = Org.dotField( g.d );
+				if ( ! f || ! f.mass || ! f.anchor || f.dots.length !== g.count || g.count < 40 ) {
+					allRecognised = false;
+					return;
+				}
+				if ( ! /^[-\dMLaZHV ]+$/.test( g.d ) || /-0\b|\.|  /.test( g.d ) ) {
+					integers = false;
+				}
+				if ( g.d.length > 30000 ) {
+					smallEnough = false;
+				}
+				styles.concat( [ 'drift' ] ).forEach( function ( style ) {
+					amounts.forEach( function ( amount ) {
+						var pair = Org.dotPair( f, style, amount );
+						var hover = Org.dotField( pair.blend( 1 ) );
+						if ( ! hover || hover.dots.length !== f.dots.length || pair.rest.nums.length !== pair.hover.nums.length ) {
+							allClear = false;
+							return;
+						}
+						// Reach circles never touch each other or the mass, at rest or hovered.
+						hover.dots.forEach( function ( dot, i ) {
+							for ( var j = i + 1; j < hover.dots.length; j++ ) {
+								if ( Math.hypot( dot.x - hover.dots[ j ].x, dot.y - hover.dots[ j ].y ) < dot.r + hover.dots[ j ].r - 0.05 ) {
+									allClear = false;
+								}
+							}
+						} );
+						if ( 'drift' === style && pair.blend( 1 ) === g.d ) {
+							allMoves = false;
+						}
+					} );
+				} );
+			} );
+		} );
+	} );
+} );
+check( 'every direction x particle x invert x ratio is recognised with a mass, an anchor and every particle', allRecognised );
+check( 'dispersion output is plain integers (no decimals, no -0)', integers );
+check( '400 particles stay well under the 49000-byte path cap', smallEnough );
+check( 'hover poses (every style and amount, Drift included) never make particles touch', allClear );
+check( 'Drift really moves the particles', allMoves );
+
+var dg = Gen.generate( { pattern: 'dispersion', direction: 'right', particle: 'mixed', seed: 21, dots: 150 }, 0 );
+var df = Org.dotField( dg.d );
+var dpair = Org.dotPair( df, 'drift', 'normal' );
+check( 'Drift never moves the mass, the outline or the first frame', dpair.blend( 0 ) === dg.d && dpair.blend( 1 ).indexOf( dg.d.split( /(?=M)/ )[ 0 ] ) === 0 );
+var far = df.dots.reduce( function ( best, dot, i ) { return dot.x > df.dots[ best ].x ? i : best; }, 0 );
+var near = df.dots.reduce( function ( best, dot, i ) { return dot.x < df.dots[ best ].x ? i : best; }, 0 );
+var movedD = Org.dotField( dpair.blend( 1 ) );
+check( 'Drift moves far particles further than near ones, away from the mass', movedD.dots[ far ].x - df.dots[ far ].x > movedD.dots[ near ].x - df.dots[ near ].x && movedD.dots[ far ].x > df.dots[ far ].x );
+check( 'Drift keeps every particle its size', movedD.dots.every( function ( dot, i ) { return Math.abs( dot.r - df.dots[ i ].r ) < 0.05; } ) );
+var plainDrift = Org.dotPair( fPlain, 'drift', 'strong' );
+check( 'Drift works on a plain dot grid too (expands about its centre)', plainDrift.blend( 1 ) !== plain.d && !! Org.dotField( plainDrift.blend( 1 ) ) );
+
+check( 'a mass-less field refuses polygon particles', null === Org.dotField( d1 + 'M30 30L40 30L35 20Z' ) );
+check( 'an ordinary multi-subpath icon is never taken for a dispersion', null === Org.dotField( heart + 'M5 5L20 5L20 20L5 20Z' ) && null === Org.dotField( 'M0 0L9 0L9 9L0 9Z' + d1 ) );
+var star = dg.d.split( /(?=M)/ );
+var cw = star.slice();
+cw[ 1 ] = 'M' + cw[ 1 ].slice( 1, -1 ).split( 'L' ).reverse().join( 'L' ) + 'Z';
+check( 'a clockwise mass is refused', null === Org.dotField( cw.join( '' ) ) );
+var wrongParticle = star.slice();
+wrongParticle[ 2 ] = 'M10 10L20 10L20 20L10 20Z';
+check( 'a clockwise particle polygon is refused', null === Org.dotField( wrongParticle.join( '' ) ) );
+check( 'a 5-corner particle is refused', null === Org.dotField( star.slice( 0, 2 ).join( '' ) + 'M100 100L110 95L120 100L115 110L105 110Z' ) );
+check( 'a mass with fewer than 8 corners is refused', null === Org.dotField( 'M0 0L100 0L100 100L0 100Z' + d1 ) );
+
 check( 'loading the script still only registers the Elementor init listener', 1 === hooks.length && 'elementor/frontend/init' === hooks[ 0 ] );
 
 console.log( failures ? '\n' + failures + ' FAILED' : '\nALL PASSED' );

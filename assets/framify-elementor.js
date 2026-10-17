@@ -49,7 +49,10 @@
 	// Dots motion (a pattern of circles from Shape studio > Generate): how far
 	// each dot's radius moves at the hover pose, per "Motion amount".
 	var DOT_AMOUNT = { subtle: 0.3, normal: 0.7, strong: 1.5 };
-	var DOT_STYLES = { breathe: 1, twinkle: 1, wave: 1 };
+	var DOT_STYLES = { breathe: 1, twinkle: 1, wave: 1, drift: 1 };
+	// Drift: how far every particle moves away from the anchor, as a share of
+	// its distance from it (a pure expansion, so particles never meet).
+	var DRIFT_AMOUNT = { subtle: 0.06, normal: 0.14, strong: 0.28 };
 	// Above this many dots Liquid is skipped: its 400-sample trace drops every
 	// part shorter than 1% of the path, which is every dot of a large pattern.
 	var DOT_LIQUID_MAX = 24;
@@ -748,7 +751,7 @@
 
 	function parseDotField( d ) {
 		var chunks = d ? d.split( /(?=M)/ ) : [];
-		if ( ! chunks.length || chunks.length > DOT_MAX + 1 ) {
+		if ( ! chunks.length || chunks.length > DOT_MAX + 2 ) {
 			return null;
 		}
 		var at = 0;
@@ -757,21 +760,24 @@
 			at = chunks[ 0 ].match( NUMBER ).length;
 			first = 1;
 		}
+		// Dispersion: a solid mass polygon comes before the particles.
+		var mass = null;
+		if ( chunks[ first ] && /^M[^MCSQTAHVZ]*L/.test( chunks[ first ] ) ) {
+			mass = parsePoly( chunks[ first ], 8, 64 );
+			if ( ! mass ) {
+				return null;
+			}
+			at += chunks[ first ].match( NUMBER ).length;
+			first++;
+		}
 		var dots = [];
 		for ( var i = first; i < chunks.length; i++ ) {
-			// M x y  a rx ry rot large sweep dx dy  a rx ry rot large sweep dx dy  Z
-			if ( 'M##a#######a#######Z' !== chunks[ i ].replace( NUMBER, '#' ).replace( /[\s,]+/g, '' ) ) {
+			var dot = parseParticle( chunks[ i ], at, mass );
+			if ( ! dot ) {
 				return null;
 			}
-			var n = chunks[ i ].match( NUMBER ).map( Number );
-			var r = n[ 2 ];
-			if ( ! ( r > 0 ) || n[ 3 ] !== r || n[ 9 ] !== r || n[ 10 ] !== r
-				|| 0 !== n[ 4 ] || 0 !== n[ 11 ] || 1 !== n[ 5 ] || 1 !== n[ 12 ] || 0 !== n[ 6 ] || 0 !== n[ 13 ]
-				|| 0 !== n[ 8 ] || 0 !== n[ 15 ] || Math.abs( n[ 7 ] - 2 * r ) > 0.011 || Math.abs( n[ 14 ] + 2 * r ) > 0.011 ) {
-				return null;
-			}
-			dots.push( { x: n[ 0 ] + r, y: n[ 1 ], r: r, at: at } );
-			at += DOT_TOKENS;
+			dots.push( dot );
+			at += dot.tokens;
 		}
 		if ( ! dots.length || dots.length > DOT_MAX ) {
 			return null;
@@ -782,11 +788,146 @@
 		dots.forEach( function ( dot, i ) {
 			minX = Math.min( minX, dot.x );
 			maxX = Math.max( maxX, dot.x );
-			for ( var j = i + 1; j < dots.length; j++ ) {
-				pitch = Math.min( pitch, Math.hypot( dot.x - dots[ j ].x, dot.y - dots[ j ].y ) );
+			dot.near = Infinity;
+			for ( var j = 0; j < dots.length; j++ ) {
+				if ( j !== i ) {
+					dot.near = Math.min( dot.near, Math.hypot( dot.x - dots[ j ].x, dot.y - dots[ j ].y ) );
+				}
 			}
+			pitch = Math.min( pitch, dot.near );
 		} );
-		return { rest: parsePath( d ), dots: dots, pitch: pitch, minX: minX, maxX: maxX };
+		var field = { rest: parsePath( d ), dots: dots, pitch: pitch, minX: minX, maxX: maxX, mass: mass, anchor: null };
+		if ( mass ) {
+			// Each particle may swell to half its own nearest-neighbour gap and
+			// no further than the mass; a particle already closer keeps its size.
+			dots.forEach( function ( dot ) {
+				dot.cap = Math.min( dot.near / 2, polyDistance( dot.x, dot.y, mass.pts ) );
+			} );
+			field.anchor = massAnchor( mass.pts );
+		} else {
+			var sx = 0;
+			var sy = 0;
+			dots.forEach( function ( dot ) {
+				sx += dot.x;
+				sy += dot.y;
+			} );
+			field.anchor = [ sx / dots.length, sy / dots.length ];
+		}
+		return field;
+	}
+
+	// One particle chunk: a circle in the exact dot form, or a convex
+	// counter-clockwise polygon of 3-4 corners. Dispersion polygons are only
+	// accepted next to a mass, so an ordinary icon is never taken for them.
+	function parseParticle( chunk, at, mass ) {
+		var n;
+		// M x y  a rx ry rot large sweep dx dy  a rx ry rot large sweep dx dy  Z
+		if ( 'M##a#######a#######Z' === chunk.replace( NUMBER, '#' ).replace( /[\s,]+/g, '' ) ) {
+			n = chunk.match( NUMBER ).map( Number );
+			var r = n[ 2 ];
+			if ( ! ( r > 0 ) || n[ 3 ] !== r || n[ 9 ] !== r || n[ 10 ] !== r
+				|| 0 !== n[ 4 ] || 0 !== n[ 11 ] || 1 !== n[ 5 ] || 1 !== n[ 12 ] || 0 !== n[ 6 ] || 0 !== n[ 13 ]
+				|| 0 !== n[ 8 ] || 0 !== n[ 15 ] || Math.abs( n[ 7 ] - 2 * r ) > 0.011 || Math.abs( n[ 14 ] + 2 * r ) > 0.011 ) {
+				return null;
+			}
+			return { x: n[ 0 ] + r, y: n[ 1 ], r: r, at: at, tokens: DOT_TOKENS, pts: null };
+		}
+		var poly = mass ? parsePoly( chunk, 3, 4 ) : null;
+		if ( ! poly || ! poly.convex ) {
+			return null;
+		}
+		return { x: poly.cx, y: poly.cy, r: poly.reach, at: at, tokens: poly.pts.length * 2, pts: poly.pts };
+	}
+
+	// "M x y L x y ... Z" with min-max corners, counter-clockwise on screen.
+	function parsePoly( chunk, min, max ) {
+		var skeleton = chunk.replace( NUMBER, '#' ).replace( /[\s,]+/g, '' );
+		if ( ! /^M##(?:L##)+Z$/.test( skeleton ) ) {
+			return null;
+		}
+		var n = chunk.match( NUMBER ).map( Number );
+		var count = n.length / 2;
+		if ( count < min || count > max ) {
+			return null;
+		}
+		var pts = [];
+		var sx = 0;
+		var sy = 0;
+		for ( var i = 0; i < count; i++ ) {
+			pts.push( [ n[ 2 * i ], n[ 2 * i + 1 ] ] );
+			sx += n[ 2 * i ];
+			sy += n[ 2 * i + 1 ];
+		}
+		var area = 0;
+		var convex = true;
+		var reach = 0;
+		for ( var k = 0; k < count; k++ ) {
+			var a = pts[ k ];
+			var b = pts[ ( k + 1 ) % count ];
+			var c = pts[ ( k + 2 ) % count ];
+			area += a[ 0 ] * b[ 1 ] - b[ 0 ] * a[ 1 ];
+			// Counter-clockwise on screen: every turn has a negative cross.
+			if ( ( b[ 0 ] - a[ 0 ] ) * ( c[ 1 ] - b[ 1 ] ) - ( b[ 1 ] - a[ 1 ] ) * ( c[ 0 ] - b[ 0 ] ) >= 0 ) {
+				convex = false;
+			}
+			reach = Math.max( reach, Math.hypot( a[ 0 ] - sx / count, a[ 1 ] - sy / count ) );
+		}
+		if ( ! ( area < 0 ) ) {
+			return null;
+		}
+		return { pts: pts, cx: sx / count, cy: sy / count, convex: convex, reach: reach };
+	}
+
+	function polyDistance( x, y, pts ) {
+		var best = Infinity;
+		for ( var i = 0; i < pts.length; i++ ) {
+			var a = pts[ i ];
+			var b = pts[ ( i + 1 ) % pts.length ];
+			var dx = b[ 0 ] - a[ 0 ];
+			var dy = b[ 1 ] - a[ 1 ];
+			var u = Math.min( 1, Math.max( 0, ( ( x - a[ 0 ] ) * dx + ( y - a[ 1 ] ) * dy ) / ( dx * dx + dy * dy || 1 ) ) );
+			best = Math.min( best, Math.hypot( x - a[ 0 ] - u * dx, y - a[ 1 ] - u * dy ) );
+		}
+		return best;
+	}
+
+	// A point the whole mass can be seen from (inside its kernel): Drift
+	// expands about it, which can never push a particle into the mass. The
+	// area centre is tried first, then it is pulled toward each side of the
+	// mass; null when none works (the mass is not star-shaped).
+	function massAnchor( pts ) {
+		var minX = Infinity;
+		var maxX = -Infinity;
+		var minY = Infinity;
+		var maxY = -Infinity;
+		var cx = 0;
+		var cy = 0;
+		pts.forEach( function ( p ) {
+			minX = Math.min( minX, p[ 0 ] );
+			maxX = Math.max( maxX, p[ 0 ] );
+			minY = Math.min( minY, p[ 1 ] );
+			maxY = Math.max( maxY, p[ 1 ] );
+			cx += p[ 0 ] / pts.length;
+			cy += p[ 1 ] / pts.length;
+		} );
+		var tries = [ [ cx, cy ] ];
+		[ 0.8, 0.9, 0.95 ].forEach( function ( k ) {
+			tries.push( [ cx + ( minX - cx ) * k, cy ], [ cx + ( maxX - cx ) * k, cy ], [ cx, cy + ( minY - cy ) * k ], [ cx, cy + ( maxY - cy ) * k ] );
+		} );
+		for ( var i = 0; i < tries.length; i++ ) {
+			var o = tries[ i ];
+			var ok = true;
+			for ( var k = 0; k < pts.length && ok; k++ ) {
+				var a = pts[ k ];
+				var b = pts[ ( k + 1 ) % pts.length ];
+				// Inside every edge of a counter-clockwise polygon (negative cross).
+				ok = ( b[ 0 ] - a[ 0 ] ) * ( o[ 1 ] - a[ 1 ] ) - ( b[ 1 ] - a[ 1 ] ) * ( o[ 0 ] - a[ 0 ] ) <= 0;
+			}
+			if ( ok ) {
+				return o;
+			}
+		}
+		return null;
 	}
 
 	// A stable 0-1 value per dot index (the same on every rebuild).
@@ -807,18 +948,44 @@
 		var delays = 'wave' === style ? rest.nums.map( function () {
 			return 0;
 		} ) : null;
+		var drift = 'drift' === style && field.anchor;
+		if ( 'drift' === style && ! drift ) {
+			style = 'breathe';
+		}
+		var push = DRIFT_AMOUNT[ amount ] || DRIFT_AMOUNT.normal;
 		field.dots.forEach( function ( dot, i ) {
-			var limit = cap ? Math.max( dot.r, cap ) : dot.r * 2;
+			var at = dot.at;
+			if ( drift ) {
+				// Slide the whole particle along the line from the anchor through
+				// its centre. Expanding about one point only ever moves particles
+				// apart, and away from a mass that is seen from that point.
+				var dx = ( dot.x - field.anchor[ 0 ] ) * push;
+				var dy = ( dot.y - field.anchor[ 1 ] ) * push;
+				for ( var m = 0; m < ( dot.pts ? dot.pts.length : 1 ); m++ ) {
+					nums[ at + 2 * m ] = Math.round( ( rest.nums[ at + 2 * m ] + dx ) * 100 ) / 100;
+					nums[ at + 2 * m + 1 ] = Math.round( ( rest.nums[ at + 2 * m + 1 ] + dy ) * 100 ) / 100;
+				}
+				return;
+			}
+			var room = field.mass ? dot.cap : cap;
+			var limit = room ? Math.max( dot.r, room ) : dot.r * 2;
 			var target = 'twinkle' === style ? dot.r * ( 1 + a * ( 1.4 * dotHash( i ) - 0.5 ) ) : dot.r * ( 1 + a );
 			var rt = Math.round( Math.min( limit, Math.max( dot.r * 0.2, target ) ) * 100 ) / 100;
-			var at = dot.at;
-			nums[ at ] = Math.round( ( dot.x - rt ) * 100 ) / 100;
-			nums[ at + 2 ] = nums[ at + 3 ] = nums[ at + 9 ] = nums[ at + 10 ] = rt;
-			nums[ at + 7 ] = Math.round( 2 * rt * 100 ) / 100;
-			nums[ at + 14 ] = -nums[ at + 7 ];
+			if ( dot.pts ) {
+				// Corners scale about the centre; r is the reach of the farthest.
+				for ( var q = 0; q < dot.pts.length; q++ ) {
+					nums[ at + 2 * q ] = Math.round( ( dot.x + ( dot.pts[ q ][ 0 ] - dot.x ) * rt / dot.r ) * 100 ) / 100;
+					nums[ at + 2 * q + 1 ] = Math.round( ( dot.y + ( dot.pts[ q ][ 1 ] - dot.y ) * rt / dot.r ) * 100 ) / 100;
+				}
+			} else {
+				nums[ at ] = Math.round( ( dot.x - rt ) * 100 ) / 100;
+				nums[ at + 2 ] = nums[ at + 3 ] = nums[ at + 9 ] = nums[ at + 10 ] = rt;
+				nums[ at + 7 ] = Math.round( 2 * rt * 100 ) / 100;
+				nums[ at + 14 ] = -nums[ at + 7 ];
+			}
 			if ( delays ) {
 				var delay = DOT_SPREAD * ( dot.x - field.minX ) / span;
-				for ( var k = 0; k < DOT_TOKENS; k++ ) {
+				for ( var k = 0; k < dot.tokens; k++ ) {
 					delays[ at + k ] = delay;
 				}
 			}
@@ -2020,7 +2187,7 @@
 				if ( 'dots' === s.framify_org_custom_motion && ! field ) {
 					this.warnDots( fx.custom.d );
 				}
-				if ( field && ( 'dots' === s.framify_org_custom_motion || field.dots.length > DOT_LIQUID_MAX ) ) {
+				if ( field && ( 'dots' === s.framify_org_custom_motion || field.mass || field.dots.length > DOT_LIQUID_MAX ) ) {
 					// Dots stay in the paste's own units, like Gentle (fx.inner is
 					// left as set), and never leave their cells, so there is no
 					// motion inset or container bleed: fx.motion stays null.

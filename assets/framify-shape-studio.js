@@ -1380,6 +1380,15 @@
 	var GENERATE_TAB = 1;
 	// Remembered between visits, so "Add another" returns to the same settings.
 	var genMemory = null;
+	// How many of each pattern the person asked for, so switching back and
+	// forth keeps both (Dispersion needs more than a sparse grid does).
+	var genCounts = { dots: 120, dispersion: 150 };
+	var PATTERN_INFO = {
+		dots: { label: 'Dots', blurb: 'A halftone grid of circles', unit: 'dots', hint: 'Tick the shapes to keep. Dots are round when your element has the same proportions as the ratio.' },
+		dispersion: { label: 'Dispersion', blurb: 'A solid mass that breaks into particles', unit: 'particles', hint: 'Tick the shapes to keep. Particles keep their shape when your element has the same proportions as the ratio.' }
+	};
+	var DIRECTION_BUTTONS = [ [ 'right', '\u2192', 'Right' ], [ 'left', '\u2190', 'Left' ], [ 'down', '\u2193', 'Down' ], [ 'up', '\u2191', 'Up' ], [ 'out', '\u2735', 'Outward' ] ];
+	var PARTICLE_BUTTONS = [ [ 'circle', '\u25CF', 'Circle' ], [ 'square', '\u25A0', 'Square' ], [ 'triangle', '\u25B2', 'Triangle' ], [ 'diamond', '\u25C6', 'Diamond' ], [ 'mixed', 'Mix', 'Mixed' ] ];
 
 	function rangeField( label, min, max, value, fmt ) {
 		var wrap = el( 'label', 'framify-studio__range' );
@@ -1409,6 +1418,7 @@
 		var Dots = window.FramifyDotShapes;
 		var L = Dots.LIMITS;
 		var opts = genMemory || Dots.normalise( { seed: Dots.randomSeed() } );
+		var info = PATTERN_INFO[ opts.pattern ];
 		var shapes = [];
 		var ticks = [];
 		var frame = 0;
@@ -1420,11 +1430,11 @@
 		var stage = el( 'div', 'framify-studio__stage framify-studio__stage--tiles' );
 		var tiles = el( 'div', 'framify-studio__variants' );
 		var bar = el( 'div', 'framify-studio__status' );
-		var hint = el( 'span', 'framify-studio__hint', 'Tick the shapes to keep. Dots are round when your element has the same proportions as the ratio.' );
+		var hint = el( 'span', 'framify-studio__hint', info.hint );
 		var readout = el( 'span', 'framify-studio__readout' );
 		var inspector = el( 'aside', 'framify-studio__inspector' );
 		var msg = status();
-		var name = nameField( 'Dots' );
+		var name = nameField( info.label );
 		var save = el( 'button', 'framify-studio__btn framify-studio__btn--primary' );
 		save.type = 'button';
 		var room = el( 'p', 'framify-studio__note' );
@@ -1463,7 +1473,7 @@
 				card.appendChild( box );
 				card.appendChild( el( 'span', 'framify-studio__tick' ) );
 				card.appendChild( img );
-				card.appendChild( el( 'span', 'framify-studio__caption', '#' + ( i + 1 ) + '  ' + shape.count + ' dots  ' + kb( shape.d.length ) ) );
+				card.appendChild( el( 'span', 'framify-studio__caption', '#' + ( i + 1 ) + '  ' + shape.count + ' ' + info.unit + '  ' + kb( shape.d.length ) ) );
 				tiles.appendChild( card );
 			} );
 			readoutText();
@@ -1481,6 +1491,7 @@
 					return true;
 				} );
 				renderTiles();
+				paintCards();
 			} );
 		}
 
@@ -1508,6 +1519,94 @@
 			return v + '%';
 		}
 
+		// A row of icon buttons that picks one value of opts[ key ].
+		function segField( buttons, key, what, cls ) {
+			var row = el( 'div', 'framify-studio__seg ' + cls );
+			var made = {};
+			buttons.forEach( function ( item ) {
+				var b = el( 'button', '', item[ 1 ] );
+				b.type = 'button';
+				b.title = item[ 2 ];
+				b.setAttribute( 'aria-label', what + ' ' + item[ 2 ] );
+				b.addEventListener( 'click', function () {
+					opts[ key ] = item[ 0 ];
+					mark();
+					refresh();
+				} );
+				made[ item[ 0 ] ] = b;
+				row.appendChild( b );
+			} );
+			function mark() {
+				Object.keys( made ).forEach( function ( k ) {
+					made[ k ].classList.toggle( 'is-active', k === opts[ key ] );
+					made[ k ].setAttribute( 'aria-pressed', k === opts[ key ] ? 'true' : 'false' );
+				} );
+			}
+			mark();
+			return row;
+		}
+
+		/* inspector: what to generate (two cards with a live preview) */
+		var kindSec = section( 'What to generate' );
+		var kindRow = el( 'div', 'framify-studio__kinds' );
+		var cards = {};
+		Object.keys( PATTERN_INFO ).forEach( function ( key ) {
+			var card = el( 'button', 'framify-studio__kind' );
+			card.type = 'button';
+			card.setAttribute( 'aria-label', 'Generate ' + PATTERN_INFO[ key ].label );
+			var pic = el( 'img' );
+			pic.alt = '';
+			card.appendChild( pic );
+			card.appendChild( el( 'strong', '', PATTERN_INFO[ key ].label ) );
+			card.appendChild( el( 'span', '', PATTERN_INFO[ key ].blurb ) );
+			card.addEventListener( 'click', function () {
+				setPattern( key );
+			} );
+			cards[ key ] = { button: card, img: pic };
+			kindRow.appendChild( card );
+		} );
+		kindSec.appendChild( kindRow );
+
+		// Fixed seed, so a card only changes when the settings that shape it do.
+		function paintCards() {
+			Object.keys( cards ).forEach( function ( key ) {
+				var shape = Dots.generate( { pattern: key, direction: opts.direction, particle: opts.particle, seed: 7, ratio: '1:1', dots: 'dots' === key ? 40 : 70, cols: 10 }, 0 );
+				cards[ key ].img.src = thumbOf( shape );
+				cards[ key ].button.classList.toggle( 'is-active', key === opts.pattern );
+				cards[ key ].button.setAttribute( 'aria-pressed', key === opts.pattern ? 'true' : 'false' );
+			} );
+		}
+
+		function setPattern( key ) {
+			if ( key === opts.pattern ) {
+				return;
+			}
+			var was = PATTERN_INFO[ opts.pattern ];
+			genCounts[ opts.pattern ] = opts.dots;
+			opts.pattern = key;
+			info = PATTERN_INFO[ key ];
+			opts.dots = genCounts[ key ];
+			fields.dots.input.value = opts.dots;
+			fields.dots.input.dispatchEvent( new Event( 'input' ) );
+			if ( name.input.value === was.label ) {
+				name.input.value = info.label;
+			}
+			hint.textContent = info.hint;
+			applyPattern();
+			refresh();
+		}
+
+		function applyPattern() {
+			var disp = 'dispersion' === opts.pattern;
+			fields.dots.firstChild.textContent = disp ? 'Particles' : 'Dots';
+			fields.cols.hidden = disp;
+			fields.steps.hidden = disp;
+			fields.runs.hidden = disp;
+			dispSec.hidden = ! disp;
+			dotsSec.firstChild.textContent = disp ? 'Particles' : 'Dots';
+			dotsNote.textContent = disp ? 'Invert shows your image around the particles instead of through them.' : 'Runs groups dots into horizontal clusters. Invert shows your image around the dots instead of through them.';
+		}
+
 		/* inspector */
 		var patternSec = section( 'Pattern' );
 		patternSec.appendChild( range( 'dots', 'Dots' ) );
@@ -1532,6 +1631,13 @@
 		ratioButtons[ opts.ratio ].classList.add( 'is-active' );
 		patternSec.appendChild( ratioRow );
 
+		var dispSec = section( 'Dispersion' );
+		dispSec.appendChild( el( 'p', 'framify-studio__sub', 'Where the particles travel' ) );
+		dispSec.appendChild( segField( DIRECTION_BUTTONS, 'direction', 'Direction', 'framify-studio__seg--5' ) );
+		dispSec.appendChild( el( 'p', 'framify-studio__sub', 'Particle shape' ) );
+		dispSec.appendChild( segField( PARTICLE_BUTTONS, 'particle', 'Particle', 'framify-studio__seg--5' ) );
+		dispSec.appendChild( el( 'p', 'framify-studio__note', 'The mass sits on the opposite side; Outward puts it in the middle. Particles thin out and shrink the further they travel.' ) );
+
 		var dotsSec = section( 'Dots' );
 		dotsSec.appendChild( range( 'min', 'Smallest', pct ) );
 		dotsSec.appendChild( range( 'max', 'Largest', pct ) );
@@ -1543,7 +1649,8 @@
 			refresh();
 		} );
 		dotsSec.appendChild( invert );
-		dotsSec.appendChild( el( 'p', 'framify-studio__note', 'Runs groups dots into horizontal clusters. Invert shows your image around the dots instead of through them.' ) );
+		var dotsNote = el( 'p', 'framify-studio__note' );
+		dotsSec.appendChild( dotsNote );
 
 		var seedSec = section( 'Seed' );
 		var seedRow = el( 'div', 'framify-studio__seedrow' );
@@ -1648,7 +1755,9 @@
 		bar.appendChild( readout );
 		stageWrap.appendChild( stage );
 		stageWrap.appendChild( bar );
+		inspector.appendChild( kindSec );
 		inspector.appendChild( patternSec );
+		inspector.appendChild( dispSec );
 		inspector.appendChild( dotsSec );
 		inspector.appendChild( seedSec );
 		inspector.appendChild( saveSec );
@@ -1660,6 +1769,7 @@
 			box.style.width = MIN_BOX + 'px';
 		}
 		updateRoom();
+		applyPattern();
 		refresh();
 	}
 

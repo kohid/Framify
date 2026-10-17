@@ -310,6 +310,66 @@ const { chromium } = require( process.env.PLAYWRIGHT_MODULE || 'playwright' );
   ok('browser: the generic blendPath really does break these paths (why dots have their own blender)', geo.genericBlendBreaks);
 
 
+  // Dispersion: the second pattern in the Generate tab.
+  await gen();
+  const dotsBefore = await range('Dots').inputValue();
+  ok('dispersion: the picker offers two cards, Dots active', (await p.locator('.framify-studio__kind').count()) === 2 && (await p.locator('.framify-studio__kind.is-active').count()) === 1 && /Dots/.test(await p.locator('.framify-studio__kind.is-active').textContent()));
+  ok('dispersion: both cards show a live preview picture', await p.evaluate(() => [...document.querySelectorAll('.framify-studio__kind img')].every(i => /^data:image\/svg\+xml,/.test(i.src) && i.src.length > 400)));
+  ok('dispersion: its own controls start hidden', await p.locator('.framify-studio__section', { hasText: 'Where the particles travel' }).isHidden());
+  await p.getByRole('button', { name: 'Generate Dispersion', exact: true }).click(); await p.waitForTimeout(100);
+  ok('dispersion: switching shows Direction and Particle shape, relabels Dots as Particles, hides Columns / Sizes / Runs', await p.evaluate(() => {
+    const vis = (t) => { const e = [...document.querySelectorAll('label.framify-studio__range')].find(l => l.textContent.indexOf(t) === 0); return !!e && !e.hidden; };
+    return vis('Particles') && !vis('Dots') && !vis('Columns') && !vis('Sizes') && !vis('Runs') && vis('Smallest') && vis('Variations')
+      && !document.querySelector('.framify-studio__section:nth-child(3)').hidden;
+  }));
+  ok('dispersion: the name defaults to Dispersion and tiles say particles', (await p.locator('.framify-studio__field input').inputValue()) === 'Dispersion' && /particles/.test(await p.locator('.framify-studio__caption').first().textContent()));
+  ok('dispersion: the 6 default tiles are all dispersion shapes (mass first)', await p.evaluate(() => framifyShapeStudio && true) && (await p.locator('.framify-studio__variant').count()) === 6);
+  const dsrc = await p.locator('.framify-studio__variant img').first().getAttribute('src');
+  await p.getByRole('button', { name: 'Direction Down', exact: true }).click(); await p.waitForTimeout(100);
+  ok('dispersion: choosing a Direction regenerates the tiles', (await p.locator('.framify-studio__variant img').first().getAttribute('src')) !== dsrc && (await p.getByRole('button', { name: 'Direction Down', exact: true }).getAttribute('aria-pressed')) === 'true');
+  const dsrc2 = await p.locator('.framify-studio__variant img').first().getAttribute('src');
+  await p.getByRole('button', { name: 'Particle Triangle', exact: true }).click(); await p.waitForTimeout(100);
+  ok('dispersion: choosing a Particle shape regenerates the tiles', (await p.locator('.framify-studio__variant img').first().getAttribute('src')) !== dsrc2);
+  await setRange('Variations', 2);
+  await p.evaluate(() => { window.__posts.length = 0; framifyShapeStudio.shapes = framifyShapeStudio.shapes.filter(s => s.source !== 'user'); });
+  await p.getByRole('button', { name: 'Save 2 shapes' }).click(); await p.waitForSelector('.framify-studio__done');
+  const dp = await p.evaluate(() => window.__posts.slice());
+  const dchk = await p.evaluate((posts) => {
+    const O = window.FramifyOrganicShape;
+    return posts.map(x => { const f = O.dotField(x.d); return !!f && !!f.mass && !!f.anchor && f.dots.length > 3 && x.d.length < 49000 && /^[-\dMLaZHV ]+$/.test(x.d); });
+  }, dp);
+  ok('dispersion: 2 posts, named "Dispersion 1/2", each a mass plus particles the runtime recognises', dp.length === 2 && dp[0].name === 'Dispersion 1' && dp[1].name === 'Dispersion 2' && dchk.every(Boolean));
+  await p.getByRole('button', { name: 'Add another', exact: true }).click(); await p.waitForSelector('.framify-studio__variant');
+  ok('dispersion: "Add another" stays on Dispersion with its settings', /Dispersion/.test(await p.locator('.framify-studio__kind.is-active').textContent()) && (await p.getByRole('button', { name: 'Direction Down', exact: true }).getAttribute('aria-pressed')) === 'true');
+  await p.getByRole('button', { name: 'Generate Dots', exact: true }).click(); await p.waitForTimeout(100);
+  ok('dispersion: back on Dots the count, name and labels return', (await range('Dots').inputValue()) === dotsBefore && (await p.locator('.framify-studio__field input').inputValue()) === 'Dots' && /dots/.test(await p.locator('.framify-studio__caption').first().textContent()));
+  await p.evaluate(() => { window.__posts.length = 0; });
+  // Real browser: a dispersion renders as filled marks, a hover pose never loses a particle
+  const dgeo = await p.evaluate(() => {
+    const G = window.FramifyDotShapes, O = window.FramifyOrganicShape;
+    const inPath = (d, x, y) => document.createElement('canvas').getContext('2d').isPointInPath(new Path2D(d), x, y);
+    const out = { ok: true };
+    G.DIRECTIONS.forEach(dir => G.PARTICLES.forEach(par => {
+      const plain = G.generate({ pattern: 'dispersion', direction: dir, particle: par, seed: 5, dots: 120 }, 0);
+      const inv = G.generate({ pattern: 'dispersion', direction: dir, particle: par, seed: 5, dots: 120, invert: true }, 0);
+      const f = O.dotField(plain.d), fi = O.dotField(inv.d);
+      const m = f.mass.pts.reduce((a, q) => [a[0] + q[0] / f.mass.pts.length, a[1] + q[1] / f.mass.pts.length], [0, 0]);
+      const first = f.dots[0], lastP = f.dots[f.dots.length - 1];
+      if (!inPath(plain.d, first.x, first.y) || !inPath(plain.d, lastP.x, lastP.y)) out.ok = false;
+      // Invert: the mass and every particle are holes in the frame
+      if (inPath(inv.d, first.x, first.y) || inPath(inv.d, lastP.x, lastP.y)) out.ok = false;
+      ['breathe', 'twinkle', 'wave', 'drift'].forEach(style => {
+        const mid = O.dotPair(f, style, 'strong').blend(0.5), pose = O.dotField(mid);
+        if (!pose || pose.dots.length !== f.dots.length) out.ok = false;
+        const midI = O.dotPair(fi, style, 'strong').blend(0.5);
+        const q = O.dotField(midI);
+        if (!q || /1\.00|0\.00 /.test(midI)) out.ok = false;
+      });
+    }));
+    return out;
+  });
+  ok('browser: every dispersion (all directions and shapes) fills, inverts to holes, and animates in all four styles', dgeo.ok);
+
   // Leaving the Generate tab (or closing the studio) while a batch is still saving
   // must not draw the "Saved" screen over the new tab or touch the element.
   await gen();

@@ -548,6 +548,70 @@
 .framify-studio__seg--4 {
 	grid-template-columns: repeat(4, 1fr);
 }
+.framify-studio__seg--5 {
+	grid-template-columns: repeat(5, 1fr);
+	margin-top: 4px;
+}
+.framify-studio__seg--5 button {
+	padding: 6px 0;
+	font-size: 13px;
+	line-height: 1.2;
+}
+.framify-studio__sub {
+	margin: 12px 0 0;
+	font-size: 11.5px;
+	font-weight: 600;
+	color: var(--fs-ink-2);
+}
+.framify-studio__sub:first-of-type {
+	margin-top: 0;
+}
+/* What to generate: two cards, each with a small live preview. */
+.framify-studio__kinds {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+.framify-studio__kind {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 3px;
+	padding: 8px 8px 9px;
+	border: 1.5px solid var(--fs-line);
+	border-radius: var(--fs-radius);
+	background: #fff;
+	text-align: left;
+	cursor: pointer;
+	transition: border-color .15s, background-color .15s, box-shadow .15s;
+}
+.framify-studio__kind:hover {
+	border-color: #b9c2d4;
+}
+.framify-studio__kind.is-active {
+	border-color: var(--fs-pen);
+	background: var(--fs-pen-soft);
+	box-shadow: 0 0 0 2px rgba(47, 91, 255, .12);
+}
+.framify-studio__kind img {
+	display: block;
+	width: 100%;
+	aspect-ratio: 1;
+	margin-bottom: 4px;
+	border-radius: 5px;
+	background: #fff;
+	box-shadow: inset 0 0 0 1px var(--fs-line-2);
+	object-fit: contain;
+}
+.framify-studio__kind strong {
+	font-size: 12.5px;
+	color: var(--fs-ink);
+}
+.framify-studio__kind span {
+	font-size: 11px;
+	line-height: 1.3;
+	color: var(--fs-muted);
+}
 .framify-studio__draw--gen .framify-studio__range {
 	grid-template-columns: 74px 1fr 40px;
 }

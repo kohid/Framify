@@ -813,7 +813,7 @@ check( 'dots: Custom motion offers liquid, gentle and dots (default liquid)', ar
 $dot_style = $con_c['framify_org_dot_style'];
 $dot_terms = array();
 array_walk_recursive( $dot_style['conditions'], function ( $v, $k ) use ( &$dot_terms ) { $dot_terms[] = $k . '=' . ( is_array( $v ) ? implode( ',', $v ) : $v ); } );
-check( 'dots: framify_org_dot_style is breathe / twinkle / wave (default breathe), live, only with Dots chosen', array( 'breathe', 'twinkle', 'wave' ) === array_keys( $dot_style['options'] ) && 'breathe' === $dot_style['default'] && ! empty( $dot_style['frontend_available'] )
+check( 'dots: framify_org_dot_style is breathe / twinkle / wave / drift (default breathe), live, only with Dots chosen', array( 'breathe', 'twinkle', 'wave', 'drift' ) === array_keys( $dot_style['options'] ) && 'breathe' === $dot_style['default'] && ! empty( $dot_style['frontend_available'] )
     && in_array( 'value=dots', $dot_terms, true ) && in_array( 'name=framify_org_custom_motion', $dot_terms, true ) );
 check( 'dots: the generator is enqueued (asset_version) and the studio depends on it', false !== strpos( $dot_php, "'framify-dot-shapes'," ) && false !== strpos( $dot_php, "\$this->asset_version( 'framify-dot-shapes.js' )" ) && false !== strpos( $dot_php, "array( 'elementor-editor', 'framify-dot-shapes' )" ) );
 check( 'dots: the studio gets the shape quota from the server (maxUser = MAX_USER)', false !== strpos( $dot_php, "'maxUser' => Framify_Shape_Library::MAX_USER" ) );

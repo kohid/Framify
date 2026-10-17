@@ -688,9 +688,9 @@ class Framify_Elementor {
             'options'     => array(
                 'liquid' => esc_html__( 'Liquid (traced, rippling edge)', 'framify' ),
                 'gentle' => esc_html__( 'Gentle (exact shape, tilt and swell)', 'framify' ),
-                'dots'   => esc_html__( 'Dots (circle patterns: breathe, twinkle, wave)', 'framify' ),
+                'dots'   => esc_html__( 'Dots (particle patterns: breathe, twinkle, wave, drift)', 'framify' ),
             ),
-            'description' => esc_html__( 'Liquid traces your shape and ripples its edge, softening sharp corners. Gentle keeps it exact and moves it as a whole; use it for logos and icons. Dots animates each circle of a pattern made in the Shape studio Generate tab and lets you pick its style. Liquid switches to Dots (Breathe) on a pattern with more than 24 dots.', 'framify' ),
+            'description' => esc_html__( 'Liquid traces your shape and ripples its edge, softening sharp corners. Gentle keeps it exact and moves it as a whole; use it for logos and icons. Dots animates each circle of a pattern made in the Shape studio Generate tab and lets you pick its style. Liquid switches to Dots (Breathe) on a Dispersion pattern or a dot pattern with more than 24 dots.', 'framify' ),
         ) + $custom_moving ) );
 
         // Only offered with Dots chosen explicitly. Elementor leaves hidden
@@ -705,6 +705,7 @@ class Framify_Elementor {
                 'breathe' => esc_html__( 'Breathe (all dots swell together)', 'framify' ),
                 'twinkle' => esc_html__( 'Twinkle (each dot its own size)', 'framify' ),
                 'wave'    => esc_html__( 'Wave (a sweep across the pattern)', 'framify' ),
+                'drift'   => esc_html__( 'Drift (particles move away from the mass)', 'framify' ),
             ),
         ) + $this->shape_condition(
             $on,

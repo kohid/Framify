@@ -21,6 +21,8 @@ if (!defined('ABSPATH')) {
 class Framify_Shape_Library {
 
     const MAX_BYTES = 50000;
+    /** Path data limit: leaves room for the svg wrapper so the saved file stays under MAX_BYTES. */
+    const MAX_D     = 49000;
     const MAX_FILES = 200;
     const MAX_USER  = 100;
     const ACTION_SAVE   = 'framify_shape_save';
@@ -42,7 +44,7 @@ class Framify_Shape_Library {
     /** Path data allowed to be stored: path commands, numbers, separators. */
     public static function clean_d($d) {
         $d = trim(preg_replace('/\s+/', ' ', (string) $d));
-        if ('' === $d || strlen($d) > self::MAX_BYTES || preg_match('/[^MmLlHhVvCcSsQqTtAaZz0-9eE.,+\-\s]/', $d)) {
+        if ('' === $d || strlen($d) > self::MAX_D || preg_match('/[^MmLlHhVvCcSsQqTtAaZz0-9eE.,+\-\s]/', $d)) {
             return '';
         }
         return $d;
