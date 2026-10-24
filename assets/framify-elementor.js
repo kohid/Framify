@@ -2692,9 +2692,19 @@
 
 			onInit: function () {
 				Base.prototype.onInit.apply( this, arguments );
-				this.setup();
-				if ( 'spacer' === this.getWidgetType() ) {
-					this.watchSpacerModel();
+				try {
+					this.setup();
+					if ( 'spacer' === this.getWidgetType() ) {
+						this.watchSpacerModel();
+					}
+				} finally {
+					// The page loader (framify-loader.php) waits for this: an
+					// element marked "pending" is released once its effect is
+					// applied, or has nothing to apply.
+					var host = this.$element && this.$element[ 0 ];
+					if ( host && host.getAttribute && 'pending' === host.getAttribute( 'data-framify-shape' ) ) {
+						host.setAttribute( 'data-framify-shape', 'ready' );
+					}
 				}
 			},
 

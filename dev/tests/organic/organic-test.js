@@ -435,6 +435,19 @@ CASES[ 'off' ] = [ 'container', { framify_org_enable: '', framify_org_mode: 'cli
   } )();
   ok( 'animation: reduced motion leaves the shape still', rm );
 
+  // Page loader hand-off: a pending element is released whether or not the effect applies.
+  for ( const [ label, settings ] of [ [ 'a shape applied', { ...base, framify_org_mode: 'clip', framify_org_shape: 'pebble' } ], [ 'nothing to apply', { framify_org_enable: '' } ], [ 'an unusable custom shape', { framify_org_enable: 'yes', framify_org_shape: 'custom', framify_org_custom_svg: 'nope' } ] ] ) {
+    const rel = await run( 'container', settings, ( page ) => q( page, () => {
+      const m = window.__m;
+      m.inst.onDestroy && m.inst.onDestroy();
+      m.host.setAttribute( 'data-framify-shape', 'pending' );
+      m.inst.onInit();
+      return m.host.getAttribute( 'data-framify-shape' );
+    } ) );
+    ok( 'page loader: an element marked pending is released when ' + label, 'ready' === rel );
+  }
+  ok( 'page loader: an element that was never marked stays unmarked', null === await run( 'container', { ...base, framify_org_mode: 'clip', framify_org_shape: 'pebble' }, ( page ) => q( page, () => window.__m.host.getAttribute( 'data-framify-shape' ) ) ) );
+
   // Lifecycle: rebuild leaves one blob, teardown leaves nothing.
   const life = await run( 'container', { ...base, framify_org_mode: 'deco', framify_org_deco: 'yes', framify_org_shape: 'pebble' }, async ( page ) => {
     await page.evaluate( () => { window.__m.inst.rebuild(); } );

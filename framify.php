@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Framify
  * Description: Responsive live floating code editor with CSS, jQuery, and PHP snippets. Features multiple viewport previews and advanced instance management.
- * Version: 1.20.0
+ * Version: 1.21.0
  * Author: Jay Miralles
  * License: GPL v2 or later
  * Text Domain: framify
@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('FRAMIFY_VERSION', '1.20.0');
+define('FRAMIFY_VERSION', '1.21.0');
 // Unchanged: the schema did not move in 1.2.1, so no migration should run.
 define('FRAMIFY_DB_VERSION', '1.2.0');
 define('FRAMIFY_PLUGIN_DIR', plugin_dir_path(__FILE__));
@@ -1097,6 +1097,11 @@ class Framify {
 }
 
 new Framify();
+
+// Load the page loader
+if ( file_exists( FRAMIFY_PLUGIN_DIR . 'framify-loader.php' ) ) {
+    require_once FRAMIFY_PLUGIN_DIR . 'framify-loader.php';
+}
 
 // Load GitHub release updater
 if ( file_exists( FRAMIFY_PLUGIN_DIR . 'framify-updater.php' ) ) {
