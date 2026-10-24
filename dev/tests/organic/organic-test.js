@@ -235,6 +235,33 @@ CASES[ 'off' ] = [ 'container', { framify_org_enable: '', framify_org_mode: 'cli
   } ) );
   ok( 'blob position: Image widget default keeps the blob first, at z-index 0', imgBehind );
 
+  // Grain textures, colour and size.
+  const filterOf = ( settings ) => run( 'container', { ...base, framify_org_mode: 'deco', framify_org_shape: 'pebble', framify_org_deco_grain: 'yes', ...settings }, ( page ) => q( page, () => {
+    const f = window.__m.host.querySelector( 'filter' );
+    const prims = [ ...f.children ].map( ( n ) => n.tagName + ':' + ( n.getAttribute( 'baseFrequency' ) || '' ) + ':' + ( n.getAttribute( 'values' ) || '' ) );
+    const results = [ ...f.children ].map( ( n ) => n.getAttribute( 'result' ) );
+    return { prims, results, count: f.children.length, attached: !! f.parentNode };
+  } ) );
+  const legacy = await filterOf( {} );
+  for ( const t of [ 'speckle', 'chalk', 'brush', 'fibre', 'film', 'halftone' ] ) {
+    const r = await filterOf( { framify_org_grain_texture: t } );
+    ok( 'grain texture ' + t + ': builds a filter that names a specks result and ends merged into the shape', r.results.indexOf( 'specks' ) > -1 && 'feMerge' === r.prims[ r.prims.length - 1 ].split( ':' )[ 0 ] );
+    if ( 'speckle' === t ) {
+      ok( 'grain texture speckle: identical to the filter with no texture saved (saved pages unchanged)', JSON.stringify( r.prims ) === JSON.stringify( legacy.prims ) );
+    } else {
+      ok( 'grain texture ' + t + ': differs from the classic speckle', JSON.stringify( r.prims ) !== JSON.stringify( legacy.prims ) );
+    }
+  }
+  const unknown = await filterOf( { framify_org_grain_texture: 'nonsense' } );
+  ok( 'grain texture: an unknown value falls back to speckle', JSON.stringify( unknown.prims ) === JSON.stringify( legacy.prims ) );
+  const red = await filterOf( { framify_org_grain_color: '#ff0000' } );
+  ok( 'grain colour: red grain writes red channels into the mask matrix', /^feColorMatrix::0 0 0 0 1 {2}0 0 0 0 0 {2}0 0 0 0 0 /.test( red.prims[ 1 ] ) );
+  ok( 'grain colour: white (the default) and a cleared colour are the same filter', JSON.stringify( ( await filterOf( { framify_org_grain_color: '' } ) ).prims ) === JSON.stringify( legacy.prims ) );
+  const coarse = await filterOf( { framify_org_grain_size: { size: 100 } } );
+  const fine = await filterOf( { framify_org_grain_size: { size: 1 } } );
+  const freq = ( r ) => parseFloat( r.prims[ 0 ].split( ':' )[ 1 ] );
+  ok( 'grain size: 100 is coarser (lower frequency) and 1 finer than the default 50', freq( coarse ) < freq( legacy ) && freq( legacy ) < freq( fine ) );
+
   // Lifecycle: rebuild leaves one blob, teardown leaves nothing.
   const life = await run( 'container', { ...base, framify_org_mode: 'deco', framify_org_deco: 'yes', framify_org_shape: 'pebble' }, async ( page ) => {
     await page.evaluate( () => { window.__m.inst.rebuild(); } );

@@ -306,9 +306,15 @@
 	function grainOptions( s, el ) {
 		var amount = Math.max( 0, Math.min( 100, number( s.framify_org_grain_amount, 50 ) ) );
 		var pattern = Math.round( number( s.framify_org_grain_pattern, 0 ) );
+		var size = Math.max( 1, Math.min( 100, number( s.framify_org_grain_size, 50 ) ) );
 		return {
 			cut: Math.round( ( 1.11 - 0.0066 * amount ) * 1000 ) / 1000,
-			seed: pattern > 0 ? pattern : elementSeed( el )
+			seed: pattern > 0 ? pattern : elementSeed( el ),
+			amount: amount / 100,
+			texture: s.framify_org_grain_texture || 'speckle',
+			color: grainRgb( s.framify_org_grain_color ),
+			// Size 50 = the original; 100 = patches 4x larger, 1 = 4x finer.
+			scale: Math.round( Math.pow( 2, ( 50 - size ) / 25 ) * 1000 ) / 1000
 		};
 	}
 
@@ -1807,20 +1813,133 @@
 		return { svg: svg, path: path };
 	}
 
-	// Chalky speckle: fractal noise thresholded into soft white specks, kept
-	// inside the source shape. Low frequency + soft alpha ramp = broad chalky
-	// patches, like a dry-brushed print; higher frequency read as sharp
-	// sprinkles. specksOnly drops the source itself, for the Clip-mode layer
-	// that sits over the container's own background. frequency is in the
-	// drawing's own user units: the 0-100 box for the deco blob, real pixels
-	// for the Clip-mode layer (which has no viewBox), so the two need very
-	// different values for the same speck size. grain = { cut, seed } from
-	// grainOptions().
+	// Grain textures. Each builder appends the filter primitives that turn
+	// noise into a coloured, see-through mask and names its last result
+	// 'specks'; buildGrainFilter() then keeps it inside the source shape.
+	// f = the base noise frequency of the drawing's units (0.45 in the blob's
+	// 0-100 box, 0.09 in the clip layer's pixels, already scaled by Size);
+	// rgb = the grain colour as 0-1 channels; amt = Grain amount, 0-1.
+	function fq( n ) {
+		return String( Math.round( n * 10000 ) / 10000 );
+	}
+
+	function maskMatrix( rgb, slope, offset ) {
+		return '0 0 0 0 ' + rgb[ 0 ] + '  0 0 0 0 ' + rgb[ 1 ] + '  0 0 0 0 ' + rgb[ 2 ] + '  ' + slope + ' 0 0 0 ' + offset;
+	}
+
+	function noiseNode( filter, freq, octaves, seed, result ) {
+		filter.appendChild( svgEl( 'feTurbulence', { type: 'fractalNoise', baseFrequency: freq, numOctaves: String( octaves ), seed: String( seed ), result: result } ) );
+	}
+
+	function maskNode( filter, input, rgb, slope, offset, result ) {
+		filter.appendChild( svgEl( 'feColorMatrix', { 'in': input, type: 'matrix', values: maskMatrix( rgb, slope, offset ), result: result } ) );
+	}
+
+	var GRAIN_TEXTURES = {
+		// The original chalky speckle (the default; saved pages keep it).
+		speckle: function ( filter, f, grain, rgb ) {
+			noiseNode( filter, f.base, 3, grain.seed, 'noise' );
+			maskNode( filter, 'noise', rgb, 1.6, -grain.cut, 'specks' );
+		},
+		// Distressed chalk: broad blotchy patches, filled with fine specks
+		// and a light scatter of dust outside them, like a worn print.
+		chalk: function ( filter, f, grain, rgb ) {
+			var amt = grain.amount;
+			noiseNode( filter, fq( f.n * 0.1 ), 2, grain.seed, 'patchNoise' );
+			maskNode( filter, 'patchNoise', rgb, 7, -( 3.9 - 1.3 * amt ), 'patches' );
+			noiseNode( filter, fq( f.n * 3.6 ), 3, grain.seed + 17, 'fineNoise' );
+			maskNode( filter, 'fineNoise', rgb, 2.4, -( 0.95 - 0.1 * amt ), 'fine' );
+			filter.appendChild( svgEl( 'feComposite', { 'in': 'fine', in2: 'patches', operator: 'in', result: 'inPatches' } ) );
+			maskNode( filter, 'fineNoise', rgb, 3.6, -( 2.25 - 0.4 * amt ), 'dust' );
+			var merge = svgEl( 'feMerge', { result: 'specks' } );
+			merge.appendChild( svgEl( 'feMergeNode', { 'in': 'inPatches' } ) );
+			merge.appendChild( svgEl( 'feMergeNode', { 'in': 'dust' } ) );
+			filter.appendChild( merge );
+		},
+		// Dry brush: noise stretched along x, so thresholding leaves
+		// horizontal streaks and scratches.
+		brush: function ( filter, f, grain, rgb ) {
+			var amt = grain.amount;
+			noiseNode( filter, fq( f.n * 0.035 ) + ' ' + fq( f.n * 0.9 ), 3, grain.seed, 'streakNoise' );
+			maskNode( filter, 'streakNoise', rgb, 3.4, -( 1.75 - 0.5 * amt ), 'streaks' );
+			noiseNode( filter, fq( f.n * 0.9 ), 2, grain.seed + 5, 'tooth' );
+			maskNode( filter, 'tooth', rgb, 2.2, -1.05, 'toothMask' );
+			filter.appendChild( svgEl( 'feComposite', { 'in': 'streaks', in2: 'toothMask', operator: 'in', result: 'specks' } ) );
+		},
+		// Paper fibre: two crossed, stretched noises, faint and soft.
+		fibre: function ( filter, f, grain, rgb ) {
+			var amt = grain.amount;
+			noiseNode( filter, fq( f.n * 0.02 ) + ' ' + fq( f.n * 3 ), 2, grain.seed, 'fibreA' );
+			noiseNode( filter, fq( f.n * 3 ) + ' ' + fq( f.n * 0.02 ), 2, grain.seed + 3, 'fibreB' );
+			maskNode( filter, 'fibreA', rgb, 1.5, -( 0.95 - 0.3 * amt ), 'fa' );
+			maskNode( filter, 'fibreB', rgb, 1.5, -( 0.95 - 0.3 * amt ), 'fb' );
+			var merge = svgEl( 'feMerge', { result: 'specks' } );
+			merge.appendChild( svgEl( 'feMergeNode', { 'in': 'fa' } ) );
+			merge.appendChild( svgEl( 'feMergeNode', { 'in': 'fb' } ) );
+			filter.appendChild( merge );
+		},
+		// Film grain: fine, even noise over the whole shape; Amount sets how
+		// strong it is rather than how much of it there is.
+		film: function ( filter, f, grain, rgb ) {
+			noiseNode( filter, fq( f.n * 4 ), 1, grain.seed, 'filmNoise' );
+			maskNode( filter, 'filmNoise', rgb, 1.8 * ( 0.15 + 0.85 * grain.amount ), -0.2 * ( 0.15 + 0.85 * grain.amount ), 'specks' );
+		},
+		// Halftone: a regular dot grid (a blurred square, tiled and hardened
+		// into dots), kept to blotchy patches by low-frequency noise.
+		halftone: function ( filter, f, grain, rgb ) {
+			var amt = grain.amount;
+			var cell = Math.round( ( 0.65 / f.n ) * 10 ) / 10;
+			var size = fq( cell );
+			var mid = fq( cell / 2 );
+			filter.appendChild( svgEl( 'feFlood', { 'flood-color': '#fff', x: fq( cell * 0.25 ), y: fq( cell * 0.25 ), width: mid, height: mid, result: 'seed' } ) );
+			// feTile repeats the input's subregion: the blur gets one cell.
+			filter.appendChild( svgEl( 'feGaussianBlur', { 'in': 'seed', stdDeviation: fq( cell * 0.17 ), x: '0', y: '0', width: size, height: size, result: 'soft' } ) );
+			filter.appendChild( svgEl( 'feTile', { 'in': 'soft', result: 'grid' } ) );
+			filter.appendChild( svgEl( 'feColorMatrix', { 'in': 'grid', type: 'matrix', values: '0 0 0 0 ' + rgb[ 0 ] + '  0 0 0 0 ' + rgb[ 1 ] + '  0 0 0 0 ' + rgb[ 2 ] + '  0 0 0 14 ' + fq( -( 10.5 - 4 * amt ) ), result: 'dots' } ) );
+			noiseNode( filter, fq( f.n * 0.1 ), 2, grain.seed, 'areaNoise' );
+			maskNode( filter, 'areaNoise', rgb, 6, -( 3.2 - 0.9 * amt ), 'area' );
+			filter.appendChild( svgEl( 'feComposite', { 'in': 'dots', in2: 'area', operator: 'in', result: 'specks' } ) );
+		}
+	};
+
+	// '#rgb', '#rrggbb', '#rrggbbaa' or 'rgb(a)(...)' to 0-1 channels;
+	// anything else (and a cleared colour) = white, the original grain.
+	function grainRgb( color ) {
+		var c = String( color || '' ).replace( /\s+/g, '' );
+		var v;
+		if ( /^#[0-9a-f]{3,8}$/i.test( c ) ) {
+			var h = c.slice( 1 );
+			if ( 3 === h.length || 4 === h.length ) {
+				h = h.charAt( 0 ) + h.charAt( 0 ) + h.charAt( 1 ) + h.charAt( 1 ) + h.charAt( 2 ) + h.charAt( 2 );
+			}
+			if ( h.length >= 6 ) {
+				v = [ parseInt( h.substr( 0, 2 ), 16 ), parseInt( h.substr( 2, 2 ), 16 ), parseInt( h.substr( 4, 2 ), 16 ) ];
+			}
+		} else {
+			var m = /^rgba?\((\d+),(\d+),(\d+)/i.exec( c );
+			if ( m ) {
+				v = [ +m[ 1 ], +m[ 2 ], +m[ 3 ] ];
+			}
+		}
+		if ( ! v ) {
+			return [ 1, 1, 1 ];
+		}
+		return v.map( function ( n ) {
+			return Math.round( Math.max( 0, Math.min( 255, n ) ) / 255 * 1000 ) / 1000;
+		} );
+	}
+
+	// grain = { cut, seed, amount, texture, color, scale } from grainOptions().
+	// The speckle texture with white colour and the default size is exactly
+	// the original filter.
 	function buildGrainFilter( filterId, specksOnly, frequency, grain ) {
 		grain = grain || { cut: 0.78, seed: 7 };
 		var filter = svgEl( 'filter', { id: filterId, x: '0', y: '0', width: '100%', height: '100%', 'color-interpolation-filters': 'sRGB' } );
-		filter.appendChild( svgEl( 'feTurbulence', { type: 'fractalNoise', baseFrequency: frequency || '0.45', numOctaves: '3', seed: String( grain.seed ), result: 'noise' } ) );
-		filter.appendChild( svgEl( 'feColorMatrix', { 'in': 'noise', type: 'matrix', values: '0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  1.6 0 0 0 ' + ( -grain.cut ), result: 'specks' } ) );
+		var base = parseFloat( frequency || '0.45' );
+		var scale = grain.scale || 1;
+		var f = { n: base * scale, base: 1 === scale ? String( frequency || '0.45' ) : fq( base * scale ) };
+		var build = GRAIN_TEXTURES[ grain.texture ] || GRAIN_TEXTURES.speckle;
+		build( filter, f, { cut: grain.cut, seed: grain.seed, amount: undefined === grain.amount ? 0.5 : grain.amount }, grain.color || [ 1, 1, 1 ] );
 		filter.appendChild( svgEl( 'feComposite', { 'in': 'specks', in2: 'SourceGraphic', operator: 'in', result: 'specksIn' } ) );
 		if ( ! specksOnly ) {
 			var merge = svgEl( 'feMerge' );

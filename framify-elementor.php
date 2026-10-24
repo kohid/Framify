@@ -893,6 +893,28 @@ class Framify_Elementor {
             ) ) );
         }
 
+        $element->add_control( 'framify_org_grain_texture', $this->live( array(
+            'label'       => esc_html__( 'Texture', 'framify' ),
+            'type'        => $cm::SELECT,
+            'default'     => 'speckle',
+            'options'     => array(
+                'speckle'  => esc_html__( 'Speckle (classic)', 'framify' ),
+                'chalk'    => esc_html__( 'Distressed chalk', 'framify' ),
+                'brush'    => esc_html__( 'Dry brush', 'framify' ),
+                'fibre'    => esc_html__( 'Paper fibre', 'framify' ),
+                'film'     => esc_html__( 'Film grain', 'framify' ),
+                'halftone' => esc_html__( 'Halftone dots', 'framify' ),
+            ),
+            'description' => esc_html__( 'Distressed chalk is the worn, powdery print look.', 'framify' ),
+        ) ) );
+
+        $element->add_control( 'framify_org_grain_color', $this->live( array(
+            'label'   => esc_html__( 'Grain colour', 'framify' ),
+            'type'    => $cm::COLOR,
+            'default' => '#FFFFFF',
+            'global'  => array( 'active' => false ),
+        ) ) );
+
         $element->add_control( 'framify_org_grain_amount', $this->live( array(
             'label'       => esc_html__( 'Grain amount', 'framify' ),
             'type'        => $cm::SLIDER,
@@ -900,6 +922,15 @@ class Framify_Elementor {
             'range'       => array( 'px' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
             'default'     => array( 'unit' => 'px', 'size' => 50 ),
             'description' => esc_html__( 'Applies wherever grain is on.', 'framify' ),
+        ) ) );
+
+        $element->add_control( 'framify_org_grain_size', $this->live( array(
+            'label'       => esc_html__( 'Grain size', 'framify' ),
+            'type'        => $cm::SLIDER,
+            'size_units'  => array( 'px' ),
+            'range'       => array( 'px' => array( 'min' => 1, 'max' => 100, 'step' => 1 ) ),
+            'default'     => array( 'unit' => 'px', 'size' => 50 ),
+            'description' => esc_html__( 'Higher = coarser patches, lower = finer.', 'framify' ),
         ) ) );
 
         $element->add_control( 'framify_org_grain_pattern', $this->live( array(
