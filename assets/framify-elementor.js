@@ -134,7 +134,7 @@
 	// framify_org_deco_X), so the blob runs through exactly the pipeline the
 	// shape does. Its trigger "Same as shape" follows the shape's trigger,
 	// timing and spring, or stands still when Organic Shape is off.
-	var DECO_SETTINGS = [ 'shape', 'shape_source', 'shape_lib', 'custom_svg', 'edge', 'flip_h', 'flip_v', 'custom_rotate', 'angle', 'angle_fit', 'custom_motion', 'dot_style', 'custom_amount', 'anim', 'anim_to', 'anim_amount' ];
+	var DECO_SETTINGS = [ 'edge_pin', 'shape', 'shape_source', 'shape_lib', 'custom_svg', 'edge', 'flip_h', 'flip_v', 'custom_rotate', 'angle', 'angle_fit', 'custom_motion', 'dot_style', 'custom_amount', 'anim', 'anim_to', 'anim_amount' ];
 
 	function decoShapeSettings( s ) {
 		var out = {};
@@ -626,18 +626,18 @@
 	/* ---------- shape animations ---------- */
 
 	var ANIMS = { spin: 1, sway: 1, pulse: 1, jelly: 1, float: 1, drift: 1, morph: 1 };
-	var RING_POINTS = 128;
+	var RING_POINTS = 160;
 
-	// The Shape animation of a layer (s = its settings, custom = its parsed
-	// paste, if any), or null: none chosen, reduced motion, or a Morph that
-	// has nothing to morph (a custom / uploaded source, an unknown target).
-	// k = the Animation amount around its default (50 = 1).
-	function readAnim( s, custom ) {
+	// The Shape animation of a layer (s = its settings), or null: none
+	// chosen, reduced motion, or a Morph with an unknown target. (A Morph of
+	// a pasted / uploaded shape that cannot be traced is dropped later, in
+	// setupMorph.) k = the Animation amount around its default (50 = 1).
+	function readAnim( s ) {
 		var kind = s.framify_org_anim;
 		if ( REDUCE_MOTION || ! ANIMS[ kind ] ) {
 			return null;
 		}
-		if ( 'morph' === kind && ( custom || ! CONFIG.shapes[ s.framify_org_anim_to ] ) ) {
+		if ( 'morph' === kind && ! CONFIG.shapes[ s.framify_org_anim_to ] ) {
 			return null;
 		}
 		return { kind: kind, k: Math.max( 0, Math.min( 100, number( s.framify_org_anim_amount, 50 ) ) ) / 50 };
@@ -774,9 +774,29 @@
 	// resampled to the same number of points, the target turned to the
 	// start and direction that move the points least. Anything it cannot
 	// read stays still.
-	function morphPair( rest, target ) {
+	// side (optional) = the flat side to hold still: points near it move less.
+	function morphPair( rest, target, side ) {
 		if ( rest.parts.join( '|' ) === target.parts.join( '|' ) && rest.nums.length === target.nums.length ) {
-			return { rest: rest, hover: target };
+			if ( ! side ) {
+				return { rest: rest, hover: target };
+			}
+			// Same structure, pinned: blend the coordinates pair by pair, each
+			// pair by the weight of its rest point.
+			var held = [];
+			for ( var h = 0; h + 1 < rest.nums.length; h += 2 ) {
+				held.push( pinWeight( pinDistance( { x: rest.nums[ h ], y: rest.nums[ h + 1 ] }, side ) ) );
+			}
+			return {
+				rest: rest,
+				hover: target,
+				blend: function ( t ) {
+					var out = rest.parts[ 0 ];
+					for ( var i = 0; i < rest.nums.length; i++ ) {
+						out += ( rest.nums[ i ] + ( target.nums[ i ] - rest.nums[ i ] ) * t * held[ i >> 1 ] ).toFixed( 2 ) + rest.parts[ i + 1 ];
+					}
+					return out;
+				}
+			};
 		}
 		var a = ringOf( rest.d );
 		var b = ringOf( target.d );
@@ -803,6 +823,9 @@
 		for ( var n = 0; n < RING_POINTS; n++ ) {
 			to.push( b[ ( n + best ) % RING_POINTS ] );
 		}
+		var weights = a.map( function ( q ) {
+			return side ? pinWeight( pinDistance( { x: q[ 0 ], y: q[ 1 ] }, side ) ) : 1;
+		} );
 		return {
 			rest: rest,
 			hover: parsePath( ringPath( to ) ),
@@ -811,7 +834,91 @@
 					return rest.d;
 				}
 				return ringPath( a.map( function ( q, idx ) {
-					return [ q[ 0 ] + ( to[ idx ][ 0 ] - q[ 0 ] ) * t, q[ 1 ] + ( to[ idx ][ 1 ] - q[ 1 ] ) * t ];
+					return [ q[ 0 ] + ( to[ idx ][ 0 ] - q[ 0 ] ) * t * weights[ idx ], q[ 1 ] + ( to[ idx ][ 1 ] - q[ 1 ] ) * t * weights[ idx ] ];
+				} ) );
+			}
+		};
+	}
+
+	// Keep flat edge fixed: how much a point of the outline may move, by its
+	// distance (in 0-100 box units) from the flat side. 0 on the side itself,
+	// full motion from PIN_REACH inwards, eased in between.
+	var PIN_REACH = 45;
+
+	function pinWeight( dist ) {
+		var t = Math.max( 0, Math.min( 1, dist / PIN_REACH ) );
+		return t * t * ( 3 - 2 * t );
+	}
+
+	// The flat side of a shape in the coordinates its outline is drawn in
+	// (before the inner chain): a built-in Wavy / Flow shape has it on the
+	// right, a pasted one on the side parseCustom detected. null = nothing to
+	// pin: switch off, no flat edge, or no straight side.
+	function pinSideOf( st ) {
+		if ( ! st.pin || 'none' === st.edge ) {
+			return null;
+		}
+		if ( st.custom ) {
+			return st.custom.straight || null;
+		}
+		return 'wavy' === st.family || 'flow' === st.family ? 'right' : null;
+	}
+
+	// The 2D matrix of an SVG transform string.
+	function matrixOf( transform ) {
+		var g = svgEl( 'g', { transform: transform || 'translate(0 0)' } );
+		var list = g.transform.baseVal;
+		var m = list.numberOfItems ? list.consolidate().matrix : null;
+		return m ? { a: m.a, b: m.b, c: m.c, d: m.d, e: m.e, f: m.f } : { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+	}
+
+	// Gentle (tilt and swell) with the flat side held still: the exact
+	// pasted outline, traced into the 0-100 box, and each point moves by
+	// Gentle's own turn and scale scaled by its pin weight. The turn happens
+	// in the final box (after the flat-edge turn and the flip / rotate), so
+	// the points go there with `chain`, move, and come back. A shape with
+	// several outlines keeps the plain Gentle.
+	function pinnedGentle( st, motion ) {
+		var parts = tracePoints( st.custom, st.customFit.box );
+		if ( ! parts || 1 !== parts.length || parts[ 0 ].length < 8 ) {
+			return null;
+		}
+		var ring = parts[ 0 ];
+		var side = pinSideOf( st );
+		var m = matrixOf( st.customTurn );
+		var det = m.a * m.d - m.b * m.c;
+		if ( ! det ) {
+			return null;
+		}
+		var weights = ring.map( function ( q ) {
+			return pinWeight( pinDistance( q, side ) );
+		} );
+		var rest = ringPath( ring.map( function ( q ) {
+			return [ q.x, q.y ];
+		} ) );
+		return {
+			rest: parsePath( rest ),
+			hover: parsePath( rest ),
+			blend: function ( v ) {
+				if ( v <= 0 ) {
+					return rest;
+				}
+				var aspect = st.aspect > 0 && isFinite( st.aspect ) ? st.aspect : 1;
+				var r = motion.rotate * v * Math.PI / 180;
+				var cos = Math.cos( r );
+				var sin = Math.sin( r );
+				var sc = 1 + ( motion.scale - 1 ) * v;
+				return ringPath( ring.map( function ( q, i ) {
+					var fx = m.a * q.x + m.c * q.y + m.e - 50;
+					var fy = m.b * q.x + m.d * q.y + m.f - 50;
+					var ux = fx * sc * aspect;
+					var uy = fy * sc;
+					var gx = ( ux * cos - uy * sin ) / aspect + 50 - ( fx + 50 );
+					var gy = ( ux * sin + uy * cos ) + 50 - ( fy + 50 );
+					// The move in the final box, brought back to the outline's own.
+					var dx = ( m.d * gx - m.c * gy ) / det;
+					var dy = ( -m.b * gx + m.a * gy ) / det;
+					return [ q.x + dx * weights[ i ], q.y + dy * weights[ i ] ];
 				} ) );
 			}
 		};
@@ -2597,6 +2704,9 @@
 			// Liquid uses its traced pair.
 			mainPair: function ( s, st, fallback ) {
 				var fx = st || this.fx;
+				if ( fx.morph ) {
+					return fx.morph;
+				}
 				if ( fx.custom ) {
 					if ( fx.liquid ) {
 						return fx.liquid;
@@ -2612,7 +2722,7 @@
 					// An animation replaces the blob's own hover morph: the
 					// shape rests, or morphs into the chosen one.
 					var to = 'morph' === fx.anim.kind ? shapePair( fx.animTo, null, fx.edge ) : null;
-					return to ? morphPair( pair.rest, to.rest ) : { rest: pair.rest, hover: pair.rest };
+					return to ? morphPair( pair.rest, to.rest, pinSideOf( fx ) ) : { rest: pair.rest, hover: pair.rest };
 				}
 				return pair;
 			},
@@ -2669,8 +2779,37 @@
 					}
 					this.warnTrace( fx.custom.d );
 				}
+				if ( pinSideOf( fx ) ) {
+					// Flat edge held still: Gentle moves the traced outline
+					// point by point instead of turning the whole shape.
+					var pinned = pinnedGentle( fx, CUSTOM_AMOUNT[ amount ] );
+					if ( pinned ) {
+						fx.liquid = pinned;
+						fx.inner = fx.customTurn;
+						fx.motion = CUSTOM_AMOUNT[ amount ];
+						return;
+					}
+				}
 				fx.gentle = CUSTOM_AMOUNT[ amount ];
 				fx.motion = fx.gentle;
+			},
+
+			// Morph of a pasted / uploaded shape: its outline is traced into
+			// the 0-100 box (like Liquid, so the chain drops the fit and keeps
+			// the flip / turn) and morphs into the built-in target. Only a
+			// single outline can: anything else drops the animation, and
+			// Custom motion applies as if none was chosen.
+			setupMorph: function ( st ) {
+				var parts = tracePoints( st.custom, st.customFit.box );
+				var to = shapePair( st.animTo, null, 'none' );
+				if ( ! parts || 1 !== parts.length || parts[ 0 ].length < 8 || ! to ) {
+					st.anim = null;
+					return;
+				}
+				st.morph = morphPair( parsePath( ringPath( parts[ 0 ].map( function ( q ) {
+					return [ q.x, q.y ];
+				} ) ) ), to.rest, pinSideOf( st ) );
+				st.inner = st.customTurn;
 			},
 
 			// Editor only, once per distinct path: Dots was chosen on a shape
@@ -2740,6 +2879,7 @@
 					customInner: '',
 					gentle: null,
 					liquid: null,
+					morph: null,
 					dots: null,
 					// Custom motion amounts ({ ripple } for Liquid, the Gentle
 					// entry otherwise) and the spring's overshoot, for the
@@ -2751,8 +2891,11 @@
 					angle: readAngle( s, 'framify_org_angle' ),
 					fit: 'yes' === s.framify_org_angle_fit,
 					// Shape animation (readAnim), which replaces Custom motion.
-					anim: readAnim( s, custom ),
-					animTo: s.framify_org_anim_to
+					anim: readAnim( s ),
+					animTo: s.framify_org_anim_to,
+					// Keep flat edge fixed (default on; missing = off, so a page
+					// saved before the switch existed moves as it always did).
+					pin: 'yes' === s.framify_org_edge_pin
 				};
 				st.edge = resolveEdge( st.family, st.edgeSetting, box, custom );
 				// A turned shape has no straight side on the photo edge to zoom from.
@@ -2807,6 +2950,9 @@
 				Object.keys( shape ).forEach( function ( key ) {
 					fx[ key ] = shape[ key ];
 				} );
+				if ( custom && fx.anim && 'morph' === fx.anim.kind ) {
+					this.setupMorph( fx );
+				}
 				if ( custom && ! REDUCE_MOTION && ! fx.anim && 'none' !== resolveTrigger( s.framify_org_trigger, fx.family ) ) {
 					this.setupCustomMotion( s );
 				}
@@ -2971,6 +3117,9 @@
 					return null;
 				}
 				var st = this.shapeFields( ds, custom, readBox( el, 'deco-', DECO_BOX ), 'splash' );
+				if ( custom && st.anim && 'morph' === st.anim.kind ) {
+					this.setupMorph( st );
+				}
 				if ( custom && ! REDUCE_MOTION && ! st.anim && 'static' !== ds.framify_org_custom_motion && 'none' !== resolveTrigger( ds.framify_org_trigger, st.family ) ) {
 					this.setupCustomMotion( ds, st );
 				}
@@ -3478,6 +3627,7 @@
 					var ael = d.anchor || fx.el;
 					var raw = ael.offsetWidth * decoBox.w / ( ael.offsetHeight * decoBox.h );
 					d.aspect = raw > 0 && isFinite( raw ) ? raw : 1;
+					d.st.aspect = d.aspect;
 					if ( d.prefix ) {
 						d.st.aspect = d.aspect;
 					}

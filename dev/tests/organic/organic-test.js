@@ -289,11 +289,49 @@ CASES[ 'off' ] = [ 'container', { framify_org_enable: '', framify_org_mode: 'cli
   ok( 'animation Morph (same structure): the outline changes towards the target and settles on it', morphSame.mid.d !== morphSame.rest.d && morphSame.end.d !== morphSame.rest.d );
   const morphCross = await animState( { framify_org_trigger: 'hover', framify_org_anim: 'morph', framify_org_anim_to: 'tide' } );
   ok( 'animation Morph (another family): resamples to a closed outline that moves', /^M[^A-Za-z]*(L[^A-Za-z]*)+Z$/.test( morphCross.end.d ) && morphCross.end.d !== morphCross.rest.d );
-  ok( 'animation Morph: with a pasted custom shape it does nothing', ( await animState( { framify_org_trigger: 'hover', framify_org_shape: 'custom', framify_org_custom_svg: CUSTOM_SVG, framify_org_anim: 'morph', framify_org_anim_to: 'bean' } ) ).end.d === ( await animState( { framify_org_trigger: 'hover', framify_org_shape: 'custom', framify_org_custom_svg: CUSTOM_SVG } ) ).end.d );
+  const morphCustom = await animState( { framify_org_trigger: 'hover', framify_org_shape: 'custom', framify_org_custom_svg: CUSTOM_SVG, framify_org_anim: 'morph', framify_org_anim_to: 'bean' } );
+  ok( 'animation Morph: a pasted single-outline shape morphs into the built-in target (a traced polygon that moves)', /^M[^A-Za-z]*(L[^A-Za-z]*)+Z$/.test( morphCustom.end.d ) && morphCustom.end.d !== morphCustom.rest.d );
+  const nums = ( morphCustom.rest.d.match( /-?\d+\.?\d*/g ) || [] ).map( Number );
+  const xs = nums.filter( ( _, k ) => 0 === k % 2 );
+  ok( 'animation Morph: a pasted shape rests on its own outline, placed by its viewBox (x spans 10-90 of 100)', xs.length > 50 && Math.abs( Math.min( ...xs ) - 10 ) < 2 && Math.abs( Math.max( ...xs ) - 90 ) < 2 );
+  const TWO = '<svg viewBox="0 0 100 100"><path d="M0 0H40V40H0Z M60 60H100V100H60Z"/></svg>';
+  const twoOff = await animState( { framify_org_trigger: 'hover', framify_org_shape: 'custom', framify_org_custom_svg: TWO, framify_org_anim: 'morph', framify_org_anim_to: 'bean', framify_org_custom_motion: 'gentle' } );
+  const twoPlain = await animState( { framify_org_trigger: 'hover', framify_org_shape: 'custom', framify_org_custom_svg: TWO, framify_org_custom_motion: 'gentle' } );
+  ok( 'animation Morph: a pasted shape with two outlines cannot morph, so Custom motion applies as if no animation was chosen', twoOff.end.t === twoPlain.end.t && twoOff.end.d === twoPlain.end.d );
   const customSway = await animState( { framify_org_trigger: 'hover', framify_org_shape: 'custom', framify_org_custom_svg: CUSTOM_SVG, framify_org_custom_motion: 'liquid', framify_org_anim: 'sway' } );
   ok( 'animation replaces Custom motion: a pasted shape with Liquid chosen keeps its outline and sways instead', customSway.mid.d === customSway.rest.d && customSway.mid.t !== customSway.rest.t );
   const angled = await animState( { framify_org_trigger: 'hover', framify_org_angle: { size: 30 }, framify_org_anim: 'sway' } );
   ok( 'animation + Angle: both turn the shape (the rest pose already carries the angle)', /rotate\(30\)/.test( angled.rest.t ) && angled.mid.t !== angled.rest.t );
+  // Keep flat edge fixed.
+  const FLAT = '<svg viewBox="0 0 100 100"><path d="M0 0L60 0Q100 50 60 100L0 100Z"/></svg>';
+  const pts = ( d ) => { const n = ( d.match( /-?\d+\.?\d*/g ) || [] ).map( Number ); const out = []; for ( let i = 0; i + 1 < n.length; i += 2 ) { out.push( [ n[ i ], n[ i + 1 ] ] ); } return out; };
+  const held = ( a, b, near, far ) => {
+    const A = pts( a ), B = pts( b );
+    if ( A.length !== B.length || A.length < 20 ) { return false; }
+    let stillNear = true, movedFar = false;
+    A.forEach( ( q, i ) => {
+      const dist = Math.hypot( q[ 0 ] - B[ i ][ 0 ], q[ 1 ] - B[ i ][ 1 ] );
+      if ( near( q ) && dist > 0.06 ) { stillNear = false; }
+      if ( far( q ) && dist > 0.3 ) { movedFar = true; }
+    } );
+    return stillNear && movedFar;
+  };
+  const flatBase = { framify_org_trigger: 'hover', framify_org_shape: 'custom', framify_org_custom_svg: FLAT, framify_org_edge: 'left', framify_org_custom_motion: 'gentle', framify_org_custom_amount: 'strong' };
+  const pinned = await animState( { ...flatBase, framify_org_edge_pin: 'yes' } );
+  ok( 'flat edge pinned: Gentle on a pasted shape moves the outline but the straight side stays put', held( pinned.rest.d, pinned.end.d, ( q ) => q[ 0 ] < 2, ( q ) => q[ 0 ] > 40 ) );
+  const loose = await animState( { ...flatBase } );
+  ok( 'flat edge not pinned (switch off or an old page): Gentle moves the whole shape by its transform, outline unchanged', loose.rest.d === loose.end.d && loose.rest.t !== loose.end.t );
+  const along = ( d, near ) => pts( d ).filter( near ).length;
+  const morphPinned = await animState( { ...flatBase, framify_org_anim: 'morph', framify_org_anim_to: 'splash', framify_org_edge_pin: 'yes' } );
+  const morphFree = await animState( { ...flatBase, framify_org_anim: 'morph', framify_org_anim_to: 'splash' } );
+  const onLeft = ( q ) => q[ 0 ] < 1;
+  ok( 'flat edge pinned: Morph of a pasted shape keeps the straight side (' + along( morphPinned.end.d, onLeft ) + ' outline points still on it, against ' + along( morphFree.end.d, onLeft ) + ' unpinned)', along( morphPinned.end.d, onLeft ) >= 8 && along( morphFree.end.d, onLeft ) < 3 );
+  ok( 'flat edge pinned: the rest of the pasted shape still morphs', morphPinned.end.d !== morphPinned.rest.d && along( morphPinned.end.d, ( q ) => q[ 0 ] > 40 ) > 20 );
+  const wavy = await animState( { framify_org_trigger: 'hover', framify_org_shape: 'tide', framify_org_edge: 'right', framify_org_anim: 'morph', framify_org_anim_to: 'splash', framify_org_edge_pin: 'yes' } );
+  const wavyFree = await animState( { framify_org_trigger: 'hover', framify_org_shape: 'tide', framify_org_edge: 'right', framify_org_anim: 'morph', framify_org_anim_to: 'splash' } );
+  const onRight = ( q ) => q[ 0 ] > 99;
+  ok( 'flat edge pinned: Morph of a built-in Wavy shape keeps its right edge (' + along( wavy.end.d, onRight ) + ' points on it, against ' + along( wavyFree.end.d, onRight ) + ' unpinned)', along( wavy.end.d, onRight ) >= 8 && along( wavyFree.end.d, onRight ) < 3 );
+
   // Loop clock: a Spin keeps turning the same way.
   const clock = await run( 'container', { ...base, framify_org_mode: 'clip', framify_org_shape: 'pebble', framify_org_trigger: 'loop', framify_org_duration: { size: 500 }, framify_org_anim: 'spin' }, async ( page ) => {
     const rot = () => q( page, () => { const m = /rotate\(([-\d.e]+)/.exec( window.__m.host.querySelector( 'clipPath path' ).getAttribute( 'transform' ) ); return m ? parseFloat( m[ 1 ] ) : null; } );

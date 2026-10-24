@@ -765,6 +765,13 @@ class Framify_Elementor {
             'description' => esc_html__( 'Shrinks a turned shape just enough that no part of it leaves its box.', 'framify' ),
         ) + $cond( $on ) ) );
 
+        $element->add_control( $p . 'edge_pin', $this->live( array(
+            'label'       => esc_html__( 'Keep flat edge fixed', 'framify' ),
+            'type'        => $cm::SWITCHER,
+            'default'     => 'yes',
+            'description' => esc_html__( 'While the shape moves (Gentle motion, Morph), the straight side stays on the element edge and only the rest of the shape moves.', 'framify' ),
+        ) + $this->shape_condition( $on, array_merge( $this->wavy_ids(), $this->flow_ids(), array( 'custom' ) ), array( array( 'name' => $p . 'edge', 'operator' => '!==', 'value' => 'none' ) ), $p ) ) );
+
         // Parsed in the browser: only validated path data is used, and only
         // ever through setAttribute('d'), so pasted markup can't inject.
         $element->add_control( $p . 'custom_svg', $this->live( array(
@@ -868,7 +875,7 @@ class Framify_Elementor {
                 'drift' => esc_html__( 'Drift', 'framify' ),
                 'morph' => esc_html__( 'Morph into another shape', 'framify' ),
             ),
-            'description' => esc_html__( 'Replaces Custom motion and the blob hover morph. It runs on the trigger above (Auto = on hover); Morph needs a built-in shape.', 'framify' ),
+            'description' => esc_html__( 'Replaces Custom motion and the blob hover morph. It runs on the trigger above (Auto = on hover). Morph also works with a pasted or uploaded shape made of a single outline.', 'framify' ),
         ) + ( $on ? array( 'condition' => $on ) : array() ) ) );
 
         $element->add_control( $p . 'anim_to', $this->live( array(
