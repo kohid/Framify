@@ -1,0 +1,3082 @@
+{
+    "container": {
+        "framify_org_enable": {
+            "section": "framify_org_section",
+            "type": "switcher",
+            "default": "",
+            "options": null,
+            "label": "Organic Shape",
+            "condition": null,
+            "conditions": null
+        },
+        "framify_org_mode": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "deco",
+            "options": [
+                "deco",
+                "clip",
+                "bg"
+            ],
+            "label": "Mode",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_orgbg_color": {
+            "section": "framify_org_section",
+            "type": "color",
+            "default": null,
+            "options": null,
+            "label": "Background color",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "bg"
+            },
+            "conditions": null
+        },
+        "framify_orgbg_overlay": {
+            "section": "framify_org_section",
+            "type": "color",
+            "default": null,
+            "options": null,
+            "label": "Overlay color",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "bg"
+            },
+            "conditions": null
+        },
+        "framify_orgbg_overlay_opacity": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 1
+            },
+            "options": null,
+            "label": "Overlay opacity",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "bg"
+            },
+            "conditions": null
+        },
+        "framify_org_shape_source": {
+            "section": "framify_org_section",
+            "type": "choose",
+            "default": "builtin",
+            "options": [
+                "builtin",
+                "library"
+            ],
+            "label": "Shape",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_shape_studio": {
+            "section": "framify_org_section",
+            "type": "button",
+            "default": null,
+            "options": null,
+            "label": null,
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_shape_source": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_shape": {
+            "section": "framify_org_section",
+            "type": "visual_choice",
+            "default": "pebble",
+            "options": [
+                "pebble",
+                "bean",
+                "cloud",
+                "splash",
+                "puddle",
+                "petal",
+                "drift",
+                "cushion",
+                "tide",
+                "ripple",
+                "dune",
+                "current",
+                "swell",
+                "shore",
+                "brook",
+                "breeze",
+                "meadow",
+                "lagoon",
+                "harbor",
+                "glade",
+                "custom"
+            ],
+            "label": "Built-in shapes",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_shape_source!": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_shape_lib": {
+            "section": "framify_org_section",
+            "type": "visual_choice",
+            "default": "lib_pebble-wide",
+            "options": [
+                "lib_pebble-wide",
+                "lib_soft-leaf"
+            ],
+            "label": "Uploaded shapes",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_shape_source": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_edge": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "auto",
+            "options": [
+                "auto",
+                "none",
+                "left",
+                "right",
+                "top",
+                "bottom"
+            ],
+            "label": "Flat edge",
+            "condition": null,
+            "conditions": {
+                "relation": "and",
+                "terms": [
+                    {
+                        "name": "framify_org_enable",
+                        "operator": "===",
+                        "value": "yes"
+                    },
+                    {
+                        "relation": "or",
+                        "terms": [
+                            {
+                                "name": "framify_org_shape_source",
+                                "operator": "===",
+                                "value": "library"
+                            },
+                            {
+                                "name": "framify_org_shape",
+                                "operator": "in",
+                                "value": [
+                                    "tide",
+                                    "ripple",
+                                    "dune",
+                                    "current",
+                                    "swell",
+                                    "shore",
+                                    "brook",
+                                    "breeze",
+                                    "meadow",
+                                    "lagoon",
+                                    "harbor",
+                                    "glade",
+                                    "custom"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_flip_h": {
+            "section": "framify_org_section",
+            "type": "switcher",
+            "default": "",
+            "options": null,
+            "label": "Flip horizontal",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_flip_v": {
+            "section": "framify_org_section",
+            "type": "switcher",
+            "default": "",
+            "options": null,
+            "label": "Flip vertical",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_custom_rotate": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "0",
+            "options": [
+                0,
+                90,
+                180,
+                270
+            ],
+            "label": "Rotate",
+            "condition": null,
+            "conditions": {
+                "relation": "and",
+                "terms": [
+                    {
+                        "name": "framify_org_enable",
+                        "operator": "===",
+                        "value": "yes"
+                    },
+                    {
+                        "relation": "or",
+                        "terms": [
+                            {
+                                "name": "framify_org_shape_source",
+                                "operator": "===",
+                                "value": "library"
+                            },
+                            {
+                                "name": "framify_org_shape",
+                                "operator": "in",
+                                "value": [
+                                    "custom"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_custom_svg": {
+            "section": "framify_org_section",
+            "type": "textarea",
+            "default": null,
+            "options": null,
+            "label": "SVG code or path",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_shape": "custom",
+                "framify_org_shape_source!": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_placement_heading": {
+            "section": "framify_org_section",
+            "type": "heading",
+            "default": null,
+            "options": null,
+            "label": "Placement",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_align_x": {
+            "section": "framify_org_section",
+            "type": "choose",
+            "default": "center",
+            "options": [
+                "left",
+                "center",
+                "right"
+            ],
+            "label": "Horizontal position",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_align_y": {
+            "section": "framify_org_section",
+            "type": "choose",
+            "default": "middle",
+            "options": [
+                "top",
+                "middle",
+                "bottom"
+            ],
+            "label": "Vertical position",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_width": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 100
+            },
+            "options": null,
+            "label": "Width (%)",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_height": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 100
+            },
+            "options": null,
+            "label": "Height (%)",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_offset_x": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 0
+            },
+            "options": null,
+            "label": "Offset X (%)",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_offset_y": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 0
+            },
+            "options": null,
+            "label": "Offset Y (%)",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_motion_heading": {
+            "section": "framify_org_section",
+            "type": "heading",
+            "default": null,
+            "options": null,
+            "label": "Motion",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_trigger": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "auto",
+            "options": [
+                "auto",
+                "none",
+                "hover",
+                "inview",
+                "loop"
+            ],
+            "label": "Trigger",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_duration": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 1500
+            },
+            "options": null,
+            "label": "Duration (ms)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_trigger!": "none"
+            },
+            "conditions": null
+        },
+        "framify_org_spring": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "normal",
+            "options": [
+                "subtle",
+                "normal",
+                "bouncy"
+            ],
+            "label": "Spring",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_trigger!": [
+                    "none",
+                    "loop"
+                ]
+            },
+            "conditions": null
+        },
+        "framify_org_custom_motion": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "liquid",
+            "options": [
+                "liquid",
+                "gentle",
+                "dots"
+            ],
+            "label": "Custom motion",
+            "condition": null,
+            "conditions": {
+                "relation": "and",
+                "terms": [
+                    {
+                        "name": "framify_org_enable",
+                        "operator": "===",
+                        "value": "yes"
+                    },
+                    {
+                        "name": "framify_org_trigger",
+                        "operator": "!in",
+                        "value": [
+                            "auto",
+                            "none"
+                        ]
+                    },
+                    {
+                        "relation": "or",
+                        "terms": [
+                            {
+                                "name": "framify_org_shape_source",
+                                "operator": "===",
+                                "value": "library"
+                            },
+                            {
+                                "name": "framify_org_shape",
+                                "operator": "in",
+                                "value": [
+                                    "custom"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_dot_style": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "breathe",
+            "options": [
+                "breathe",
+                "twinkle",
+                "wave",
+                "drift"
+            ],
+            "label": "Dots style",
+            "condition": null,
+            "conditions": {
+                "relation": "and",
+                "terms": [
+                    {
+                        "name": "framify_org_enable",
+                        "operator": "===",
+                        "value": "yes"
+                    },
+                    {
+                        "name": "framify_org_trigger",
+                        "operator": "!in",
+                        "value": [
+                            "auto",
+                            "none"
+                        ]
+                    },
+                    {
+                        "name": "framify_org_custom_motion",
+                        "operator": "===",
+                        "value": "dots"
+                    },
+                    {
+                        "relation": "or",
+                        "terms": [
+                            {
+                                "name": "framify_org_shape_source",
+                                "operator": "===",
+                                "value": "library"
+                            },
+                            {
+                                "name": "framify_org_shape",
+                                "operator": "in",
+                                "value": [
+                                    "custom"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_custom_amount": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "normal",
+            "options": [
+                "subtle",
+                "normal",
+                "strong"
+            ],
+            "label": "Motion amount",
+            "condition": null,
+            "conditions": {
+                "relation": "and",
+                "terms": [
+                    {
+                        "name": "framify_org_enable",
+                        "operator": "===",
+                        "value": "yes"
+                    },
+                    {
+                        "name": "framify_org_trigger",
+                        "operator": "!in",
+                        "value": [
+                            "auto",
+                            "none"
+                        ]
+                    },
+                    {
+                        "relation": "or",
+                        "terms": [
+                            {
+                                "name": "framify_org_shape_source",
+                                "operator": "===",
+                                "value": "library"
+                            },
+                            {
+                                "name": "framify_org_shape",
+                                "operator": "in",
+                                "value": [
+                                    "custom"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_deco": {
+            "section": "framify_deco_section",
+            "type": "switcher",
+            "default": "",
+            "options": null,
+            "label": "Deco blob behind",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_shape_source": {
+            "section": "framify_deco_section",
+            "type": "choose",
+            "default": "builtin",
+            "options": [
+                "builtin",
+                "library"
+            ],
+            "label": "Deco shape",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_shape_studio": {
+            "section": "framify_deco_section",
+            "type": "button",
+            "default": null,
+            "options": null,
+            "label": null,
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes",
+                "framify_org_deco_shape_source": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_shape": {
+            "section": "framify_deco_section",
+            "type": "visual_choice",
+            "default": "splash",
+            "options": [
+                "pebble",
+                "bean",
+                "cloud",
+                "splash",
+                "puddle",
+                "petal",
+                "drift",
+                "cushion",
+                "tide",
+                "ripple",
+                "dune",
+                "current",
+                "swell",
+                "shore",
+                "brook",
+                "breeze",
+                "meadow",
+                "lagoon",
+                "harbor",
+                "glade"
+            ],
+            "label": "Built-in shapes",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes",
+                "framify_org_deco_shape_source!": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_shape_lib": {
+            "section": "framify_deco_section",
+            "type": "visual_choice",
+            "default": "lib_pebble-wide",
+            "options": [
+                "lib_pebble-wide",
+                "lib_soft-leaf"
+            ],
+            "label": "Uploaded shapes",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes",
+                "framify_org_deco_shape_source": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_style": {
+            "section": "framify_deco_section",
+            "type": "select",
+            "default": "solid",
+            "options": [
+                "solid",
+                "outline"
+            ],
+            "label": "Style",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": {
+                "relation": "or",
+                "terms": [
+                    {
+                        "name": "framify_org_mode",
+                        "operator": "===",
+                        "value": "deco"
+                    },
+                    {
+                        "relation": "and",
+                        "terms": [
+                            {
+                                "name": "framify_org_mode",
+                                "operator": "===",
+                                "value": "clip"
+                            },
+                            {
+                                "name": "framify_org_deco",
+                                "operator": "===",
+                                "value": "yes"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_deco_outline_color": {
+            "section": "framify_deco_section",
+            "type": "color",
+            "default": "#1E1E1E",
+            "options": null,
+            "label": "Outline color",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco_style": "outline"
+            },
+            "conditions": {
+                "relation": "or",
+                "terms": [
+                    {
+                        "name": "framify_org_mode",
+                        "operator": "===",
+                        "value": "deco"
+                    },
+                    {
+                        "relation": "and",
+                        "terms": [
+                            {
+                                "name": "framify_org_mode",
+                                "operator": "===",
+                                "value": "clip"
+                            },
+                            {
+                                "name": "framify_org_deco",
+                                "operator": "===",
+                                "value": "yes"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_deco_outline_width": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 2
+            },
+            "options": null,
+            "label": "Outline width (px)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco_style": "outline"
+            },
+            "conditions": {
+                "relation": "or",
+                "terms": [
+                    {
+                        "name": "framify_org_mode",
+                        "operator": "===",
+                        "value": "deco"
+                    },
+                    {
+                        "relation": "and",
+                        "terms": [
+                            {
+                                "name": "framify_org_mode",
+                                "operator": "===",
+                                "value": "clip"
+                            },
+                            {
+                                "name": "framify_org_deco",
+                                "operator": "===",
+                                "value": "yes"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_deco_color": {
+            "section": "framify_deco_section",
+            "type": "color",
+            "default": "#F2C53D",
+            "options": null,
+            "label": "Color",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco_style!": "outline"
+            },
+            "conditions": {
+                "relation": "or",
+                "terms": [
+                    {
+                        "name": "framify_org_mode",
+                        "operator": "===",
+                        "value": "deco"
+                    },
+                    {
+                        "relation": "and",
+                        "terms": [
+                            {
+                                "name": "framify_org_mode",
+                                "operator": "===",
+                                "value": "clip"
+                            },
+                            {
+                                "name": "framify_org_deco",
+                                "operator": "===",
+                                "value": "yes"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_deco_align_x": {
+            "section": "framify_deco_section",
+            "type": "choose",
+            "default": "center",
+            "options": [
+                "left",
+                "center",
+                "right"
+            ],
+            "label": "Horizontal position",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_align_y": {
+            "section": "framify_deco_section",
+            "type": "choose",
+            "default": "middle",
+            "options": [
+                "top",
+                "middle",
+                "bottom"
+            ],
+            "label": "Vertical position",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_width": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 108
+            },
+            "options": null,
+            "label": "Width (%)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_height": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 108
+            },
+            "options": null,
+            "label": "Height (%)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_offset_x": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 6
+            },
+            "options": null,
+            "label": "Offset X (%)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_offset_y": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 6
+            },
+            "options": null,
+            "label": "Offset Y (%)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_motion_heading": {
+            "section": "framify_deco_section",
+            "type": "heading",
+            "default": null,
+            "options": null,
+            "label": "Deco motion",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_trigger": {
+            "section": "framify_deco_section",
+            "type": "select",
+            "default": "same",
+            "options": [
+                "same",
+                "none",
+                "hover",
+                "inview",
+                "loop"
+            ],
+            "label": "Deco trigger",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_duration": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 2400
+            },
+            "options": null,
+            "label": "Deco duration (ms)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes",
+                "framify_org_deco_trigger!": [
+                    "same",
+                    "none"
+                ]
+            },
+            "conditions": null
+        },
+        "framify_org_deco_spring": {
+            "section": "framify_deco_section",
+            "type": "select",
+            "default": "normal",
+            "options": [
+                "subtle",
+                "normal",
+                "bouncy"
+            ],
+            "label": "Deco spring",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes",
+                "framify_org_deco_trigger!": [
+                    "same",
+                    "none",
+                    "loop"
+                ]
+            },
+            "conditions": null
+        },
+        "framify_org_deco_rotate": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 0
+            },
+            "options": null,
+            "label": "Rotate (deg)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes",
+                "framify_org_deco_trigger!": "none"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_grain": {
+            "section": "framify_grain_section",
+            "type": "switcher",
+            "default": "yes",
+            "options": null,
+            "label": "Grain on deco blob",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco_style!": "outline"
+            },
+            "conditions": {
+                "relation": "or",
+                "terms": [
+                    {
+                        "name": "framify_org_mode",
+                        "operator": "===",
+                        "value": "deco"
+                    },
+                    {
+                        "relation": "and",
+                        "terms": [
+                            {
+                                "name": "framify_org_mode",
+                                "operator": "===",
+                                "value": "clip"
+                            },
+                            {
+                                "name": "framify_org_deco",
+                                "operator": "===",
+                                "value": "yes"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_clip_grain": {
+            "section": "framify_grain_section",
+            "type": "switcher",
+            "default": "",
+            "options": null,
+            "label": "Grain on container fill",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": [
+                    "clip",
+                    "bg"
+                ]
+            },
+            "conditions": null
+        },
+        "framify_org_grain_amount": {
+            "section": "framify_grain_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 50
+            },
+            "options": null,
+            "label": "Grain amount",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_grain_pattern": {
+            "section": "framify_grain_section",
+            "type": "number",
+            "default": 0,
+            "options": null,
+            "label": "Pattern",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        }
+    },
+    "container_sections": [
+        "framify_org_section",
+        "framify_deco_section",
+        "framify_grain_section"
+    ],
+    "spacer": {
+        "framify_org_enable": {
+            "section": "framify_org_section",
+            "type": "switcher",
+            "default": "",
+            "options": null,
+            "label": "Organic Shape",
+            "condition": null,
+            "conditions": null
+        },
+        "framify_org_mode": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "deco",
+            "options": [
+                "deco",
+                "clip",
+                "bg"
+            ],
+            "label": "Mode",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_orgbg_color": {
+            "section": "framify_org_section",
+            "type": "color",
+            "default": null,
+            "options": null,
+            "label": "Background color",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "bg"
+            },
+            "conditions": null
+        },
+        "framify_orgbg_overlay": {
+            "section": "framify_org_section",
+            "type": "color",
+            "default": null,
+            "options": null,
+            "label": "Overlay color",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "bg"
+            },
+            "conditions": null
+        },
+        "framify_orgbg_overlay_opacity": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 1
+            },
+            "options": null,
+            "label": "Overlay opacity",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "bg"
+            },
+            "conditions": null
+        },
+        "framify_org_shape_source": {
+            "section": "framify_org_section",
+            "type": "choose",
+            "default": "builtin",
+            "options": [
+                "builtin",
+                "library"
+            ],
+            "label": "Shape",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_shape_studio": {
+            "section": "framify_org_section",
+            "type": "button",
+            "default": null,
+            "options": null,
+            "label": null,
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_shape_source": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_shape": {
+            "section": "framify_org_section",
+            "type": "visual_choice",
+            "default": "pebble",
+            "options": [
+                "pebble",
+                "bean",
+                "cloud",
+                "splash",
+                "puddle",
+                "petal",
+                "drift",
+                "cushion",
+                "tide",
+                "ripple",
+                "dune",
+                "current",
+                "swell",
+                "shore",
+                "brook",
+                "breeze",
+                "meadow",
+                "lagoon",
+                "harbor",
+                "glade",
+                "custom"
+            ],
+            "label": "Built-in shapes",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_shape_source!": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_shape_lib": {
+            "section": "framify_org_section",
+            "type": "visual_choice",
+            "default": "lib_pebble-wide",
+            "options": [
+                "lib_pebble-wide",
+                "lib_soft-leaf"
+            ],
+            "label": "Uploaded shapes",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_shape_source": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_edge": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "auto",
+            "options": [
+                "auto",
+                "none",
+                "left",
+                "right",
+                "top",
+                "bottom"
+            ],
+            "label": "Flat edge",
+            "condition": null,
+            "conditions": {
+                "relation": "and",
+                "terms": [
+                    {
+                        "name": "framify_org_enable",
+                        "operator": "===",
+                        "value": "yes"
+                    },
+                    {
+                        "relation": "or",
+                        "terms": [
+                            {
+                                "name": "framify_org_shape_source",
+                                "operator": "===",
+                                "value": "library"
+                            },
+                            {
+                                "name": "framify_org_shape",
+                                "operator": "in",
+                                "value": [
+                                    "tide",
+                                    "ripple",
+                                    "dune",
+                                    "current",
+                                    "swell",
+                                    "shore",
+                                    "brook",
+                                    "breeze",
+                                    "meadow",
+                                    "lagoon",
+                                    "harbor",
+                                    "glade",
+                                    "custom"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_flip_h": {
+            "section": "framify_org_section",
+            "type": "switcher",
+            "default": "",
+            "options": null,
+            "label": "Flip horizontal",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_flip_v": {
+            "section": "framify_org_section",
+            "type": "switcher",
+            "default": "",
+            "options": null,
+            "label": "Flip vertical",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_custom_rotate": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "0",
+            "options": [
+                0,
+                90,
+                180,
+                270
+            ],
+            "label": "Rotate",
+            "condition": null,
+            "conditions": {
+                "relation": "and",
+                "terms": [
+                    {
+                        "name": "framify_org_enable",
+                        "operator": "===",
+                        "value": "yes"
+                    },
+                    {
+                        "relation": "or",
+                        "terms": [
+                            {
+                                "name": "framify_org_shape_source",
+                                "operator": "===",
+                                "value": "library"
+                            },
+                            {
+                                "name": "framify_org_shape",
+                                "operator": "in",
+                                "value": [
+                                    "custom"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_custom_svg": {
+            "section": "framify_org_section",
+            "type": "textarea",
+            "default": null,
+            "options": null,
+            "label": "SVG code or path",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_shape": "custom",
+                "framify_org_shape_source!": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_placement_heading": {
+            "section": "framify_org_section",
+            "type": "heading",
+            "default": null,
+            "options": null,
+            "label": "Placement",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_align_x": {
+            "section": "framify_org_section",
+            "type": "choose",
+            "default": "center",
+            "options": [
+                "left",
+                "center",
+                "right"
+            ],
+            "label": "Horizontal position",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_align_y": {
+            "section": "framify_org_section",
+            "type": "choose",
+            "default": "middle",
+            "options": [
+                "top",
+                "middle",
+                "bottom"
+            ],
+            "label": "Vertical position",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_width": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 100
+            },
+            "options": null,
+            "label": "Width (%)",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_height": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 100
+            },
+            "options": null,
+            "label": "Height (%)",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_offset_x": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 0
+            },
+            "options": null,
+            "label": "Offset X (%)",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_offset_y": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 0
+            },
+            "options": null,
+            "label": "Offset Y (%)",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_motion_heading": {
+            "section": "framify_org_section",
+            "type": "heading",
+            "default": null,
+            "options": null,
+            "label": "Motion",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_trigger": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "auto",
+            "options": [
+                "auto",
+                "none",
+                "hover",
+                "inview",
+                "loop"
+            ],
+            "label": "Trigger",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_duration": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 1500
+            },
+            "options": null,
+            "label": "Duration (ms)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_trigger!": "none"
+            },
+            "conditions": null
+        },
+        "framify_org_spring": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "normal",
+            "options": [
+                "subtle",
+                "normal",
+                "bouncy"
+            ],
+            "label": "Spring",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_trigger!": [
+                    "none",
+                    "loop"
+                ]
+            },
+            "conditions": null
+        },
+        "framify_org_custom_motion": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "liquid",
+            "options": [
+                "liquid",
+                "gentle",
+                "dots"
+            ],
+            "label": "Custom motion",
+            "condition": null,
+            "conditions": {
+                "relation": "and",
+                "terms": [
+                    {
+                        "name": "framify_org_enable",
+                        "operator": "===",
+                        "value": "yes"
+                    },
+                    {
+                        "name": "framify_org_trigger",
+                        "operator": "!in",
+                        "value": [
+                            "auto",
+                            "none"
+                        ]
+                    },
+                    {
+                        "relation": "or",
+                        "terms": [
+                            {
+                                "name": "framify_org_shape_source",
+                                "operator": "===",
+                                "value": "library"
+                            },
+                            {
+                                "name": "framify_org_shape",
+                                "operator": "in",
+                                "value": [
+                                    "custom"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_dot_style": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "breathe",
+            "options": [
+                "breathe",
+                "twinkle",
+                "wave",
+                "drift"
+            ],
+            "label": "Dots style",
+            "condition": null,
+            "conditions": {
+                "relation": "and",
+                "terms": [
+                    {
+                        "name": "framify_org_enable",
+                        "operator": "===",
+                        "value": "yes"
+                    },
+                    {
+                        "name": "framify_org_trigger",
+                        "operator": "!in",
+                        "value": [
+                            "auto",
+                            "none"
+                        ]
+                    },
+                    {
+                        "name": "framify_org_custom_motion",
+                        "operator": "===",
+                        "value": "dots"
+                    },
+                    {
+                        "relation": "or",
+                        "terms": [
+                            {
+                                "name": "framify_org_shape_source",
+                                "operator": "===",
+                                "value": "library"
+                            },
+                            {
+                                "name": "framify_org_shape",
+                                "operator": "in",
+                                "value": [
+                                    "custom"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_custom_amount": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "normal",
+            "options": [
+                "subtle",
+                "normal",
+                "strong"
+            ],
+            "label": "Motion amount",
+            "condition": null,
+            "conditions": {
+                "relation": "and",
+                "terms": [
+                    {
+                        "name": "framify_org_enable",
+                        "operator": "===",
+                        "value": "yes"
+                    },
+                    {
+                        "name": "framify_org_trigger",
+                        "operator": "!in",
+                        "value": [
+                            "auto",
+                            "none"
+                        ]
+                    },
+                    {
+                        "relation": "or",
+                        "terms": [
+                            {
+                                "name": "framify_org_shape_source",
+                                "operator": "===",
+                                "value": "library"
+                            },
+                            {
+                                "name": "framify_org_shape",
+                                "operator": "in",
+                                "value": [
+                                    "custom"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_deco": {
+            "section": "framify_deco_section",
+            "type": "switcher",
+            "default": "",
+            "options": null,
+            "label": "Deco blob behind",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_shape_source": {
+            "section": "framify_deco_section",
+            "type": "choose",
+            "default": "builtin",
+            "options": [
+                "builtin",
+                "library"
+            ],
+            "label": "Deco shape",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_shape_studio": {
+            "section": "framify_deco_section",
+            "type": "button",
+            "default": null,
+            "options": null,
+            "label": null,
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes",
+                "framify_org_deco_shape_source": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_shape": {
+            "section": "framify_deco_section",
+            "type": "visual_choice",
+            "default": "splash",
+            "options": [
+                "pebble",
+                "bean",
+                "cloud",
+                "splash",
+                "puddle",
+                "petal",
+                "drift",
+                "cushion",
+                "tide",
+                "ripple",
+                "dune",
+                "current",
+                "swell",
+                "shore",
+                "brook",
+                "breeze",
+                "meadow",
+                "lagoon",
+                "harbor",
+                "glade"
+            ],
+            "label": "Built-in shapes",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes",
+                "framify_org_deco_shape_source!": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_shape_lib": {
+            "section": "framify_deco_section",
+            "type": "visual_choice",
+            "default": "lib_pebble-wide",
+            "options": [
+                "lib_pebble-wide",
+                "lib_soft-leaf"
+            ],
+            "label": "Uploaded shapes",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes",
+                "framify_org_deco_shape_source": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_style": {
+            "section": "framify_deco_section",
+            "type": "select",
+            "default": "solid",
+            "options": [
+                "solid",
+                "outline"
+            ],
+            "label": "Style",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": {
+                "relation": "or",
+                "terms": [
+                    {
+                        "name": "framify_org_mode",
+                        "operator": "===",
+                        "value": "deco"
+                    },
+                    {
+                        "relation": "and",
+                        "terms": [
+                            {
+                                "name": "framify_org_mode",
+                                "operator": "===",
+                                "value": "clip"
+                            },
+                            {
+                                "name": "framify_org_deco",
+                                "operator": "===",
+                                "value": "yes"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_deco_outline_color": {
+            "section": "framify_deco_section",
+            "type": "color",
+            "default": "#1E1E1E",
+            "options": null,
+            "label": "Outline color",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco_style": "outline"
+            },
+            "conditions": {
+                "relation": "or",
+                "terms": [
+                    {
+                        "name": "framify_org_mode",
+                        "operator": "===",
+                        "value": "deco"
+                    },
+                    {
+                        "relation": "and",
+                        "terms": [
+                            {
+                                "name": "framify_org_mode",
+                                "operator": "===",
+                                "value": "clip"
+                            },
+                            {
+                                "name": "framify_org_deco",
+                                "operator": "===",
+                                "value": "yes"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_deco_outline_width": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 2
+            },
+            "options": null,
+            "label": "Outline width (px)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco_style": "outline"
+            },
+            "conditions": {
+                "relation": "or",
+                "terms": [
+                    {
+                        "name": "framify_org_mode",
+                        "operator": "===",
+                        "value": "deco"
+                    },
+                    {
+                        "relation": "and",
+                        "terms": [
+                            {
+                                "name": "framify_org_mode",
+                                "operator": "===",
+                                "value": "clip"
+                            },
+                            {
+                                "name": "framify_org_deco",
+                                "operator": "===",
+                                "value": "yes"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_deco_color": {
+            "section": "framify_deco_section",
+            "type": "color",
+            "default": "#F2C53D",
+            "options": null,
+            "label": "Color",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco_style!": "outline"
+            },
+            "conditions": {
+                "relation": "or",
+                "terms": [
+                    {
+                        "name": "framify_org_mode",
+                        "operator": "===",
+                        "value": "deco"
+                    },
+                    {
+                        "relation": "and",
+                        "terms": [
+                            {
+                                "name": "framify_org_mode",
+                                "operator": "===",
+                                "value": "clip"
+                            },
+                            {
+                                "name": "framify_org_deco",
+                                "operator": "===",
+                                "value": "yes"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_deco_align_x": {
+            "section": "framify_deco_section",
+            "type": "choose",
+            "default": "center",
+            "options": [
+                "left",
+                "center",
+                "right"
+            ],
+            "label": "Horizontal position",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_align_y": {
+            "section": "framify_deco_section",
+            "type": "choose",
+            "default": "middle",
+            "options": [
+                "top",
+                "middle",
+                "bottom"
+            ],
+            "label": "Vertical position",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_width": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 108
+            },
+            "options": null,
+            "label": "Width (%)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_height": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 108
+            },
+            "options": null,
+            "label": "Height (%)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_offset_x": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 6
+            },
+            "options": null,
+            "label": "Offset X (%)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_offset_y": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 6
+            },
+            "options": null,
+            "label": "Offset Y (%)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_motion_heading": {
+            "section": "framify_deco_section",
+            "type": "heading",
+            "default": null,
+            "options": null,
+            "label": "Deco motion",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_trigger": {
+            "section": "framify_deco_section",
+            "type": "select",
+            "default": "same",
+            "options": [
+                "same",
+                "none",
+                "hover",
+                "inview",
+                "loop"
+            ],
+            "label": "Deco trigger",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_duration": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 2400
+            },
+            "options": null,
+            "label": "Deco duration (ms)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes",
+                "framify_org_deco_trigger!": [
+                    "same",
+                    "none"
+                ]
+            },
+            "conditions": null
+        },
+        "framify_org_deco_spring": {
+            "section": "framify_deco_section",
+            "type": "select",
+            "default": "normal",
+            "options": [
+                "subtle",
+                "normal",
+                "bouncy"
+            ],
+            "label": "Deco spring",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes",
+                "framify_org_deco_trigger!": [
+                    "same",
+                    "none",
+                    "loop"
+                ]
+            },
+            "conditions": null
+        },
+        "framify_org_deco_rotate": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 0
+            },
+            "options": null,
+            "label": "Rotate (deg)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": "clip",
+                "framify_org_deco": "yes",
+                "framify_org_deco_trigger!": "none"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_grain": {
+            "section": "framify_grain_section",
+            "type": "switcher",
+            "default": "yes",
+            "options": null,
+            "label": "Grain on deco blob",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco_style!": "outline"
+            },
+            "conditions": {
+                "relation": "or",
+                "terms": [
+                    {
+                        "name": "framify_org_mode",
+                        "operator": "===",
+                        "value": "deco"
+                    },
+                    {
+                        "relation": "and",
+                        "terms": [
+                            {
+                                "name": "framify_org_mode",
+                                "operator": "===",
+                                "value": "clip"
+                            },
+                            {
+                                "name": "framify_org_deco",
+                                "operator": "===",
+                                "value": "yes"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_clip_grain": {
+            "section": "framify_grain_section",
+            "type": "switcher",
+            "default": "",
+            "options": null,
+            "label": "Grain on shape fill",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_mode": [
+                    "clip",
+                    "bg"
+                ]
+            },
+            "conditions": null
+        },
+        "framify_org_grain_amount": {
+            "section": "framify_grain_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 50
+            },
+            "options": null,
+            "label": "Grain amount",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_grain_pattern": {
+            "section": "framify_grain_section",
+            "type": "number",
+            "default": 0,
+            "options": null,
+            "label": "Pattern",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        }
+    },
+    "spacer_sections": [
+        "framify_org_section",
+        "framify_deco_section",
+        "framify_grain_section"
+    ],
+    "image": {
+        "framify_org_enable": {
+            "section": "framify_org_section",
+            "type": "switcher",
+            "default": "",
+            "options": null,
+            "label": "Organic Shape",
+            "condition": null,
+            "conditions": null
+        },
+        "framify_org_shape_source": {
+            "section": "framify_org_section",
+            "type": "choose",
+            "default": "builtin",
+            "options": [
+                "builtin",
+                "library"
+            ],
+            "label": "Shape",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_shape_studio": {
+            "section": "framify_org_section",
+            "type": "button",
+            "default": null,
+            "options": null,
+            "label": null,
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_shape_source": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_shape": {
+            "section": "framify_org_section",
+            "type": "visual_choice",
+            "default": "pebble",
+            "options": [
+                "pebble",
+                "bean",
+                "cloud",
+                "splash",
+                "puddle",
+                "petal",
+                "drift",
+                "cushion",
+                "tide",
+                "ripple",
+                "dune",
+                "current",
+                "swell",
+                "shore",
+                "brook",
+                "breeze",
+                "meadow",
+                "lagoon",
+                "harbor",
+                "glade",
+                "custom"
+            ],
+            "label": "Built-in shapes",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_shape_source!": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_shape_lib": {
+            "section": "framify_org_section",
+            "type": "visual_choice",
+            "default": "lib_pebble-wide",
+            "options": [
+                "lib_pebble-wide",
+                "lib_soft-leaf"
+            ],
+            "label": "Uploaded shapes",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_shape_source": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_edge": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "auto",
+            "options": [
+                "auto",
+                "none",
+                "left",
+                "right",
+                "top",
+                "bottom"
+            ],
+            "label": "Flat edge",
+            "condition": null,
+            "conditions": {
+                "relation": "and",
+                "terms": [
+                    {
+                        "name": "framify_org_enable",
+                        "operator": "===",
+                        "value": "yes"
+                    },
+                    {
+                        "relation": "or",
+                        "terms": [
+                            {
+                                "name": "framify_org_shape_source",
+                                "operator": "===",
+                                "value": "library"
+                            },
+                            {
+                                "name": "framify_org_shape",
+                                "operator": "in",
+                                "value": [
+                                    "tide",
+                                    "ripple",
+                                    "dune",
+                                    "current",
+                                    "swell",
+                                    "shore",
+                                    "brook",
+                                    "breeze",
+                                    "meadow",
+                                    "lagoon",
+                                    "harbor",
+                                    "glade",
+                                    "custom"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_flip_h": {
+            "section": "framify_org_section",
+            "type": "switcher",
+            "default": "",
+            "options": null,
+            "label": "Flip horizontal",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_flip_v": {
+            "section": "framify_org_section",
+            "type": "switcher",
+            "default": "",
+            "options": null,
+            "label": "Flip vertical",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_custom_rotate": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "0",
+            "options": [
+                0,
+                90,
+                180,
+                270
+            ],
+            "label": "Rotate",
+            "condition": null,
+            "conditions": {
+                "relation": "and",
+                "terms": [
+                    {
+                        "name": "framify_org_enable",
+                        "operator": "===",
+                        "value": "yes"
+                    },
+                    {
+                        "relation": "or",
+                        "terms": [
+                            {
+                                "name": "framify_org_shape_source",
+                                "operator": "===",
+                                "value": "library"
+                            },
+                            {
+                                "name": "framify_org_shape",
+                                "operator": "in",
+                                "value": [
+                                    "custom"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_custom_svg": {
+            "section": "framify_org_section",
+            "type": "textarea",
+            "default": null,
+            "options": null,
+            "label": "SVG code or path",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_shape": "custom",
+                "framify_org_shape_source!": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_placement_heading": {
+            "section": "framify_org_section",
+            "type": "heading",
+            "default": null,
+            "options": null,
+            "label": "Placement",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_align_x": {
+            "section": "framify_org_section",
+            "type": "choose",
+            "default": "center",
+            "options": [
+                "left",
+                "center",
+                "right"
+            ],
+            "label": "Horizontal position",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_align_y": {
+            "section": "framify_org_section",
+            "type": "choose",
+            "default": "middle",
+            "options": [
+                "top",
+                "middle",
+                "bottom"
+            ],
+            "label": "Vertical position",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_width": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 100
+            },
+            "options": null,
+            "label": "Width (%)",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_height": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 100
+            },
+            "options": null,
+            "label": "Height (%)",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_offset_x": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 0
+            },
+            "options": null,
+            "label": "Offset X (%)",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_offset_y": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 0
+            },
+            "options": null,
+            "label": "Offset Y (%)",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_motion_heading": {
+            "section": "framify_org_section",
+            "type": "heading",
+            "default": null,
+            "options": null,
+            "label": "Motion",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_trigger": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "auto",
+            "options": [
+                "auto",
+                "none",
+                "hover",
+                "inview",
+                "loop"
+            ],
+            "label": "Trigger",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_duration": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 1500
+            },
+            "options": null,
+            "label": "Duration (ms)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_trigger!": "none"
+            },
+            "conditions": null
+        },
+        "framify_org_spring": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "normal",
+            "options": [
+                "subtle",
+                "normal",
+                "bouncy"
+            ],
+            "label": "Spring",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_trigger!": [
+                    "none",
+                    "loop"
+                ]
+            },
+            "conditions": null
+        },
+        "framify_org_custom_motion": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "liquid",
+            "options": [
+                "liquid",
+                "gentle",
+                "dots"
+            ],
+            "label": "Custom motion",
+            "condition": null,
+            "conditions": {
+                "relation": "and",
+                "terms": [
+                    {
+                        "name": "framify_org_enable",
+                        "operator": "===",
+                        "value": "yes"
+                    },
+                    {
+                        "name": "framify_org_trigger",
+                        "operator": "!in",
+                        "value": [
+                            "auto",
+                            "none"
+                        ]
+                    },
+                    {
+                        "relation": "or",
+                        "terms": [
+                            {
+                                "name": "framify_org_shape_source",
+                                "operator": "===",
+                                "value": "library"
+                            },
+                            {
+                                "name": "framify_org_shape",
+                                "operator": "in",
+                                "value": [
+                                    "custom"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_dot_style": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "breathe",
+            "options": [
+                "breathe",
+                "twinkle",
+                "wave",
+                "drift"
+            ],
+            "label": "Dots style",
+            "condition": null,
+            "conditions": {
+                "relation": "and",
+                "terms": [
+                    {
+                        "name": "framify_org_enable",
+                        "operator": "===",
+                        "value": "yes"
+                    },
+                    {
+                        "name": "framify_org_trigger",
+                        "operator": "!in",
+                        "value": [
+                            "auto",
+                            "none"
+                        ]
+                    },
+                    {
+                        "name": "framify_org_custom_motion",
+                        "operator": "===",
+                        "value": "dots"
+                    },
+                    {
+                        "relation": "or",
+                        "terms": [
+                            {
+                                "name": "framify_org_shape_source",
+                                "operator": "===",
+                                "value": "library"
+                            },
+                            {
+                                "name": "framify_org_shape",
+                                "operator": "in",
+                                "value": [
+                                    "custom"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_custom_amount": {
+            "section": "framify_org_section",
+            "type": "select",
+            "default": "normal",
+            "options": [
+                "subtle",
+                "normal",
+                "strong"
+            ],
+            "label": "Motion amount",
+            "condition": null,
+            "conditions": {
+                "relation": "and",
+                "terms": [
+                    {
+                        "name": "framify_org_enable",
+                        "operator": "===",
+                        "value": "yes"
+                    },
+                    {
+                        "name": "framify_org_trigger",
+                        "operator": "!in",
+                        "value": [
+                            "auto",
+                            "none"
+                        ]
+                    },
+                    {
+                        "relation": "or",
+                        "terms": [
+                            {
+                                "name": "framify_org_shape_source",
+                                "operator": "===",
+                                "value": "library"
+                            },
+                            {
+                                "name": "framify_org_shape",
+                                "operator": "in",
+                                "value": [
+                                    "custom"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "framify_org_zoom": {
+            "section": "framify_org_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 10
+            },
+            "options": null,
+            "label": "Image zoom (%)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_trigger!": "none"
+            },
+            "conditions": null
+        },
+        "framify_org_deco": {
+            "section": "framify_deco_section",
+            "type": "switcher",
+            "default": "",
+            "options": null,
+            "label": "Deco blob behind",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_shape_source": {
+            "section": "framify_deco_section",
+            "type": "choose",
+            "default": "builtin",
+            "options": [
+                "builtin",
+                "library"
+            ],
+            "label": "Deco shape",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_shape_studio": {
+            "section": "framify_deco_section",
+            "type": "button",
+            "default": null,
+            "options": null,
+            "label": null,
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes",
+                "framify_org_deco_shape_source": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_shape": {
+            "section": "framify_deco_section",
+            "type": "visual_choice",
+            "default": "splash",
+            "options": [
+                "pebble",
+                "bean",
+                "cloud",
+                "splash",
+                "puddle",
+                "petal",
+                "drift",
+                "cushion",
+                "tide",
+                "ripple",
+                "dune",
+                "current",
+                "swell",
+                "shore",
+                "brook",
+                "breeze",
+                "meadow",
+                "lagoon",
+                "harbor",
+                "glade"
+            ],
+            "label": "Built-in shapes",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes",
+                "framify_org_deco_shape_source!": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_shape_lib": {
+            "section": "framify_deco_section",
+            "type": "visual_choice",
+            "default": "lib_pebble-wide",
+            "options": [
+                "lib_pebble-wide",
+                "lib_soft-leaf"
+            ],
+            "label": "Uploaded shapes",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes",
+                "framify_org_deco_shape_source": "library"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_style": {
+            "section": "framify_deco_section",
+            "type": "select",
+            "default": "solid",
+            "options": [
+                "solid",
+                "outline"
+            ],
+            "label": "Style",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_outline_color": {
+            "section": "framify_deco_section",
+            "type": "color",
+            "default": "#1E1E1E",
+            "options": null,
+            "label": "Outline color",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes",
+                "framify_org_deco_style": "outline"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_outline_width": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 2
+            },
+            "options": null,
+            "label": "Outline width (px)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes",
+                "framify_org_deco_style": "outline"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_color": {
+            "section": "framify_deco_section",
+            "type": "color",
+            "default": "#F2C53D",
+            "options": null,
+            "label": "Color",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes",
+                "framify_org_deco_style!": "outline"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_align_x": {
+            "section": "framify_deco_section",
+            "type": "choose",
+            "default": "center",
+            "options": [
+                "left",
+                "center",
+                "right"
+            ],
+            "label": "Horizontal position",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_align_y": {
+            "section": "framify_deco_section",
+            "type": "choose",
+            "default": "middle",
+            "options": [
+                "top",
+                "middle",
+                "bottom"
+            ],
+            "label": "Vertical position",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_width": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 108
+            },
+            "options": null,
+            "label": "Width (%)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_height": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 108
+            },
+            "options": null,
+            "label": "Height (%)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_offset_x": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 6
+            },
+            "options": null,
+            "label": "Offset X (%)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_offset_y": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "%",
+                "size": 6
+            },
+            "options": null,
+            "label": "Offset Y (%)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_motion_heading": {
+            "section": "framify_deco_section",
+            "type": "heading",
+            "default": null,
+            "options": null,
+            "label": "Deco motion",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_trigger": {
+            "section": "framify_deco_section",
+            "type": "select",
+            "default": "same",
+            "options": [
+                "same",
+                "none",
+                "hover",
+                "inview",
+                "loop"
+            ],
+            "label": "Deco trigger",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_deco_duration": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 2400
+            },
+            "options": null,
+            "label": "Deco duration (ms)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes",
+                "framify_org_deco_trigger!": [
+                    "same",
+                    "none"
+                ]
+            },
+            "conditions": null
+        },
+        "framify_org_deco_spring": {
+            "section": "framify_deco_section",
+            "type": "select",
+            "default": "normal",
+            "options": [
+                "subtle",
+                "normal",
+                "bouncy"
+            ],
+            "label": "Deco spring",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes",
+                "framify_org_deco_trigger!": [
+                    "same",
+                    "none",
+                    "loop"
+                ]
+            },
+            "conditions": null
+        },
+        "framify_org_deco_rotate": {
+            "section": "framify_deco_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 0
+            },
+            "options": null,
+            "label": "Rotate (deg)",
+            "condition": {
+                "framify_org_enable": "yes",
+                "framify_org_deco": "yes",
+                "framify_org_deco_trigger!": "none"
+            },
+            "conditions": null
+        },
+        "framify_org_grain_target": {
+            "section": "framify_grain_section",
+            "type": "select",
+            "default": "deco",
+            "options": [
+                "deco",
+                "image",
+                "both",
+                "none"
+            ],
+            "label": "Grain on",
+            "condition": null,
+            "conditions": null
+        },
+        "framify_org_grain_amount": {
+            "section": "framify_grain_section",
+            "type": "slider",
+            "default": {
+                "unit": "px",
+                "size": 50
+            },
+            "options": null,
+            "label": "Grain amount",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        },
+        "framify_org_grain_pattern": {
+            "section": "framify_grain_section",
+            "type": "number",
+            "default": 0,
+            "options": null,
+            "label": "Pattern",
+            "condition": {
+                "framify_org_enable": "yes"
+            },
+            "conditions": null
+        }
+    },
+    "image_sections": [
+        "framify_org_section",
+        "framify_deco_section",
+        "framify_grain_section"
+    ]
+}

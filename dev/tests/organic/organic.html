@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Framify Organic Shape fixture</title>
+<style>
+	body { margin: 0; background: #20242c; font: 13px system-ui, sans-serif; color: #fff; }
+	.host { position: relative; width: 600px; height: 300px; background: #3a4150; margin: 8px; }
+	.host .content { position: relative; padding: 16px; font-weight: 600; }
+	.host img { display: block; width: 100%; height: 100%; object-fit: cover; }
+</style>
+<link rel="stylesheet" href="../../../assets/framify-elementor.css">
+</head>
+<body>
+<div id="stage"></div>
+<script>
+	// A minimal Elementor: just enough for the Organic Shape handler.
+	( function () {
+		var attached = {};
+		function Base( o ) {
+			this.$element = o.$element;
+			this.settings = o.settings;
+			this.widget = o.widget;
+			this.type = o.type;
+			this.isEdit = false;
+		}
+		Base.prototype.onInit = function () {};
+		Base.prototype.onDestroy = function () {};
+		Base.prototype.getElementSettings = function () { return this.settings; };
+		Base.prototype.getWidgetType = function () { return this.widget; };
+		Base.prototype.getElementType = function () { return this.type; };
+		Base.prototype.getModelCID = function () { return 'c0'; };
+		Base.extend = function ( proto ) {
+			var Parent = this;
+			var C = function ( o ) { Parent.call( this, o ); };
+			C.prototype = Object.create( Parent.prototype );
+			Object.keys( proto ).forEach( function ( k ) { C.prototype[ k ] = proto[ k ]; } );
+			C.extend = Parent.extend;
+			return C;
+		};
+		window.elementorModules = { frontend: { handlers: { Base: Base } } };
+		window.elementorFrontend = {
+			elementsHandler: { attachHandler: function ( type, H ) { attached[ type ] = H; } },
+			isEditMode: function () { return false; },
+			getCurrentDeviceMode: function () { return 'desktop'; },
+			config: { elements: { data: {} } }
+		};
+		window.FramifyColor = { settings: function ( h ) { return h.getElementSettings(); } };
+		window.__attached = attached;
+	}() );
+</script>
+<script src="../../../assets/framify-dot-shapes.js"></script>
+<script src="../../../assets/framify-elementor.js"></script>
+<script>
+	window.dispatchEvent( new Event( 'elementor/frontend/init' ) );
+	var PNG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=';
+	// kind: container | spacer | image. Returns { host, inst }.
+	window.mountOrganic = function ( id, kind, settings ) {
+		var host = document.createElement( 'div' );
+		host.id = id;
+		host.setAttribute( 'data-id', id );
+		var el = host;
+		if ( 'container' === kind ) {
+			host.className = 'host e-con elementor-element';
+			host.innerHTML = '<div class="content">content</div>';
+		} else if ( 'spacer' === kind ) {
+			host.className = 'elementor-element elementor-widget elementor-widget-spacer';
+			host.innerHTML = '<div class="elementor-widget-container host"><div class="content">content</div></div>';
+		} else {
+			host.className = 'host elementor-element elementor-widget elementor-widget-image';
+			host.innerHTML = '<div class="elementor-widget-container" style="width:100%;height:100%"><img alt="" src="' + PNG + '"></div>';
+		}
+		document.getElementById( 'stage' ).appendChild( host );
+		var H = window.__attached[ 'container' === kind ? 'container' : kind ];
+		var inst = new H( {
+			$element: { 0: host, data: function () { return id; } },
+			settings: settings,
+			widget: 'container' === kind ? 'container' : kind,
+			type: 'container' === kind ? 'container' : 'widget'
+		} );
+		inst.onInit();
+		return { host: host, inst: inst };
+	};
+	// Everything the handler wrote, with the per-run counter in ids removed.
+	window.snapshot = function ( host ) {
+		var html = host.outerHTML.replace( /framify-org-\d+/g, 'ID' );
+		return html;
+	};
+</script>
+</body>
+</html>

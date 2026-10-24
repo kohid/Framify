@@ -75,6 +75,22 @@ if ( in_array( '--baseline', $argv, true ) ) {
     exit;
 }
 
+// --dump-config: the window.framifyOrganic object the front end gets, for the
+// browser fixture in dev/tests/organic/.
+if ( in_array( '--dump-config', $argv, true ) ) {
+    $dir = __DIR__ . '/organic';
+    if ( ! is_dir( $dir ) ) {
+        mkdir( $dir );
+    }
+    file_put_contents( $dir . '/config.json', json_encode( array(
+        'shapes'       => $paths,
+        'defaultShape' => Framify_Elementor::DEFAULT_SHAPE,
+        'library'      => (object) framify_call( $module, 'library_svgs' ),
+    ) ) );
+    echo "Config written\n";
+    exit;
+}
+
 if ( in_array( '--preview', $argv, true ) ) {
     $out = '<!doctype html><title>Framify shapes</title><body style="font:14px sans-serif;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:16px">';
     foreach ( $paths as $id => $p ) {
@@ -445,6 +461,30 @@ $img_org = new Framify_Test_Element();
 call_user_func( array( $sp_by['Framify_Elementor'][1], $sp_by['Framify_Elementor'][2] ), $sp_org );
 $module->register_container_controls( $con_org );
 $module->register_image_controls( $img_org );
+
+// --controls-baseline: freeze every Organic Shape / Deco Blob / Grain control
+// (type, default, option keys, label, conditions) so a refactor can prove it
+// only added controls and loosened Deco Blob conditions.
+if ( in_array( '--controls-baseline', $argv, true ) ) {
+    $dump = array();
+    foreach ( array( 'container' => $con_org, 'spacer' => $sp_org, 'image' => $img_org ) as $kind => $el ) {
+        foreach ( $el->controls as $id => $args ) {
+            $dump[ $kind ][ $id ] = array(
+                'section'    => $el->section_of[ $id ],
+                'type'       => isset( $args['type'] ) ? $args['type'] : null,
+                'default'    => isset( $args['default'] ) ? $args['default'] : null,
+                'options'    => isset( $args['options'] ) && is_array( $args['options'] ) ? array_keys( $args['options'] ) : null,
+                'label'      => isset( $args['label'] ) ? $args['label'] : null,
+                'condition'  => isset( $args['condition'] ) ? $args['condition'] : null,
+                'conditions' => isset( $args['conditions'] ) ? $args['conditions'] : null,
+            );
+        }
+        $dump[ $kind . '_sections' ] = array_keys( $el->sections );
+    }
+    file_put_contents( __DIR__ . '/organic-controls-baseline.json', json_encode( $dump, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+    echo 'Controls baseline written: ' . count( $dump['container'] ) . ' container / ' . count( $dump['spacer'] ) . ' spacer / ' . count( $dump['image'] ) . " image controls\n";
+    exit;
+}
 $in_section = function ( $el, $section ) {
     return array_keys( array_filter( $el->section_of, function ( $s ) use ( $section ) { return $section === $s; } ) );
 };
