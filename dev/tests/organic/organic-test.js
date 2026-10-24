@@ -214,6 +214,27 @@ CASES[ 'off' ] = [ 'container', { framify_org_enable: '', framify_org_mode: 'cli
   } ) );
   ok( 'angle: a clipped square turned 20 degrees on a 600x300 element is a true rotated rectangle (' + shear.agree + ' of ' + shear.total + ' probe points agree), not a sheared one', shear.total > 300 && shear.agree / shear.total > 0.985 && shear.inside > 100 );
 
+  // Blob position: Above the shape.
+  const order = ( mode, extra ) => run( 'container', { ...base, framify_org_mode: mode, framify_org_deco: 'yes', framify_org_shape: 'pebble', ...extra }, ( page ) => q( page, () => [ ...window.__m.host.children ].map( ( c ) => /__deco--extra/.test( c.getAttribute( 'class' ) || '' ) ? 'blob' : /__fill/.test( c.getAttribute( 'class' ) || '' ) ? 'fill' : /__deco/.test( c.getAttribute( 'class' ) || '' ) ? 'shape' : '' ).filter( Boolean ).join( ',' ) ) );
+  ok( 'blob position: clip mode, Behind (default) puts the blob before the fill', 'blob,fill' === await order( 'clip', {} ) );
+  ok( 'blob position: clip mode, Above puts it after the fill', 'fill,blob' === await order( 'clip', { framify_org_deco_layer: 'above' } ) );
+  ok( 'blob position: bg mode, Above puts it after the fill', 'fill,blob' === await order( 'bg', { framify_org_deco_layer: 'above' } ) );
+  ok( 'blob position: Behind content, Behind = blob under the shape', 'blob,shape' === await order( 'deco', { framify_org_deco_layer: 'behind' } ) );
+  ok( 'blob position: Behind content, Above = blob over the shape', 'shape,blob' === await order( 'deco', { framify_org_deco_layer: 'above' } ) );
+  const imgAbove = await run( 'image', { framify_org_enable: 'yes', framify_org_deco: 'yes', framify_org_deco_layer: 'above' }, ( page ) => q( page, () => {
+    const h = window.__m.host;
+    const blob = h.querySelector( '.framify-organic__deco--extra' );
+    const img = h.querySelector( 'img' );
+    return { after: !! ( img.compareDocumentPosition( blob ) & Node.DOCUMENT_POSITION_FOLLOWING ), z: getComputedStyle( blob ).zIndex };
+  } ) );
+  ok( 'blob position: Image widget, Above puts the blob after the photo at z-index 1', imgAbove.after && '1' === imgAbove.z );
+  const imgBehind = await run( 'image', { framify_org_enable: 'yes', framify_org_deco: 'yes' }, ( page ) => q( page, () => {
+    const h = window.__m.host;
+    const blob = h.querySelector( '.framify-organic__deco--extra' );
+    return h.firstChild === blob && '0' === getComputedStyle( blob ).zIndex;
+  } ) );
+  ok( 'blob position: Image widget default keeps the blob first, at z-index 0', imgBehind );
+
   // Lifecycle: rebuild leaves one blob, teardown leaves nothing.
   const life = await run( 'container', { ...base, framify_org_mode: 'deco', framify_org_deco: 'yes', framify_org_shape: 'pebble' }, async ( page ) => {
     await page.evaluate( () => { window.__m.inst.rebuild(); } );

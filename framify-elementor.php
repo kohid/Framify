@@ -939,6 +939,18 @@ class Framify_Elementor {
             'description' => esc_html__( 'Draws an extra blob with the settings below, behind the content, in every mode. Off: nothing is drawn yet, but your settings are kept.', 'framify' ),
         ) ) );
 
+        $element->add_control( 'framify_org_deco_layer', $this->live( array(
+            'label'       => esc_html__( 'Blob position', 'framify' ),
+            'type'        => $cm::CHOOSE,
+            'default'     => 'behind',
+            'toggle'      => false,
+            'options'     => array(
+                'behind' => array( 'title' => esc_html__( 'Behind the shape', 'framify' ), 'icon' => 'eicon-arrow-down' ),
+                'above'  => array( 'title' => esc_html__( 'Above the shape', 'framify' ), 'icon' => 'eicon-arrow-up' ),
+            ),
+            'description' => esc_html__( 'Above the shape puts the blob over the shape or photo, still under the content.', 'framify' ),
+        ) ) );
+
         if ( $is_container ) {
             $element->add_control( 'framify_org_deco_note_shared', array(
                 'type'            => $cm::RAW_HTML,

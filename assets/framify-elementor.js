@@ -285,6 +285,12 @@
 		return side;
 	}
 
+	// Deco Blob layer: 'above' draws the extra blob over the shape (under the
+	// content); missing or anything else = behind, the original order.
+	function decoAbove( s ) {
+		return 'above' === s.framify_org_deco_layer;
+	}
+
 	// Grain defaults to on, but its default 'yes' is always present in the
 	// settings. Switched off it is '' in the editor and MISSING on published
 	// pages (Elementor drops empty values), so missing must mean off.
@@ -2354,13 +2360,15 @@
 
 			// Deco and grain layers sit at z-index -1 inside the container: make
 			// it a stacking context (and a positioning context if it's static).
-			holdLayer: function ( el, layer ) {
+			// after = a sibling to sit above in tree order (same z-index), for the
+			// Deco Blob's "Above the shape"; default = first child (behind).
+			holdLayer: function ( el, layer, after ) {
 				var madeRelative = 'static' === window.getComputedStyle( el ).position;
 				if ( madeRelative ) {
 					el.style.position = 'relative';
 				}
 				el.classList.add( 'framify-organic-container' );
-				el.insertBefore( layer, el.firstChild );
+				el.insertBefore( layer, after ? after.nextSibling : el.firstChild );
 				this.fx.cleanup.push( function () {
 					layer.remove();
 					el.classList.remove( 'framify-organic-container' );
@@ -2588,7 +2596,9 @@
 				if ( ! decoSvg ) {
 					return;
 				}
-				el.insertBefore( decoSvg, el.firstChild );
+				// Above the photo: last in the tree, so it paints over the img
+				// (both z-index 1); behind it: first child, z-index 0.
+				el.insertBefore( decoSvg, decoAbove( s ) ? null : el.firstChild );
 				fx.cleanup.push( function () {
 					decoSvg.remove();
 				} );
@@ -2626,6 +2636,9 @@
 					deco.twin.setAttribute( 'transform', st.inner );
 				}
 				deco.svg.classList.add( 'framify-organic__deco--extra' );
+				if ( decoAbove( s ) ) {
+					deco.svg.classList.add( 'framify-organic__deco--above' );
+				}
 
 				// "Same as image" (the default) keeps following the main channel.
 				var decoTrigger = s.framify_org_deco_trigger || 'same';
@@ -2672,7 +2685,7 @@
 					this.spill( el );
 				} else {
 					el.classList.add( 'framify-organic' );
-					el.insertBefore( svg, el.firstChild );
+					el.insertBefore( svg, decoAbove( s ) ? null : el.firstChild );
 					fx.cleanup.push( function () {
 						svg.remove();
 						el.classList.remove( 'framify-organic' );
@@ -2724,7 +2737,7 @@
 				if ( 'yes' === s.framify_org_deco ) {
 					var extra = this.ownDeco( el, id + '-deco', s, grainOn( s ) ? grainOptions( s, el ) : null, null );
 					if ( extra ) {
-						this.holdLayer( el, extra );
+						this.holdLayer( el, extra, decoAbove( s ) ? fill : null );
 					}
 				}
 				this.spill( el );
@@ -3026,11 +3039,12 @@
 				fx.deco = { svg: deco.svg, path: deco.path, prefix: '', defaults: MAIN_BOX, st: fx, anchor: null, channel: 'main', rotate: 0, aspect: 1 };
 				fx.parts.push( { pair: main, path: deco.path, channel: 'main' } );
 
-				// The extra Deco Blob goes behind it (holdLayer inserts first).
+				// The extra Deco Blob goes behind it (holdLayer inserts first),
+				// or right after it when set to Above the shape.
 				if ( 'yes' === s.framify_org_deco ) {
 					var extra = this.ownDeco( el, id + '-deco', s, grainOn( s ) ? grainOptions( s, el ) : null, null );
 					if ( extra ) {
-						this.holdLayer( el, extra );
+						this.holdLayer( el, extra, decoAbove( s ) ? deco.svg : null );
 						this.spill( el );
 					}
 				}

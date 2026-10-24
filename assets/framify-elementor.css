@@ -137,6 +137,12 @@
 	height: 100%;
 }
 
+/* Image widget, Deco Blob set to Above the shape: over the photo (z-index 1),
+   under the image grain layer (2, later in the tree). */
+.framify-organic > .framify-organic__deco--above {
+	z-index: 1;
+}
+
 /* Image widget grain: over the img (z-index 1), sized to its box and cut by
    its clip by the script; clicks and hovers pass through to the image. */
 .framify-organic > .framify-organic__image-grain {
