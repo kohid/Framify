@@ -2893,8 +2893,10 @@
 					// Shape animation (readAnim), which replaces Custom motion.
 					anim: readAnim( s ),
 					animTo: s.framify_org_anim_to,
-					// Keep flat edge fixed (default on; missing = off, so a page
-					// saved before the switch existed moves as it always did).
+					// Keep flat edge fixed. Default on, and Elementor hands the
+					// default to pages saved before the switch existed, so Gentle
+					// on a pasted shape with a flat edge now holds that edge too;
+					// switched off it is '' / missing.
 					pin: 'yes' === s.framify_org_edge_pin
 				};
 				st.edge = resolveEdge( st.family, st.edgeSetting, box, custom );
