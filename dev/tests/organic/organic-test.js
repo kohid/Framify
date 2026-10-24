@@ -279,6 +279,30 @@ CASES[ 'off' ] = [ 'container', { framify_org_enable: '', framify_org_mode: 'cli
     }, dens );
   } );
   ok( 'grain fade: Dispersion fading from the left is darker on the left quarter than the right (' + darkness[ 0 ] + ' vs ' + darkness[ 1 ] + ')', darkness[ 0 ] > 3 * Math.max( 1, darkness[ 1 ] ) );
+  ok( 'grain texture: names that only exist on Object (toString, constructor) fall back to speckle', JSON.stringify( ( await filterOf( { framify_org_grain_texture: 'toString' } ) ).prims ) === JSON.stringify( legacy.prims ) && JSON.stringify( ( await filterOf( { framify_org_grain_texture: 'constructor' } ) ).prims ) === JSON.stringify( legacy.prims ) );
+  // Image textures: an uploaded image (a left-half black square here) is the grain.
+  const INK = 'data:image/svg+xml,' + encodeURIComponent( '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 1" preserveAspectRatio="none"><rect width="1" height="1" fill="#000"/></svg>' );
+  const inkShot = await ( async () => {
+    const page = await browser2.newPage( { viewport: { width: 800, height: 600 } } );
+    await page.addInitScript( 'window.framifyOrganic = ' + config + '; window.framifyOrganic.grains = { lib_ink: ' + JSON.stringify( INK ) + ' };' );
+    await page.goto( 'file://' + path.join( __dirname, 'organic.html' ) );
+    await page.evaluate( () => { window.__m = window.mountOrganic( 'c1', 'container', { framify_org_enable: 'yes', framify_org_mode: 'clip', framify_org_shape: 'custom', framify_org_custom_svg: '<svg viewBox="0 0 100 100"><path d="M0 0H100V100H0Z"/></svg>', framify_org_clip_grain: 'yes', framify_org_grain_texture: 'lib_ink', framify_org_grain_color: '#ff0000', framify_org_grain_amount: { size: 100 } } ); Object.assign( window.__m.host.style, { width: '400px', height: '200px', background: '#fff', position: 'relative' } ); } );
+    await page.waitForTimeout( 400 );
+    const px = await page.evaluate( async ( b64 ) => {
+      const img = new Image();
+      img.src = 'data:image/png;base64,' + b64;
+      await img.decode();
+      const c = document.createElement( 'canvas' );
+      c.width = 800;
+      c.height = 600;
+      const x = c.getContext( '2d' );
+      x.drawImage( img, 0, 0 );
+      return [ ...x.getImageData( 100, 100, 1, 1 ).data ].concat( [ ...x.getImageData( 300, 100, 1, 1 ).data ] );
+    }, ( await page.screenshot() ).toString( 'base64' ) );
+    await page.close();
+    return px;
+  } )();
+  ok( 'image texture: the uploaded image is the grain, in the grain colour (red on the inked half ' + inkShot.slice( 0, 3 ) + ', white on the other ' + inkShot.slice( 4, 7 ) + ')', inkShot[ 0 ] > 200 && inkShot[ 1 ] < 150 && inkShot[ 2 ] < 150 && inkShot[ 4 ] > 240 && inkShot[ 5 ] > 240 && inkShot[ 6 ] > 240 );
   const unknown = await filterOf( { framify_org_grain_texture: 'nonsense' } );
   ok( 'grain texture: an unknown value falls back to speckle', JSON.stringify( unknown.prims ) === JSON.stringify( legacy.prims ) );
   const red = await filterOf( { framify_org_grain_color: '#ff0000' } );

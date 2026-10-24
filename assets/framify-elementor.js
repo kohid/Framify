@@ -2280,6 +2280,18 @@
 		}
 	};
 
+	// An uploaded image texture (assets/grain, uploads/framify-grain): the
+	// image stretched over the shape, its darkness (alpha minus luminance, so
+	// black ink on white or on transparent both work) the grain, painted in
+	// the grain colour. Amount sets the strength.
+	function imageTexture( url ) {
+		return function ( filter, f, grain, rgb ) {
+			filter.appendChild( svgEl( 'feImage', { href: url, preserveAspectRatio: 'none', result: 'ink' } ) );
+			var k = fq( 0.4 + 1.6 * grain.amount );
+			filter.appendChild( svgEl( 'feColorMatrix', { 'in': 'ink', type: 'matrix', values: '0 0 0 0 ' + rgb[ 0 ] + '  0 0 0 0 ' + rgb[ 1 ] + '  0 0 0 0 ' + rgb[ 2 ] + '  ' + fq( -0.2126 * k ) + ' ' + fq( -0.7152 * k ) + ' ' + fq( -0.0722 * k ) + ' ' + k + ' 0', result: 'specks' } ) );
+		};
+	}
+
 	// '#rgb', '#rrggbb', '#rrggbbaa' or 'rgb(a)(...)' to 0-1 channels;
 	// anything else (and a cleared colour) = white, the original grain.
 	function grainRgb( color ) {
@@ -2327,7 +2339,8 @@
 		var base = parseFloat( frequency || '0.45' );
 		var scale = grain.scale || 1;
 		var f = { n: base * scale, base: 1 === scale ? String( frequency || '0.45' ) : fq( base * scale ) };
-		var build = GRAIN_TEXTURES[ grain.texture ] || GRAIN_TEXTURES.speckle;
+		var own = Object.prototype.hasOwnProperty;
+		var build = own.call( GRAIN_TEXTURES, grain.texture ) ? GRAIN_TEXTURES[ grain.texture ] : CONFIG.grains && own.call( CONFIG.grains, grain.texture ) ? imageTexture( CONFIG.grains[ grain.texture ] ) : GRAIN_TEXTURES.speckle;
 		build( filter, f, { cut: grain.cut, seed: grain.seed, amount: undefined === grain.amount ? 0.5 : grain.amount }, grain.color || [ 1, 1, 1 ] );
 		var kept = 'specks';
 		if ( grain.fade ) {

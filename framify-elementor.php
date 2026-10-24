@@ -333,6 +333,55 @@ class Framify_Elementor {
     }
 
     /**
+     * Image grain textures: every png / jpg / webp / gif / svg in
+     * assets/grain (shipped with the plugin, wiped by an update) and in
+     * uploads/framify-grain (survives updates). id (lib_{name}) =>
+     * array( title, url ). Capped by size and count; only files in those two
+     * folders are ever used, never a URL from the settings.
+     */
+    public function library_grains() {
+        static $cache = null;
+        if ( null !== $cache ) {
+            return $cache;
+        }
+        $dirs = array( array( FRAMIFY_PLUGIN_DIR . 'assets/grain/', FRAMIFY_PLUGIN_URL . 'assets/grain/' ) );
+        $up   = function_exists( 'wp_upload_dir' ) ? wp_upload_dir() : array();
+        if ( ! empty( $up['basedir'] ) && ! empty( $up['baseurl'] ) ) {
+            $dirs[] = array( trailingslashit( $up['basedir'] ) . 'framify-grain/', trailingslashit( $up['baseurl'] ) . 'framify-grain/' );
+        }
+        $cache = array();
+        foreach ( $dirs as $dir ) {
+            $files = array();
+            foreach ( array( 'png', 'jpg', 'jpeg', 'webp', 'gif', 'svg' ) as $ext ) {
+                $files = array_merge( $files, glob( $dir[0] . '*.' . $ext ) ?: array() );
+            }
+            sort( $files );
+            foreach ( $files as $file ) {
+                $name = basename( $file );
+                $id   = 'lib_' . sanitize_key( pathinfo( $name, PATHINFO_FILENAME ) );
+                if ( 'lib_' === $id || isset( $cache[ $id ] ) || filesize( $file ) > 1500000 || count( $cache ) >= 60 ) {
+                    continue;
+                }
+                $cache[ $id ] = array(
+                    'title' => ucwords( str_replace( array( '-', '_' ), ' ', pathinfo( $name, PATHINFO_FILENAME ) ) ),
+                    'url'   => $dir[1] . rawurlencode( $name ),
+                );
+            }
+        }
+        return $cache;
+    }
+
+    /** Texture select options for the image textures. */
+    private function grain_library_options() {
+        $out = array();
+        foreach ( $this->library_grains() as $id => $grain ) {
+            /* translators: %s: the file's name */
+            $out[ $id ] = sprintf( esc_html__( 'Uploaded: %s', 'framify' ), $grain['title'] );
+        }
+        return $out;
+    }
+
+    /**
      * Built-in | Uploaded tab for a Shape picker (a CHOOSE styled as tabs by
      * the editor stylesheet), plus the button that opens the shape studio
      * (upload an SVG / draw freehand / manage saved shapes).
@@ -967,8 +1016,8 @@ class Framify_Elementor {
                 'strokes'  => esc_html__( 'Brush strokes', 'framify' ),
                 'splatter' => esc_html__( 'Grunge splatter', 'framify' ),
                 'scratches' => esc_html__( 'Scratches', 'framify' ),
-            ),
-            'description' => esc_html__( 'Distressed chalk is the worn, powdery print look.', 'framify' ),
+            ) + $this->grain_library_options(),
+            'description' => esc_html__( 'Distressed chalk is the worn, powdery print look. Add your own black-on-white or transparent images to assets/grain in the plugin folder (or uploads/framify-grain) and they show up here as Uploaded.', 'framify' ),
         ) ) );
 
         $element->add_control( 'framify_org_grain_fade', $this->live( array(
@@ -1418,6 +1467,7 @@ class Framify_Elementor {
                 'shapes'       => $this->shape_paths(),
                 'defaultShape' => self::DEFAULT_SHAPE,
                 'library'      => (object) $this->library_svgs(),
+                'grains'       => (object) wp_list_pluck( $this->library_grains(), 'url' ),
             ) ) . ';',
             'before'
         );

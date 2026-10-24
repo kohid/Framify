@@ -13,6 +13,7 @@ if ( 'cli' !== PHP_SAPI ) {
 
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'FRAMIFY_PLUGIN_DIR', dirname( __DIR__, 2 ) . '/' );
+define( 'FRAMIFY_PLUGIN_URL', 'https://example.test/wp-content/plugins/framify/' );
 $framify_actions = array();
 function add_action( $hook, $callback, $priority = 10 ) {
     $GLOBALS['framify_actions'][] = array( 'hook' => $hook, 'callback' => $callback, 'priority' => $priority );
@@ -1120,10 +1121,14 @@ foreach ( array( 'container' => $con_org, 'spacer' => $spa_org ?? null, 'image' 
     if ( ! $gc ) { continue; }
     $gt = $gc->controls['framify_org_grain_texture'] ?? array();
     check( "grain ($gk): Texture select defaults to speckle (saved pages keep their look) and offers the generated textures",
-        'speckle' === ( $gt['default'] ?? '' ) && array( 'speckle', 'chalk', 'brush', 'fibre', 'film', 'halftone', 'dispersion', 'strokes', 'splatter', 'scratches' ) === array_keys( $gt['options'] ?? array() ) );
+        'speckle' === ( $gt['default'] ?? '' ) && array( 'speckle', 'chalk', 'brush', 'fibre', 'film', 'halftone', 'dispersion', 'strokes', 'splatter', 'scratches' ) === array_slice( array_keys( $gt['options'] ?? array() ), 0, 10 ) );
     check( "grain ($gk): Grain colour defaults to white with no global colour", '#FFFFFF' === ( $gc->controls['framify_org_grain_color']['default'] ?? '' ) );
     check( "grain ($gk): Grain size slider 1-100 defaults to 50", 50 === ( $gc->controls['framify_org_grain_size']['default']['size'] ?? 0 ) && 100 === ( $gc->controls['framify_org_grain_size']['range']['px']['max'] ?? 0 ) );
 }
+$grains = $module->library_grains();
+check( 'image grain: the bundled sample is found (assets/grain/rough-ink.svg) with a title and url', isset( $grains['lib_rough-ink'] ) && 'Rough Ink' === $grains['lib_rough-ink']['title'] && false !== strpos( $grains['lib_rough-ink']['url'], 'rough-ink.svg' ) );
+check( 'image grain: Texture offers it as Uploaded', isset( $con_org->controls['framify_org_grain_texture']['options']['lib_rough-ink'] ) );
+check( 'image grain: only png / jpg / webp / gif / svg files in the two folders are listed (the README is not)', 0 === count( array_filter( array_keys( $grains ), function ( $k ) { return 'lib_readme' === $k; } ) ) );
 check( 'blob position: Deco Blob has a behind / above choice, default behind, no condition', 'behind' === ( $con_org->controls['framify_org_deco_layer']['default'] ?? '' ) && array( 'behind', 'above' ) === array_keys( $con_org->controls['framify_org_deco_layer']['options'] ?? array() ) && ! isset( $con_org->controls['framify_org_deco_layer']['condition'] ) );
 check( 'deco parity: the script maps exactly the settings the PHP registers twice (DECO_SETTINGS = the parity list)', $note_js === $dp_sorted );
 check( 'deco parity: the script exposes the Angle maths for tests', false !== strpos( $org_js, 'poseTransform: poseTransform,' ) && false !== strpos( $org_js, 'fitScale: fitScale,' ) && false !== strpos( $org_js, 'decoShapeSettings: decoShapeSettings,' ) );
