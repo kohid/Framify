@@ -434,31 +434,6 @@ class Framify_Elementor {
         $this->register_controls( $element, true, true );
     }
 
-    /**
-     * Spacer and Containers: when the shared deco look controls (style,
-     * colours, outline width, deco grain) show. One id can only be
-     * registered once, and these ids style the blob in both modes: Behind
-     * content (the deco IS the shape) and Clip with "Deco blob behind" on
-     * (the Image widget's extra blob). Elementor's plain `condition` is
-     * AND-only, so the OR lives in `conditions` (checked alongside
-     * `condition`, in the panel and in get_active_settings()).
-     */
-    private function block_deco_visible() {
-        return array(
-            'relation' => 'or',
-            'terms'    => array(
-                array( 'name' => 'framify_org_mode', 'operator' => '===', 'value' => 'deco' ),
-                array(
-                    'relation' => 'and',
-                    'terms'    => array(
-                        array( 'name' => 'framify_org_mode', 'operator' => '===', 'value' => 'clip' ),
-                        array( 'name' => 'framify_org_deco', 'operator' => '===', 'value' => 'yes' ),
-                    ),
-                ),
-            ),
-        );
-    }
-
     /** Shared control args: live in JS, no element re-render. */
     private function live( array $args ) {
         return $args + array( 'frontend_available' => true, 'render_type' => 'none' );
@@ -771,7 +746,7 @@ class Framify_Elementor {
         // Any angle, every shape. A true rotation about the shape's centre
         // that never stretches or skews, whatever the element's proportions.
         $element->add_control( $p . 'angle', $this->live( array(
-            'label'       => esc_html__( 'Angle (degrees)', 'framify' ),
+            'label'       => esc_html__( 'Angle (deg)', 'framify' ),
             'type'        => $cm::SLIDER,
             'size_units'  => array( 'deg' ),
             'range'       => array( 'deg' => array( 'min' => 0, 'max' => 360, 'step' => 1 ) ),
