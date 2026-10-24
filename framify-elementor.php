@@ -1006,18 +1006,18 @@ class Framify_Elementor {
             'type'        => $cm::SELECT,
             'default'     => 'speckle',
             'options'     => array(
-                'speckle'  => esc_html__( 'Speckle (classic)', 'framify' ),
-                'chalk'    => esc_html__( 'Distressed chalk', 'framify' ),
-                'brush'    => esc_html__( 'Dry brush', 'framify' ),
-                'fibre'    => esc_html__( 'Paper fibre', 'framify' ),
-                'film'     => esc_html__( 'Film grain', 'framify' ),
-                'halftone' => esc_html__( 'Halftone dots', 'framify' ),
+                'speckle'    => esc_html__( 'Speckle (classic)', 'framify' ),
+                'chalk'      => esc_html__( 'Distressed chalk', 'framify' ),
+                'brush'      => esc_html__( 'Dry brush', 'framify' ),
+                'fibre'      => esc_html__( 'Paper fibre', 'framify' ),
+                'film'       => esc_html__( 'Film grain', 'framify' ),
+                'halftone'   => esc_html__( 'Halftone dots', 'framify' ),
                 'dispersion' => esc_html__( 'Dispersion (stipple fade)', 'framify' ),
-                'strokes'  => esc_html__( 'Brush strokes', 'framify' ),
-                'splatter' => esc_html__( 'Grunge splatter', 'framify' ),
-                'scratches' => esc_html__( 'Scratches', 'framify' ),
+                'strokes'    => esc_html__( 'Brush strokes', 'framify' ),
+                'splatter'   => esc_html__( 'Grunge splatter', 'framify' ),
+                'scratches'  => esc_html__( 'Scratches', 'framify' ),
             ) + $this->grain_library_options(),
-            'description' => esc_html__( 'Distressed chalk is the worn, powdery print look. Add your own black-on-white or transparent images to assets/grain in the plugin folder (or uploads/framify-grain) and they show up here as Uploaded.', 'framify' ),
+            'description' => esc_html__( 'Distressed chalk is the worn, powdery print look. Images you add to the grain folder of the plugin show up here as Uploaded.', 'framify' ),
         ) ) );
 
         $element->add_control( 'framify_org_grain_fade', $this->live( array(
@@ -1041,7 +1041,13 @@ class Framify_Elementor {
             'size_units' => array( 'px' ),
             'range'      => array( 'px' => array( 'min' => 5, 'max' => 100, 'step' => 1 ) ),
             'default'    => array( 'unit' => 'px', 'size' => 70 ),
-            'condition'  => array( 'framify_org_grain_fade!' => 'none' ),
+            'conditions' => array(
+                'relation' => 'or',
+                'terms'    => array(
+                    array( 'name' => 'framify_org_grain_fade', 'operator' => '!==', 'value' => 'none' ),
+                    array( 'name' => 'framify_org_grain_texture', 'operator' => '===', 'value' => 'dispersion' ),
+                ),
+            ),
         ) ) );
 
         $element->add_control( 'framify_org_grain_color', $this->live( array(

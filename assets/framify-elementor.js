@@ -298,11 +298,6 @@
 		return 'yes' === s.framify_org_deco_grain;
 	}
 
-	// Grain amount and pattern from the Grain section. cut is the colour
-	// matrix's alpha offset: amount 50 = 0.78, the original look; 0 gives a
-	// few faint specks, 100 heavy chalk. Pattern 0 = a speckle of the
-	// element's own, seeded from its Elementor id so it stays the same
-	// across reloads.
 	// The side the grain stays dense on, or null for an even grain. Dispersion
 	// is a fade by nature: with none chosen it thins out from the left.
 	function grainFade( s ) {
@@ -313,6 +308,11 @@
 		return from;
 	}
 
+	// Grain amount and pattern from the Grain section. cut is the colour
+	// matrix's alpha offset: amount 50 = 0.78, the original look; 0 gives a
+	// few faint specks, 100 heavy chalk. Pattern 0 = a speckle of the
+	// element's own, seeded from its Elementor id so it stays the same
+	// across reloads.
 	function grainOptions( s, el ) {
 		var amount = Math.max( 0, Math.min( 100, number( s.framify_org_grain_amount, 50 ) ) );
 		var pattern = Math.round( number( s.framify_org_grain_pattern, 0 ) );
