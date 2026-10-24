@@ -13,6 +13,9 @@ function get_option( $name, $default = false ) { return $default; }
 function sanitize_text_field( $v ) { return trim( strip_tags( (string) $v ) ); }
 function esc_url_raw( $v ) { return preg_replace( '/[^a-z0-9\-~+_.?#=!&;,\/:%@$\|*\'()\[\]\x80-\xff]/i', '', (string) $v ); }
 function esc_url( $v ) { return esc_url_raw( $v ); }
+function home_url( $p = '' ) { return 'https://site.test/blog' . $p; }
+function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
+function wp_unslash( $v ) { return $v; }
 function esc_html( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES ); }
 
 require dirname( __DIR__, 2 ) . '/framify-loader.php';
@@ -54,10 +57,15 @@ check( 'rules: URL equal / not equal', Framify_Loader::matches( $t( array( array
 check( 'rules: URL starts with / ends by', Framify_Loader::matches( $t( array( array( 'type' => 'begins-with', 'value' => 'https://site.test/shop' ) ) ), $url, false ) && ! Framify_Loader::matches( $t( array( array( 'type' => 'begins-with', 'value' => '/shop' ) ) ), $url, false ) && Framify_Loader::matches( $t( array( array( 'type' => 'ends-by', 'value' => 'x=1' ) ) ), $url, false ) && ! Framify_Loader::matches( $t( array( array( 'type' => 'ends-by', 'value' => 'x=2' ) ) ), $url, false ) );
 check( 'rules: any one matching rule is enough', Framify_Loader::matches( $t( array( array( 'type' => 'contains', 'value' => '/blog/' ), array( 'type' => 'ends-by', 'value' => 'x=1' ) ) ), $url, false ) );
 
+$_SERVER['REQUEST_URI'] = '/blog/about/?x=1';
+check( 'current URL: the install folder is not doubled', 'https://site.test/blog/about/?x=1' === Framify_Loader::current_url() );
+$_SERVER['REQUEST_URI'] = '/other/';
+check( 'current URL: a path outside the folder is appended to the home URL', 'https://site.test/blog/other/' === Framify_Loader::current_url() );
+
 // Output.
 $s   = Framify_Loader::sanitize( array( 'enabled' => 1, 'bg_color' => '#102030', 'bg_image' => 'https://x.test/a.jpg', 'spinner' => 'dots', 'spinner_color' => '#ff0000', 'spinner_size' => 64, 'fade' => 700, 'max_seconds' => 20, 'text' => 'Loading & wait' ) );
 $css = Framify_Loader::css( $s );
-check( 'css: covers the screen above everything, hidden until the script switches it on', false !== strpos( $css, '#framify-loader{position:fixed;inset:0;z-index:2147483647;display:none;}' ) && false !== strpos( $css, 'html.framify-loading #framify-loader' ) );
+check( 'css: covers the screen above everything, hidden until the script switches it on', false !== strpos( $css, '#framify-loader{position:fixed;inset:0;z-index:2147483647;display:none;}' ) && false !== strpos( $css, 'html.framify-loading #framify-loader' ) && false !== strpos( $css, 'html.framify-loading:has(#framify-loader)' ) );
 check( 'css: the colours, image, size and fade are in', false !== strpos( $css, 'background-color:#102030' ) && false !== strpos( $css, 'url("https://x.test/a.jpg")' ) && false !== strpos( $css, '--fl-c:#ff0000' ) && false !== strpos( $css, '--fl-s:64px' ) && false !== strpos( $css, 'opacity ' . 700 . 'ms' ) );
 $evil = Framify_Loader::css( array_merge( $s, array( 'bg_image' => 'https://x.test/a"</style><script>alert(1)</script>.jpg' ) ) );
 check( 'css: an image URL cannot close the style tag or the url()', false === strpos( $evil, '</style>' ) && false === strpos( $evil, '<script' ) );

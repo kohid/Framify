@@ -46,6 +46,8 @@ class Framify_Loader {
     public static function init() {
         add_action('wp_head', array(__CLASS__, 'output_head'), 1);
         add_action('wp_body_open', array(__CLASS__, 'output_cover'), 0);
+        // A theme that never calls wp_body_open() still gets the cover, at the end of the page.
+        add_action('wp_footer', array(__CLASS__, 'output_cover'), 0);
         add_action('elementor/frontend/before_render', array(__CLASS__, 'mark_element'));
     }
 
@@ -179,6 +181,20 @@ class Framify_Loader {
         return false;
     }
 
+    /**
+     * The full URL of this request, built on the home URL without doubling
+     * the install folder (REQUEST_URI already starts with it).
+     */
+    public static function current_url() {
+        $uri  = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '/';
+        $home = home_url('/');
+        $base = (string) wp_parse_url($home, PHP_URL_PATH);
+        if ('' !== $base && '/' !== $base && 0 === strpos($uri, $base)) {
+            $uri = substr($uri, strlen($base));
+        }
+        return $home . ltrim($uri, '/');
+    }
+
     /** Is the loader shown on this request? Cached for the request. */
     public static function active() {
         if (null !== self::$active) {
@@ -199,8 +215,7 @@ class Framify_Loader {
                 return false;
             }
         }
-        $uri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '';
-        if (!self::matches($s, home_url($uri), is_front_page())) {
+        if (!self::matches($s, self::current_url(), is_front_page())) {
             return false;
         }
         self::$active = (bool) apply_filters('framify_loader_active', true, $s);
@@ -225,7 +240,7 @@ class Framify_Loader {
         if ($preview) {
             $css .= $root . '{position:relative;overflow:hidden;display:flex;}';
         } else {
-            $css .= 'html.framify-loading,html.framify-loading body{overflow:hidden!important;}';
+            $css .= 'html.framify-loading:has(' . $root . '),html.framify-loading:has(' . $root . ') body{overflow:hidden!important;}';
             $css .= $root . '{position:fixed;inset:0;z-index:2147483647;display:none;}';
             $css .= 'html.framify-loading ' . $root . ',html.framify-loaded ' . $root . '{display:flex;}';
             $css .= 'html.framify-loaded ' . $root . '{opacity:0;pointer-events:none;transition:opacity ' . (int) $s['fade'] . 'ms ease;}';
@@ -298,9 +313,11 @@ class Framify_Loader {
     }
 
     public static function output_cover() {
-        if (!self::active()) {
+        static $printed = false;
+        if ($printed || !self::active()) {
             return;
         }
+        $printed = true;
         echo '<div id="framify-loader" role="status" aria-live="polite" aria-label="Loading">' . self::inner(self::settings()) . '</div>' . "\n";
     }
 
