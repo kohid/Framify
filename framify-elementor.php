@@ -365,9 +365,10 @@ class Framify_Elementor {
      * Condition for controls that apply to Custom-like shapes (and Wavy /
      * Flow): the picked built-in is in $ids, OR the Uploaded tab is active
      * (an uploaded shape runs through the Custom pipeline). $on is the plain
-     * condition map; $extra_terms are more AND terms.
+     * condition map; $extra_terms are more AND terms; $p is the id prefix of
+     * the layer (framify_org_ for the shape, framify_org_deco_ for the blob).
      */
-    private function shape_condition( array $on, array $ids, array $extra_terms = array() ) {
+    private function shape_condition( array $on, array $ids, array $extra_terms = array(), $p = 'framify_org_' ) {
         $terms = array();
         foreach ( $on as $name => $value ) {
             $terms[] = array( 'name' => $name, 'operator' => '===', 'value' => $value );
@@ -378,8 +379,8 @@ class Framify_Elementor {
         $terms[] = array(
             'relation' => 'or',
             'terms'    => array(
-                array( 'name' => 'framify_org_shape_source', 'operator' => '===', 'value' => 'library' ),
-                array( 'name' => 'framify_org_shape', 'operator' => 'in', 'value' => $ids ),
+                array( 'name' => $p . 'shape_source', 'operator' => '===', 'value' => 'library' ),
+                array( 'name' => $p . 'shape', 'operator' => 'in', 'value' => $ids ),
             ),
         );
         return array( 'conditions' => array( 'relation' => 'and', 'terms' => $terms ) );
@@ -533,93 +534,11 @@ class Framify_Elementor {
             ) );
         }
 
-        $has_lib   = true;
-        $shape_on  = $on;
-        if ( $has_lib ) {
-            $this->register_shape_tabs( $element, 'framify_org_shape', esc_html__( 'Shape', 'framify' ), $on );
-            $shape_on = $on + array( 'framify_org_shape_source!' => 'library' );
-        }
-        $element->add_control( 'framify_org_shape', $this->live( array(
-            'label'       => $has_lib ? esc_html__( 'Built-in shapes', 'framify' ) : esc_html__( 'Shape', 'framify' ),
-            'type'        => $cm::VISUAL_CHOICE,
-            'label_block' => true,
-            'columns'     => 4,
-            'options'     => $this->shape_options( true ),
+        $this->register_shape_group( $element, 'framify_org_', $on, array(
+            'tabs_label'  => esc_html__( 'Shape', 'framify' ),
             'default'     => self::DEFAULT_SHAPE,
-            'condition'   => $shape_on,
-        ) ) );
-        if ( $has_lib ) {
-            $lib_ids = array_keys( $this->library_shapes() );
-            $element->add_control( 'framify_org_shape_lib', $this->live( array(
-                'label'       => esc_html__( 'Uploaded shapes', 'framify' ),
-                'type'        => $cm::VISUAL_CHOICE,
-                'label_block' => true,
-                'columns'     => 4,
-                'options'     => $this->library_options(),
-                'default'     => $lib_ids ? $lib_ids[0] : '',
-                'description' => esc_html__( 'Shapes in the plugin folder assets/shapes. Add an .svg there and it shows up here on every site the plugin is installed on.', 'framify' ),
-                'condition'   => $on + array( 'framify_org_shape_source' => 'library' ),
-            ) ) );
-        }
-
-        $element->add_control( 'framify_org_edge', $this->live( array(
-            'label'       => esc_html__( 'Flat edge', 'framify' ),
-            'type'        => $cm::SELECT,
-            'default'     => 'auto',
-            'options'     => array(
-                'auto'   => esc_html__( 'Auto (follows position)', 'framify' ),
-                'none'   => esc_html__( 'None', 'framify' ),
-                'left'   => esc_html__( 'Left', 'framify' ),
-                'right'  => esc_html__( 'Right', 'framify' ),
-                'top'    => esc_html__( 'Top', 'framify' ),
-                'bottom' => esc_html__( 'Bottom', 'framify' ),
-            ),
-            'description' => esc_html__( 'The straight side of a Wavy or Flow shape, flush with the element edge so it can run off the page. Flow shapes always keep one straight side. For Custom, Framify detects which side of your SVG is straight: Auto and None keep your SVG as pasted; Left/Right/Top/Bottom turn its straight side there (a paste with no straight side ignores this setting).', 'framify' ),
-        ) + $this->shape_condition( $on, array_merge( $this->wavy_ids(), $this->flow_ids(), array( 'custom' ) ) ) ) );
-
-        // Applied last inside the shape box (after the Flat edge turn), so
-        // they mirror whatever the shape and edge settings produced.
-        $element->add_control( 'framify_org_flip_h', $this->live( array(
-            'label'     => esc_html__( 'Flip horizontal', 'framify' ),
-            'type'      => $cm::SWITCHER,
-            'label_on'  => esc_html__( 'Yes', 'framify' ),
-            'label_off' => esc_html__( 'No', 'framify' ),
-            'default'   => '',
-            'condition' => $on,
-        ) ) );
-
-        $element->add_control( 'framify_org_flip_v', $this->live( array(
-            'label'     => esc_html__( 'Flip vertical', 'framify' ),
-            'type'      => $cm::SWITCHER,
-            'label_on'  => esc_html__( 'Yes', 'framify' ),
-            'label_off' => esc_html__( 'No', 'framify' ),
-            'default'   => '',
-            'condition' => $on,
-        ) ) );
-
-        $element->add_control( 'framify_org_custom_rotate', $this->live( array(
-            'label'     => esc_html__( 'Rotate', 'framify' ),
-            'type'      => $cm::SELECT,
-            'default'   => '0',
-            'options'   => array(
-                '0'   => esc_html__( '0 deg', 'framify' ),
-                '90'  => esc_html__( '90 deg', 'framify' ),
-                '180' => esc_html__( '180 deg', 'framify' ),
-                '270' => esc_html__( '270 deg', 'framify' ),
-            ),
-        ) + $this->shape_condition( $on, array( 'custom' ) ) ) );
-
-        // Parsed in the browser: only validated path data is used, and only
-        // ever through setAttribute('d'), so pasted markup can't inject.
-        $element->add_control( 'framify_org_custom_svg', $this->live( array(
-            'label'       => esc_html__( 'SVG code or path', 'framify' ),
-            'type'        => $cm::TEXTAREA,
-            'rows'        => 6,
-            'placeholder' => '<svg viewBox="0 0 1200 800"><path d="..."/></svg>',
-            'description' => esc_html__( 'Paste an SVG from any design tool, or just its path data. Every path in it is merged into one shape (including any inside defs or masks); transforms inside the SVG are ignored.', 'framify' ),
-            'ai'          => array( 'active' => false ),
-            'condition'   => $on + array( 'framify_org_shape' => 'custom' ) + ( $has_lib ? array( 'framify_org_shape_source!' => 'library' ) : array() ),
-        ) ) );
+            'lib_note'    => esc_html__( 'Shapes in the plugin folder assets/shapes. Add an .svg there and it shows up here on every site the plugin is installed on.', 'framify' ),
+        ) );
 
         $element->add_control( 'framify_org_placement_heading', array(
             'label'     => esc_html__( 'Placement', 'framify' ),
@@ -675,57 +594,7 @@ class Framify_Elementor {
 
         // Custom shapes only move when a real trigger is chosen (Auto keeps
         // them static), so these only appear then.
-        $custom_moving = $this->shape_condition(
-            $on,
-            array( 'custom' ),
-            array( array( 'name' => 'framify_org_trigger', 'operator' => '!in', 'value' => array( 'auto', 'none' ) ) )
-        );
-
-        $element->add_control( 'framify_org_custom_motion', $this->live( array(
-            'label'       => esc_html__( 'Custom motion', 'framify' ),
-            'type'        => $cm::SELECT,
-            'default'     => 'liquid',
-            'options'     => array(
-                'liquid' => esc_html__( 'Liquid (traced, rippling edge)', 'framify' ),
-                'gentle' => esc_html__( 'Gentle (exact shape, tilt and swell)', 'framify' ),
-                'dots'   => esc_html__( 'Dots (particle patterns: breathe, twinkle, wave, drift)', 'framify' ),
-            ),
-            'description' => esc_html__( 'Liquid traces your shape and ripples its edge, softening sharp corners. Gentle keeps it exact and moves it as a whole; use it for logos and icons. Dots animates each circle of a pattern made in the Shape studio Generate tab and lets you pick its style. Liquid switches to Dots (Breathe) on a Dispersion pattern or a dot pattern with more than 24 dots.', 'framify' ),
-        ) + $custom_moving ) );
-
-        // Only offered with Dots chosen explicitly. Elementor leaves hidden
-        // controls out of a published page, so when Liquid hands a big dot
-        // pattern to Dots the style is always Breathe (the script ignores
-        // this value unless Dots was chosen, so the editor shows the same).
-        $element->add_control( 'framify_org_dot_style', $this->live( array(
-            'label'   => esc_html__( 'Dots style', 'framify' ),
-            'type'    => $cm::SELECT,
-            'default' => 'breathe',
-            'options' => array(
-                'breathe' => esc_html__( 'Breathe (all dots swell together)', 'framify' ),
-                'twinkle' => esc_html__( 'Twinkle (each dot its own size)', 'framify' ),
-                'wave'    => esc_html__( 'Wave (a sweep across the pattern)', 'framify' ),
-                'drift'   => esc_html__( 'Drift (particles move away from the mass)', 'framify' ),
-            ),
-        ) + $this->shape_condition(
-            $on,
-            array( 'custom' ),
-            array(
-                array( 'name' => 'framify_org_trigger', 'operator' => '!in', 'value' => array( 'auto', 'none' ) ),
-                array( 'name' => 'framify_org_custom_motion', 'operator' => '===', 'value' => 'dots' ),
-            )
-        ) ) );
-
-        $element->add_control( 'framify_org_custom_amount', $this->live( array(
-            'label'     => esc_html__( 'Motion amount', 'framify' ),
-            'type'      => $cm::SELECT,
-            'default'   => 'normal',
-            'options'   => array(
-                'subtle' => esc_html__( 'Subtle', 'framify' ),
-                'normal' => esc_html__( 'Normal', 'framify' ),
-                'strong' => esc_html__( 'Strong', 'framify' ),
-            ),
-        ) + $custom_moving ) );
+        $this->register_custom_motion_group( $element, 'framify_org_', $on, array( 'name' => 'framify_org_trigger', 'operator' => '!in', 'value' => array( 'auto', 'none' ) ) );
 
         if ( ! $is_container ) {
             $element->add_control( 'framify_org_zoom', $this->live( array(
@@ -738,6 +607,63 @@ class Framify_Elementor {
             ) ) );
         }
 
+        if ( $is_container ) {
+            // Behind content mode: the shape IS a blob, dressed by the Deco
+            // Blob section's look controls. With the Deco Blob switched on
+            // that look styles the extra blob instead, so the shape can
+            // either keep sharing it (the default: nothing changes) or get
+            // its own.
+            $shape_look = $on + array( 'framify_org_mode' => 'deco', 'framify_org_deco' => 'yes' );
+            $own_look   = $shape_look + array( 'framify_org_look' => 'own' );
+            $element->add_control( 'framify_org_look_heading', array(
+                'label'     => esc_html__( 'Shape look', 'framify' ),
+                'type'      => $cm::HEADING,
+                'separator' => 'before',
+                'condition' => $shape_look,
+            ) );
+            $element->add_control( 'framify_org_look', $this->live( array(
+                'label'       => esc_html__( 'Shape look', 'framify' ),
+                'type'        => $cm::SELECT,
+                'default'     => 'deco',
+                'options'     => array(
+                    'deco' => esc_html__( 'Same as Deco Blob', 'framify' ),
+                    'own'  => esc_html__( 'Own', 'framify' ),
+                ),
+                'description' => esc_html__( 'The Deco Blob below is an extra blob. Same as Deco Blob gives the shape its look; Own lets the shape have a different one.', 'framify' ),
+                'condition'   => $shape_look,
+            ) ) );
+            $element->add_control( 'framify_org_look_style', $this->live( array(
+                'label'     => esc_html__( 'Style', 'framify' ),
+                'type'      => $cm::SELECT,
+                'default'   => 'solid',
+                'options'   => array(
+                    'solid'   => esc_html__( 'Solid', 'framify' ),
+                    'outline' => esc_html__( 'Outline', 'framify' ),
+                ),
+                'condition' => $own_look,
+            ) ) );
+            $element->add_control( 'framify_org_look_outline_color', $this->live( array(
+                'label'     => esc_html__( 'Outline color', 'framify' ),
+                'type'      => $cm::COLOR,
+                'default'   => '#1E1E1E',
+                'condition' => $own_look + array( 'framify_org_look_style' => 'outline' ),
+            ) ) );
+            $element->add_control( 'framify_org_look_outline_width', $this->live( array(
+                'label'      => esc_html__( 'Outline width (px)', 'framify' ),
+                'type'       => $cm::SLIDER,
+                'size_units' => array( 'px' ),
+                'range'      => array( 'px' => array( 'min' => 1, 'max' => 10, 'step' => 0.5 ) ),
+                'default'    => array( 'unit' => 'px', 'size' => 2 ),
+                'condition'  => $own_look + array( 'framify_org_look_style' => 'outline' ),
+            ) ) );
+            $element->add_control( 'framify_org_look_color', $this->live( array(
+                'label'     => esc_html__( 'Color', 'framify' ),
+                'type'      => $cm::COLOR,
+                'default'   => '#F2C53D',
+                'condition' => $own_look + array( 'framify_org_look_style!' => 'outline' ),
+            ) ) );
+        }
+
         $element->end_controls_section();
 
         // Image widget: an extra blob with its own shape, placement and
@@ -745,14 +671,195 @@ class Framify_Elementor {
         // plus the look of the shape itself in Behind content mode (where
         // the deco IS the shape), in one section (see register_deco_controls).
         $element->start_controls_section( 'framify_deco_section', array(
-            'label'     => esc_html__( 'Deco Blob', 'framify' ),
-            'tab'       => self::TAB,
-            'condition' => $on,
+            'label' => esc_html__( 'Deco Blob', 'framify' ),
+            'tab'   => self::TAB,
         ) );
-        $this->register_deco_controls( $element, $is_container ? 'block' : 'image', $on );
+        $this->register_deco_controls( $element, $is_container );
         $element->end_controls_section();
 
         $this->register_grain_controls( $element, $is_container, $is_spacer );
+    }
+
+    /**
+     * The shape controls of one layer, ids {$p}shape_source, _studio, shape,
+     * shape_lib, edge, flip_h, flip_v, custom_rotate, custom_svg. $p is
+     * framify_org_ for the Organic Shape and framify_org_deco_ for the Deco
+     * Blob, so the two sections cannot drift apart. $on is the plain
+     * condition map every control carries (empty for the Deco Blob, whose
+     * controls are always visible).
+     */
+    private function register_shape_group( $element, $p, array $on, array $o ) {
+        $cm   = 'Elementor\Controls_Manager';
+        $cond = function ( array $terms ) {
+            return $terms ? array( 'condition' => $terms ) : array();
+        };
+
+        $this->register_shape_tabs( $element, $p . 'shape', $o['tabs_label'], $on );
+        $shape_on = $on + array( $p . 'shape_source!' => 'library' );
+        $element->add_control( $p . 'shape', $this->live( array(
+            'label'       => esc_html__( 'Built-in shapes', 'framify' ),
+            'type'        => $cm::VISUAL_CHOICE,
+            'label_block' => true,
+            'columns'     => 4,
+            'options'     => $this->shape_options( true ),
+            'default'     => $o['default'],
+        ) + $cond( $shape_on ) ) );
+
+        $lib_ids = array_keys( $this->library_shapes() );
+        $lib     = array(
+            'label'       => esc_html__( 'Uploaded shapes', 'framify' ),
+            'type'        => $cm::VISUAL_CHOICE,
+            'label_block' => true,
+            'columns'     => 4,
+            'options'     => $this->library_options(),
+            'default'     => $lib_ids ? $lib_ids[0] : '',
+        );
+        if ( ! empty( $o['lib_note'] ) ) {
+            $lib['description'] = $o['lib_note'];
+        }
+        $element->add_control( $p . 'shape_lib', $this->live( $lib + $cond( $on + array( $p . 'shape_source' => 'library' ) ) ) );
+
+        $element->add_control( $p . 'edge', $this->live( array(
+            'label'       => esc_html__( 'Flat edge', 'framify' ),
+            'type'        => $cm::SELECT,
+            'default'     => 'auto',
+            'options'     => array(
+                'auto'   => esc_html__( 'Auto (follows position)', 'framify' ),
+                'none'   => esc_html__( 'None', 'framify' ),
+                'left'   => esc_html__( 'Left', 'framify' ),
+                'right'  => esc_html__( 'Right', 'framify' ),
+                'top'    => esc_html__( 'Top', 'framify' ),
+                'bottom' => esc_html__( 'Bottom', 'framify' ),
+            ),
+            'description' => esc_html__( 'The straight side of a Wavy or Flow shape, flush with the element edge so it can run off the page. Flow shapes always keep one straight side. For Custom, Framify detects which side of your SVG is straight: Auto and None keep your SVG as pasted; Left/Right/Top/Bottom turn its straight side there (a paste with no straight side ignores this setting).', 'framify' ),
+        ) + $this->shape_condition( $on, array_merge( $this->wavy_ids(), $this->flow_ids(), array( 'custom' ) ), array(), $p ) ) );
+
+        // Applied last inside the shape box (after the Flat edge turn), so
+        // they mirror whatever the shape and edge settings produced.
+        $element->add_control( $p . 'flip_h', $this->live( array(
+            'label'     => esc_html__( 'Flip horizontal', 'framify' ),
+            'type'      => $cm::SWITCHER,
+            'label_on'  => esc_html__( 'Yes', 'framify' ),
+            'label_off' => esc_html__( 'No', 'framify' ),
+            'default'   => '',
+        ) + $cond( $on ) ) );
+
+        $element->add_control( $p . 'flip_v', $this->live( array(
+            'label'     => esc_html__( 'Flip vertical', 'framify' ),
+            'type'      => $cm::SWITCHER,
+            'label_on'  => esc_html__( 'Yes', 'framify' ),
+            'label_off' => esc_html__( 'No', 'framify' ),
+            'default'   => '',
+        ) + $cond( $on ) ) );
+
+        // The original Rotate: it turns the artwork inside its box in 90
+        // degree steps, so it always fills the box (Custom and uploaded
+        // shapes). Kept as it was so saved values mean what they did.
+        $element->add_control( $p . 'custom_rotate', $this->live( array(
+            'label'       => esc_html__( 'Quarter turn (fits the box)', 'framify' ),
+            'type'        => $cm::SELECT,
+            'default'     => '0',
+            'options'     => array(
+                '0'   => esc_html__( '0 deg', 'framify' ),
+                '90'  => esc_html__( '90 deg', 'framify' ),
+                '180' => esc_html__( '180 deg', 'framify' ),
+                '270' => esc_html__( '270 deg', 'framify' ),
+            ),
+            'description' => esc_html__( 'Turns a Custom or uploaded shape inside its box in 90 degree steps, always filling the box. For any other angle, and for blobs, Wavy and Flow shapes, use Angle.', 'framify' ),
+        ) + $this->shape_condition( $on, array( 'custom' ), array(), $p ) ) );
+
+        // Any angle, every shape. A true rotation about the shape's centre
+        // that never stretches or skews, whatever the element's proportions.
+        $element->add_control( $p . 'angle', $this->live( array(
+            'label'       => esc_html__( 'Angle (degrees)', 'framify' ),
+            'type'        => $cm::SLIDER,
+            'size_units'  => array( 'deg' ),
+            'range'       => array( 'deg' => array( 'min' => 0, 'max' => 360, 'step' => 1 ) ),
+            'default'     => array( 'unit' => 'deg', 'size' => 0 ),
+            'description' => esc_html__( 'Turns the whole shape around its centre, for any shape. With a flat edge the straight side turns with the shape, so it no longer sits flush with the element edge. A turned shape can reach past the element and be cropped: lower Width / Height in Placement, or switch on Keep inside the box.', 'framify' ),
+        ) + $cond( $on ) ) );
+
+        $element->add_control( $p . 'angle_fit', $this->live( array(
+            'label'       => esc_html__( 'Keep inside the box', 'framify' ),
+            'type'        => $cm::SWITCHER,
+            'label_on'    => esc_html__( 'Yes', 'framify' ),
+            'label_off'   => esc_html__( 'No', 'framify' ),
+            'default'     => '',
+            'description' => esc_html__( 'Shrinks a turned shape just enough that no part of it leaves its box.', 'framify' ),
+        ) + $cond( $on ) ) );
+
+        // Parsed in the browser: only validated path data is used, and only
+        // ever through setAttribute('d'), so pasted markup can't inject.
+        $element->add_control( $p . 'custom_svg', $this->live( array(
+            'label'       => esc_html__( 'SVG code or path', 'framify' ),
+            'type'        => $cm::TEXTAREA,
+            'rows'        => 6,
+            'placeholder' => '<svg viewBox="0 0 1200 800"><path d="..."/></svg>',
+            'description' => esc_html__( 'Paste an SVG from any design tool, or just its path data. Every path in it is merged into one shape (including any inside defs or masks); transforms inside the SVG are ignored.', 'framify' ),
+            'ai'          => array( 'active' => false ),
+            'condition'   => $on + array( $p . 'shape' => 'custom', $p . 'shape_source!' => 'library' ),
+        ) ) );
+    }
+
+    /**
+     * Custom motion, Dots style and Motion amount of one layer (ids
+     * {$p}custom_motion, {$p}dot_style, {$p}custom_amount). They only show
+     * for Custom-like shapes with a trigger that moves; $moving is that
+     * trigger term (a plain term or an OR group). The Deco Blob gets an
+     * extra first option, Static, and defaults to it, so a saved uploaded
+     * blob that never moved stays still when its trigger is Same as shape.
+     */
+    private function register_custom_motion_group( $element, $p, array $on, array $moving, $deco = false ) {
+        $cm            = 'Elementor\Controls_Manager';
+        $custom_moving = $this->shape_condition( $on, array( 'custom' ), array( $moving ), $p );
+        $options       = array(
+            'liquid' => esc_html__( 'Liquid (traced, rippling edge)', 'framify' ),
+            'gentle' => esc_html__( 'Gentle (exact shape, tilt and swell)', 'framify' ),
+            'dots'   => esc_html__( 'Dots (particle patterns: breathe, twinkle, wave, drift)', 'framify' ),
+        );
+        if ( $deco ) {
+            $options = array( 'static' => esc_html__( 'Static (no custom motion)', 'framify' ) ) + $options;
+        }
+
+        $element->add_control( $p . 'custom_motion', $this->live( array(
+            'label'       => esc_html__( 'Custom motion', 'framify' ),
+            'type'        => $cm::SELECT,
+            'default'     => $deco ? 'static' : 'liquid',
+            'options'     => $options,
+            'description' => esc_html__( 'Liquid traces your shape and ripples its edge, softening sharp corners. Gentle keeps it exact and moves it as a whole; use it for logos and icons. Dots animates each circle of a pattern made in the Shape studio Generate tab and lets you pick its style. Liquid switches to Dots (Breathe) on a Dispersion pattern or a dot pattern with more than 24 dots.', 'framify' ),
+        ) + $custom_moving ) );
+
+        // Only offered with Dots chosen explicitly. Elementor leaves hidden
+        // controls out of a published page, so when Liquid hands a big dot
+        // pattern to Dots the style is always Breathe (the script ignores
+        // this value unless Dots was chosen, so the editor shows the same).
+        $element->add_control( $p . 'dot_style', $this->live( array(
+            'label'   => esc_html__( 'Dots style', 'framify' ),
+            'type'    => $cm::SELECT,
+            'default' => 'breathe',
+            'options' => array(
+                'breathe' => esc_html__( 'Breathe (all dots swell together)', 'framify' ),
+                'twinkle' => esc_html__( 'Twinkle (each dot its own size)', 'framify' ),
+                'wave'    => esc_html__( 'Wave (a sweep across the pattern)', 'framify' ),
+                'drift'   => esc_html__( 'Drift (particles move away from the mass)', 'framify' ),
+            ),
+        ) + $this->shape_condition(
+            $on,
+            array( 'custom' ),
+            array( $moving, array( 'name' => $p . 'custom_motion', 'operator' => '===', 'value' => 'dots' ) ),
+            $p
+        ) ) );
+
+        $element->add_control( $p . 'custom_amount', $this->live( array(
+            'label'     => esc_html__( 'Motion amount', 'framify' ),
+            'type'      => $cm::SELECT,
+            'default'   => 'normal',
+            'options'   => array(
+                'subtle' => esc_html__( 'Subtle', 'framify' ),
+                'normal' => esc_html__( 'Normal', 'framify' ),
+                'strong' => esc_html__( 'Strong', 'framify' ),
+            ),
+        ) + $custom_moving ) );
     }
 
     /**
@@ -766,10 +873,19 @@ class Framify_Elementor {
         $cm = 'Elementor\Controls_Manager';
         $on = array( 'framify_org_enable' => 'yes' );
 
+        // Grain texture applies to whatever is drawn, so it shows when the
+        // Organic Shape or the Deco Blob is on (the blob can be used alone).
+        $any_on = array(
+            'relation' => 'or',
+            'terms'    => array(
+                array( 'name' => 'framify_org_enable', 'operator' => '===', 'value' => 'yes' ),
+                array( 'name' => 'framify_org_deco', 'operator' => '===', 'value' => 'yes' ),
+            ),
+        );
         $element->start_controls_section( 'framify_grain_section', array(
-            'label'     => esc_html__( 'Grain', 'framify' ),
-            'tab'       => self::TAB,
-            'condition' => $on,
+            'label'      => esc_html__( 'Grain', 'framify' ),
+            'tab'        => self::TAB,
+            'conditions' => $any_on,
         ) );
 
         if ( ! $is_container ) {
@@ -787,18 +903,10 @@ class Framify_Elementor {
                 ),
             ) ) );
         } else {
-            // Spacer and Containers: two switches (ids and defaults unchanged,
-            // so saved values carry over) rather than the Image widget's
-            // target select. The deco switch covers both the Behind content
-            // shape and Clip mode's extra blob; grain on a thin outline is
-            // invisible, so it is only offered for Solid.
-            $element->add_control( 'framify_org_deco_grain', $this->live( array(
-                'label'      => esc_html__( 'Grain on deco blob', 'framify' ),
-                'type'       => $cm::SWITCHER,
-                'default'    => 'yes',
-                'condition'  => $on + array( 'framify_org_deco_style!' => 'outline' ),
-                'conditions' => $this->block_deco_visible(),
-            ) ) );
+            // Spacer and Containers: the blob's grain switch lives in the
+            // Deco Blob section; here the clip fill's, rather than the Image
+            // widget's target select. Ids and defaults are unchanged, so
+            // saved values carry over.
             // Off by default: speckle over a container's background photo is
             // rarely wanted.
             $element->add_control( 'framify_org_clip_grain', $this->live( array(
@@ -817,7 +925,6 @@ class Framify_Elementor {
             'range'       => array( 'px' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
             'default'     => array( 'unit' => 'px', 'size' => 50 ),
             'description' => esc_html__( 'Applies wherever grain is on.', 'framify' ),
-            'condition'   => $on,
         ) ) );
 
         $element->add_control( 'framify_org_grain_pattern', $this->live( array(
@@ -828,72 +935,48 @@ class Framify_Elementor {
             'step'        => 1,
             'default'     => 0,
             'description' => esc_html__( '0 gives every element its own random speckle. Any other number fixes the pattern.', 'framify' ),
-            'condition'   => $on,
         ) ) );
 
         $element->end_controls_section();
     }
 
     /**
-     * $variant: 'image' (an extra blob with its own shape, placement and
-     * motion, in its own Deco Blob section, so no heading) or 'block' (the
-     * Spacer and Containers: the same extra blob, Clip mode only, plus the
-     * look controls styling the shape itself in Behind content mode, where
-     * the deco IS the shape and follows the main Shape, Placement and
-     * Motion; see block_deco_visible()).
+     * The Deco Blob section: an extra blob with its own shape, look,
+     * placement and motion, for every mode and element. Every control is
+     * visible whenever the section is (no Mode or switch conditions): the
+     * "Deco blob behind" switch only decides whether the blob is drawn, so
+     * it can be set up before it is turned on. It is also drawn when Organic
+     * Shape itself is off, so nothing here depends on that switch.
+     *
+     * Containers and the Spacer also use the look controls (style, colours,
+     * outline, grain) for the Organic Shape itself in Behind content mode,
+     * where the shape IS a blob, until the switch is on and Shape look is
+     * set to Own (see register_controls).
      */
-    private function register_deco_controls( $element, $variant, $on ) {
-        $cm       = 'Elementor\Controls_Manager';
-        $is_block = 'block' === $variant;
-
-        // Spacer / Containers: the extra blob only exists in Clip mode
-        // (Behind content already draws the shape as a blob).
-        $own = $is_block ? $on + array( 'framify_org_mode' => 'clip' ) : $on;
+    private function register_deco_controls( $element, $is_container ) {
+        $cm = 'Elementor\Controls_Manager';
+        $p  = 'framify_org_deco_';
 
         $element->add_control( 'framify_org_deco', $this->live( array(
-            'label'     => esc_html__( 'Deco blob behind', 'framify' ),
-            'type'      => $cm::SWITCHER,
-            'default'   => '',
-            'condition' => $own,
+            'label'       => esc_html__( 'Deco blob behind', 'framify' ),
+            'type'        => $cm::SWITCHER,
+            'default'     => '',
+            'description' => esc_html__( 'Draws an extra blob with the settings below, behind the content, in every mode. Off: nothing is drawn yet, but your settings are kept.', 'framify' ),
         ) ) );
-        $deco_on = $own + array( 'framify_org_deco' => 'yes' );
 
-        $deco_lib = true;
-        $deco_shape_on = $deco_on;
-        if ( $deco_lib ) {
-            $this->register_shape_tabs( $element, 'framify_org_deco_shape', esc_html__( 'Deco shape', 'framify' ), $deco_on );
-            $deco_shape_on = $deco_on + array( 'framify_org_deco_shape_source!' => 'library' );
-        }
-        $element->add_control( 'framify_org_deco_shape', $this->live( array(
-            'label'       => $deco_lib ? esc_html__( 'Built-in shapes', 'framify' ) : esc_html__( 'Deco shape', 'framify' ),
-            'type'        => $cm::VISUAL_CHOICE,
-            'label_block' => true,
-            'columns'     => 4,
-            'options'     => $this->shape_options(),
-            'default'     => 'splash',
-            'condition'   => $deco_shape_on,
-        ) ) );
-        if ( $deco_lib ) {
-            $deco_ids = array_keys( $this->library_shapes() );
-            $element->add_control( 'framify_org_deco_shape_lib', $this->live( array(
-                'label'       => esc_html__( 'Uploaded shapes', 'framify' ),
-                'type'        => $cm::VISUAL_CHOICE,
-                'label_block' => true,
-                'columns'     => 4,
-                'options'     => $this->library_options(),
-                'default'     => $deco_ids ? $deco_ids[0] : '',
-                'condition'   => $deco_on + array( 'framify_org_deco_shape_source' => 'library' ),
-            ) ) );
+        if ( $is_container ) {
+            $element->add_control( 'framify_org_deco_note_shared', array(
+                'type'            => $cm::RAW_HTML,
+                'raw'             => esc_html__( 'In Behind content mode the Style, Color, Outline and Grain below also dress the Organic Shape itself, until the switch above is on and Shape look (in Organic Shape) is set to Own.', 'framify' ),
+                'content_classes' => 'elementor-descriptor',
+                'condition'       => array( 'framify_org_enable' => 'yes', 'framify_org_mode' => 'deco' ),
+            ) );
         }
 
-        // Visibility of the look controls: $extra on top of "the deco is
-        // shown". Spacer / Containers need an OR over their two modes.
-        $look = function ( array $extra ) use ( $is_block, $on, $deco_on ) {
-            if ( $is_block ) {
-                return array( 'condition' => $on + $extra, 'conditions' => $this->block_deco_visible() );
-            }
-            return array( 'condition' => $deco_on + $extra );
-        };
+        $this->register_shape_group( $element, $p, array(), array(
+            'tabs_label' => esc_html__( 'Deco shape', 'framify' ),
+            'default'    => 'splash',
+        ) );
 
         $element->add_control( 'framify_org_deco_style', $this->live( array(
             'label'     => esc_html__( 'Style', 'framify' ),
@@ -903,7 +986,8 @@ class Framify_Elementor {
                 'solid'   => esc_html__( 'Solid', 'framify' ),
                 'outline' => esc_html__( 'Outline', 'framify' ),
             ),
-        ) + $look( array() ) ) );
+            'separator' => 'before',
+        ) ) );
 
         $outline_on = array( 'framify_org_deco_style' => 'outline' );
 
@@ -914,7 +998,8 @@ class Framify_Elementor {
             'label'     => esc_html__( 'Outline color', 'framify' ),
             'type'      => $cm::COLOR,
             'default'   => '#1E1E1E',
-        ) + $look( $outline_on ) ) );
+            'condition' => $outline_on,
+        ) ) );
 
         $element->add_control( 'framify_org_deco_outline_width', $this->live( array(
             'label'      => esc_html__( 'Outline width (px)', 'framify' ),
@@ -922,46 +1007,107 @@ class Framify_Elementor {
             'size_units' => array( 'px' ),
             'range'      => array( 'px' => array( 'min' => 1, 'max' => 10, 'step' => 0.5 ) ),
             'default'    => array( 'unit' => 'px', 'size' => 2 ),
-        ) + $look( $outline_on ) ) );
+            'condition'  => $outline_on,
+        ) ) );
 
         $element->add_control( 'framify_org_deco_color', $this->live( array(
             'label'     => esc_html__( 'Color', 'framify' ),
             'type'      => $cm::COLOR,
             'default'   => '#F2C53D',
-        ) + $look( array( 'framify_org_deco_style!' => 'outline' ) ) ) );
+            'condition' => array( 'framify_org_deco_style!' => 'outline' ),
+        ) ) );
 
-        $this->register_placement_controls( $element, 'deco_', array( 'w' => 108, 'h' => 108, 'ox' => 6, 'oy' => 6 ), $deco_on );
-        $this->register_deco_motion_controls( $element, $deco_on, $is_block );
+        // The blob's own background and overlay, mirroring the Organic
+        // Shape's (framify_orgbg_*): CSS only, so ids outside the
+        // framify_org_ prefix (the script never rebuilds for them) and
+        // Global Colours work because Elementor resolves them into the CSS.
+        // On an Outline blob the background fills the inside of the outline.
+        $blob       = '{{WRAPPER}} > .framify-organic__deco--extra';
+        $blob_inner = '{{WRAPPER}} > .elementor-widget-container > .framify-organic__deco--extra';
+        $element->add_control( 'framify_decobg_color', array(
+            'label'       => esc_html__( 'Background color', 'framify' ),
+            'type'        => $cm::COLOR,
+            'selectors'   => array(
+                $blob . ' > path:not(.framify-organic__overlay)'       => 'fill: {{VALUE}} !important;',
+                $blob_inner . ' > path:not(.framify-organic__overlay)' => 'fill: {{VALUE}} !important;',
+            ),
+            'render_type' => 'ui',
+            'description' => esc_html__( 'Overrides Color. On an Outline blob it fills the inside of the outline.', 'framify' ),
+        ) );
+        $element->add_control( 'framify_decobg_overlay', array(
+            'label'       => esc_html__( 'Overlay color', 'framify' ),
+            'type'        => $cm::COLOR,
+            'selectors'   => array(
+                $blob       => '--framify-deco-overlay: {{VALUE}};',
+                $blob_inner => '--framify-deco-overlay: {{VALUE}};',
+            ),
+            'render_type' => 'ui',
+            'description' => esc_html__( 'Tints a Solid blob, over its color and under the grain.', 'framify' ),
+            'condition'   => array( 'framify_org_deco_style!' => 'outline' ),
+        ) );
+        $element->add_control( 'framify_decobg_overlay_opacity', array(
+            'label'       => esc_html__( 'Overlay opacity', 'framify' ),
+            'type'        => $cm::SLIDER,
+            'size_units'  => array( 'px' ),
+            'range'       => array( 'px' => array( 'min' => 0, 'max' => 1, 'step' => 0.05 ) ),
+            'default'     => array( 'unit' => 'px', 'size' => 1 ),
+            'selectors'   => array(
+                $blob       => '--framify-deco-overlay-o: {{SIZE}};',
+                $blob_inner => '--framify-deco-overlay-o: {{SIZE}};',
+            ),
+            'render_type' => 'ui',
+            'condition'   => array( 'framify_org_deco_style!' => 'outline' ),
+        ) );
+
+        if ( $is_container ) {
+            // Spacer and Containers: one switch for the blob's grain (the id
+            // and default are unchanged from when it lived in the Grain
+            // section). Grain on a thin outline is invisible, so it is only
+            // offered for Solid.
+            $element->add_control( 'framify_org_deco_grain', $this->live( array(
+                'label'     => esc_html__( 'Grain on deco blob', 'framify' ),
+                'type'      => $cm::SWITCHER,
+                'default'   => 'yes',
+                'condition' => array( 'framify_org_deco_style!' => 'outline' ),
+            ) ) );
+        }
+
+        $element->add_control( 'framify_org_deco_placement_heading', array(
+            'label'     => esc_html__( 'Placement', 'framify' ),
+            'type'      => $cm::HEADING,
+            'separator' => 'before',
+        ) );
+        $this->register_placement_controls( $element, 'deco_', array( 'w' => 108, 'h' => 108, 'ox' => 6, 'oy' => 6 ), array() );
+
+        $this->register_deco_motion_controls( $element, $is_container );
     }
 
     /**
-     * Deco motion (Image widget, and the Clip-mode deco of the Spacer and
-     * Containers): its own trigger, timing and a turn, so the deco blob can
-     * move differently from the image (or the shape). "Same as image" keeps
-     * the original behaviour of following the image's motion.
+     * Deco motion: its own trigger, timing, a turn and Custom motion, so the
+     * deco blob can move differently from the image (or the shape). Same as
+     * image / shape (the default) follows the main shape's motion; with
+     * Organic Shape off there is none to follow, so the blob stays still.
      */
-    private function register_deco_motion_controls( $element, $deco_on, $is_spacer = false ) {
+    private function register_deco_motion_controls( $element, $shape_wording ) {
         $cm = 'Elementor\Controls_Manager';
 
         $element->add_control( 'framify_org_deco_motion_heading', array(
             'label'     => esc_html__( 'Deco motion', 'framify' ),
             'type'      => $cm::HEADING,
             'separator' => 'before',
-            'condition' => $deco_on,
         ) );
 
         $element->add_control( 'framify_org_deco_trigger', $this->live( array(
-            'label'     => esc_html__( 'Deco trigger', 'framify' ),
-            'type'      => $cm::SELECT,
-            'default'   => 'same',
-            'options'   => array(
-                'same'   => $is_spacer ? esc_html__( 'Same as shape', 'framify' ) : esc_html__( 'Same as image', 'framify' ),
+            'label'   => esc_html__( 'Deco trigger', 'framify' ),
+            'type'    => $cm::SELECT,
+            'default' => 'same',
+            'options' => array(
+                'same'   => $shape_wording ? esc_html__( 'Same as shape', 'framify' ) : esc_html__( 'Same as image', 'framify' ),
                 'none'   => esc_html__( 'None (static)', 'framify' ),
                 'hover'  => esc_html__( 'On hover', 'framify' ),
                 'inview' => esc_html__( 'Once, when scrolled into view', 'framify' ),
                 'loop'   => esc_html__( 'Continuous gentle loop', 'framify' ),
             ),
-            'condition' => $deco_on,
         ) ) );
 
         $element->add_control( 'framify_org_deco_duration', $this->live( array(
@@ -970,7 +1116,7 @@ class Framify_Elementor {
             'size_units' => array( 'px' ),
             'range'      => array( 'px' => array( 'min' => 400, 'max' => 5000, 'step' => 100 ) ),
             'default'    => array( 'unit' => 'px', 'size' => 2400 ),
-            'condition'  => $deco_on + array( 'framify_org_deco_trigger!' => array( 'same', 'none' ) ),
+            'condition'  => array( 'framify_org_deco_trigger!' => array( 'same', 'none' ) ),
         ) ) );
 
         $element->add_control( 'framify_org_deco_spring', $this->live( array(
@@ -982,18 +1128,35 @@ class Framify_Elementor {
                 'normal' => esc_html__( 'Normal', 'framify' ),
                 'bouncy' => esc_html__( 'Bouncy', 'framify' ),
             ),
-            'condition' => $deco_on + array( 'framify_org_deco_trigger!' => array( 'same', 'none', 'loop' ) ),
+            'condition' => array( 'framify_org_deco_trigger!' => array( 'same', 'none', 'loop' ) ),
         ) ) );
 
         $element->add_control( 'framify_org_deco_rotate', $this->live( array(
-            'label'       => esc_html__( 'Rotate (deg)', 'framify' ),
+            'label'       => esc_html__( 'Turn while moving (deg)', 'framify' ),
             'type'        => $cm::SLIDER,
             'size_units'  => array( 'px' ),
             'range'       => array( 'px' => array( 'min' => 0, 'max' => 45, 'step' => 1 ) ),
             'default'     => array( 'unit' => 'px', 'size' => 0 ),
-            'description' => $is_spacer ? esc_html__( 'Turns the deco blob as it moves, so it reads differently from the shape.', 'framify' ) : esc_html__( 'Turns the deco blob as it moves, so it reads differently from the image.', 'framify' ),
-            'condition'   => $deco_on + array( 'framify_org_deco_trigger!' => 'none' ),
+            'description' => $shape_wording ? esc_html__( 'Turns the deco blob as it moves, so it reads differently from the shape. For a fixed angle use Angle above.', 'framify' ) : esc_html__( 'Turns the deco blob as it moves, so it reads differently from the image. For a fixed angle use Angle above.', 'framify' ),
+            'condition'   => array( 'framify_org_deco_trigger!' => 'none' ),
         ) ) );
+
+        // Custom motion moves only when a trigger does: the blob's own, or
+        // the main shape's when the blob follows it (Organic Shape on).
+        $this->register_custom_motion_group( $element, 'framify_org_deco_', array(), array(
+            'relation' => 'or',
+            'terms'    => array(
+                array( 'name' => 'framify_org_deco_trigger', 'operator' => 'in', 'value' => array( 'hover', 'inview', 'loop' ) ),
+                array(
+                    'relation' => 'and',
+                    'terms'    => array(
+                        array( 'name' => 'framify_org_deco_trigger', 'operator' => '===', 'value' => 'same' ),
+                        array( 'name' => 'framify_org_enable', 'operator' => '===', 'value' => 'yes' ),
+                        array( 'name' => 'framify_org_trigger', 'operator' => '!in', 'value' => array( 'auto', 'none' ) ),
+                    ),
+                ),
+            ),
+        ), true );
     }
 
     /**
@@ -1008,6 +1171,8 @@ class Framify_Elementor {
         $id  = 'framify_org_' . $prefix;
         $var = '--framify-' . str_replace( '_', '-', $prefix );
 
+        $condition = $condition ? array( 'condition' => $condition ) : array();
+
         $element->add_responsive_control( $id . 'align_x', array(
             'label'                => esc_html__( 'Horizontal position', 'framify' ),
             'type'                 => $cm::CHOOSE,
@@ -1021,8 +1186,7 @@ class Framify_Elementor {
             'selectors_dictionary' => array( 'left' => '0', 'center' => '0.5', 'right' => '1' ),
             'selectors'            => array( '{{WRAPPER}}' => $var . 'ax: {{VALUE}};' ),
             'render_type'          => 'ui',
-            'condition'            => $condition,
-        ) );
+        ) + $condition );
 
         $element->add_responsive_control( $id . 'align_y', array(
             'label'                => esc_html__( 'Vertical position', 'framify' ),
@@ -1037,8 +1201,7 @@ class Framify_Elementor {
             'selectors_dictionary' => array( 'top' => '0', 'middle' => '0.5', 'bottom' => '1' ),
             'selectors'            => array( '{{WRAPPER}}' => $var . 'ay: {{VALUE}};' ),
             'render_type'          => 'ui',
-            'condition'            => $condition,
-        ) );
+        ) + $condition );
 
         $sliders = array(
             'width'    => array( esc_html__( 'Width (%)', 'framify' ),    'w',  20,  150, $defaults['w'] ),
@@ -1055,8 +1218,7 @@ class Framify_Elementor {
                 'default'     => array( 'unit' => '%', 'size' => $s[4] ),
                 'selectors'   => array( '{{WRAPPER}}' => $var . $s[1] . ': {{SIZE}};' ),
                 'render_type' => 'ui',
-                'condition'   => $condition,
-            ) );
+            ) + $condition );
         }
     }
 

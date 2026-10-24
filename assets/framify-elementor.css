@@ -144,3 +144,12 @@
 	z-index: 2;
 	pointer-events: none;
 }
+
+/* The extra Deco Blob's overlay (framify_decobg_*): a copy of the blob's
+   outline filled by a CSS colour and opacity, transparent until one is set,
+   above the grain. */
+.framify-organic__overlay {
+	fill: var(--framify-deco-overlay, transparent);
+	fill-opacity: var(--framify-deco-overlay-o, 1);
+	pointer-events: none;
+}

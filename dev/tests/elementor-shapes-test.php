@@ -212,6 +212,7 @@ class Framify_Test_Controls_Manager {
     const CHOOSE   = 'choose';
     const BUTTON   = 'button';
     const HEADING  = 'heading';
+    const RAW_HTML = 'raw_html';
     const NUMBER   = 'number';
     const TEXTAREA = 'textarea';
     const VISUAL_CHOICE = 'visual_choice';
@@ -498,43 +499,48 @@ $sp_either = array( 'relation' => 'or', 'terms' => array(
     ) ),
 ) );
 check( 'spacer: organic sections are Organic Shape, Deco Blob, Grain', array( 'framify_org_section', 'framify_deco_section', 'framify_grain_section' ) === array_keys( $sp_org->sections ) && 0 === $sp_org->open );
-check( 'spacer: deco section shows whenever the shape is on (its look controls also style Behind content mode)', $sp_on === $sp_org->sections['framify_deco_section']['condition'] );
+check( 'spacer: the Deco Blob section has no condition, so it shows with Organic Shape on or off', ! isset( $sp_org->sections['framify_deco_section']['condition'] ) && ! isset( $sp_org->sections['framify_deco_section']['conditions'] ) );
 check( 'spacer: Organic Shape section = the container one', $in_section( $con_org, 'framify_org_section' ) === $in_section( $sp_org, 'framify_org_section' ) );
 $sp_same = true;
 foreach ( $in_section( $sp_org, 'framify_org_section' ) as $id ) {
     $sp_same = $sp_same && $con_org->controls[ $id ] === $sp_c[ $id ];
 }
 check( 'spacer: Organic Shape control args equal the container ones (Mode clip / behind content kept)', $sp_same && isset( $sp_c['framify_org_mode'] ) );
-check( 'spacer: Deco Blob control ids equal the Image widget deco ids, in order', $in_section( $img_org, 'framify_deco_section' ) === $in_section( $sp_org, 'framify_deco_section' ) && count( $in_section( $sp_org, 'framify_deco_section' ) ) > 10 );
-check( 'spacer: deco switch only in Clip mode', $sp_on + array( 'framify_org_mode' => 'clip' ) === $sp_c['framify_org_deco']['condition'] );
-$sp_own_ok = true;
-$sp_look   = array( 'framify_org_deco_style', 'framify_org_deco_outline_color', 'framify_org_deco_outline_width', 'framify_org_deco_color' );
-foreach ( $in_section( $sp_org, 'framify_deco_section' ) as $id ) {
-    if ( 'framify_org_deco' === $id ) {
+$sp_deco_ids  = $in_section( $sp_org, 'framify_deco_section' );
+$img_deco_ids = $in_section( $img_org, 'framify_deco_section' );
+check( 'spacer: Deco Blob ids equal the container ones; the Image widget has the same minus the container-only note and grain switch, in order',
+    $sp_deco_ids === $in_section( $con_org, 'framify_deco_section' )
+    && array_values( array_diff( $sp_deco_ids, array( 'framify_org_deco_note_shared', 'framify_org_deco_grain' ) ) ) === $img_deco_ids && count( $sp_deco_ids ) > 30 );
+check( 'spacer: the deco switch has no condition (Mode and Organic Shape do not hide it), default off', ! isset( $sp_c['framify_org_deco']['condition'] ) && '' === $sp_c['framify_org_deco']['default'] );
+$sp_look = array( 'framify_org_deco_style', 'framify_org_deco_outline_color', 'framify_org_deco_outline_width', 'framify_org_deco_color' );
+$sp_free = true;
+foreach ( $sp_deco_ids as $id ) {
+    if ( 'framify_org_deco_note_shared' === $id ) {
         continue;
     }
-    $cond = $sp_c[ $id ]['condition'];
-    if ( in_array( $id, $sp_look, true ) ) {
-        $sp_own_ok = $sp_own_ok && $sp_either === $sp_c[ $id ]['conditions'] && 'yes' === $cond['framify_org_enable'] && ! isset( $cond['framify_org_mode'] );
-    } else {
-        $sp_own_ok = $sp_own_ok && 'clip' === $cond['framify_org_mode'] && 'yes' === $cond['framify_org_deco'] && ! isset( $sp_c[ $id ]['conditions'] );
-    }
+    $c    = $sp_c[ $id ];
+    $json = json_encode( array( isset( $c['condition'] ) ? $c['condition'] : array(), isset( $c['conditions'] ) ? $c['conditions'] : array() ) );
+    $sp_free = $sp_free && false === strpos( $json, 'framify_org_mode' ) && false === strpos( $json, '"framify_org_deco"' ) && ! isset( $c['condition']['framify_org_enable'] );
 }
-check( 'spacer: deco shape / placement / motion need mode = clip + deco on; look controls show in either mode', $sp_own_ok );
+check( 'spacer: no Deco Blob control depends on Mode, the deco switch or the Organic Shape switch (every one is always visible; only intrinsic terms remain)', $sp_free );
 $sp_args_ok = true;
-foreach ( $in_section( $sp_org, 'framify_deco_section' ) as $id ) {
+foreach ( $sp_deco_ids as $id ) {
+    if ( ! isset( $img_org->controls[ $id ] ) ) {
+        continue;
+    }
     $a = $sp_c[ $id ];
     $b = $img_org->controls[ $id ];
-    unset( $a['condition'], $a['conditions'], $a['description'], $b['condition'], $b['description'] );
+    unset( $a['condition'], $a['conditions'], $a['description'], $b['condition'], $b['conditions'], $b['description'] );
     if ( 'framify_org_deco_trigger' === $id ) {
         unset( $a['options']['same'], $b['options']['same'] );
     }
     $sp_args_ok = $sp_args_ok && $a === $b;
 }
 check( 'spacer: deco control args equal the Image widget ones (bar conditions and the image/shape wording)', $sp_args_ok );
-check( 'spacer: grain keeps both container switches (saved values carry over), no image target or zoom', isset( $sp_c['framify_org_deco_grain'], $sp_c['framify_org_clip_grain'] )
+check( 'spacer: grain keeps both container switches (saved values carry over); the blob\'s now sits in the Deco Blob section; no image target or zoom', isset( $sp_c['framify_org_deco_grain'], $sp_c['framify_org_clip_grain'] )
     && 'yes' === $sp_c['framify_org_deco_grain']['default'] && '' === $sp_c['framify_org_clip_grain']['default']
-    && $sp_either === $sp_c['framify_org_deco_grain']['conditions'] && $sp_on + array( 'framify_org_mode' => array( 'clip', 'bg' ) ) === $sp_c['framify_org_clip_grain']['condition']
+    && 'framify_deco_section' === $sp_org->section_of['framify_org_deco_grain'] && array( 'framify_org_deco_style!' => 'outline' ) === $sp_c['framify_org_deco_grain']['condition']
+    && $sp_on + array( 'framify_org_mode' => array( 'clip', 'bg' ) ) === $sp_c['framify_org_clip_grain']['condition']
     && ! isset( $sp_c['framify_org_zoom'] ) && ! isset( $sp_c['framify_org_grain_target'] ) );
 check( 'spacer: no control outside the container + image sets', array() === array_diff( array_keys( $sp_c ), array_keys( $con_org->controls ), array_keys( $img_org->controls ) ) );
 
@@ -542,25 +548,25 @@ check( 'spacer: no control outside the container + image sets', array() === arra
 // look controls also style Behind content mode); the Image widget keeps its own.
 $con_c = $con_org->controls;
 check( 'container: sections Organic Shape, Deco Blob, Grain', array( 'framify_org_section', 'framify_deco_section', 'framify_grain_section' ) === array_keys( $con_org->sections ) && 0 === $con_org->open );
-check( 'container: Deco Blob section shows whenever the shape is on, same ids as the Spacer, in order', $sp_on === $con_org->sections['framify_deco_section']['condition']
+check( 'container: the Deco Blob section has no condition, same ids as the Spacer, in order', ! isset( $con_org->sections['framify_deco_section']['condition'] ) && ! isset( $con_org->sections['framify_deco_section']['conditions'] )
     && $in_section( $sp_org, 'framify_deco_section' ) === $in_section( $con_org, 'framify_deco_section' ) );
 check( 'container + spacer: Clip background only has colour + overlay + opacity, CSS only (no frontend_available), mode bg', isset( $con_c['framify_orgbg_color'], $con_c['framify_orgbg_overlay'], $con_c['framify_orgbg_overlay_opacity'], $sp_c['framify_orgbg_color'] )
     && 'bg' === $con_c['framify_orgbg_color']['condition']['framify_org_mode'] && empty( $con_c['framify_orgbg_color']['frontend_available'] ) && isset( $con_c['framify_org_mode']['options']['bg'] ) && ! isset( $con_c['framify_orgbg_color']['global'] ) );
-check( 'container: deco switch registered with the Clip-mode condition', $sp_on + array( 'framify_org_mode' => 'clip' ) === $con_c['framify_org_deco']['condition'] && '' === $con_c['framify_org_deco']['default'] );
+check( 'container: deco switch registered without a condition', ! isset( $con_c['framify_org_deco']['condition'] ) && '' === $con_c['framify_org_deco']['default'] );
 $con_deco_same = true;
 foreach ( $in_section( $con_org, 'framify_deco_section' ) as $id ) {
     $con_deco_same = $con_deco_same && $sp_c[ $id ] === $con_c[ $id ];
 }
 check( 'container: Deco Blob control args equal the Spacer ones (Same as shape wording)', $con_deco_same && 'Same as shape' === $con_c['framify_org_deco_trigger']['options']['same'] );
 check( 'container: no deco heading left in Organic Shape', ! isset( $con_c['framify_org_deco_heading'] ) && ! isset( $sp_c['framify_org_deco_heading'] ) );
-check( 'container: grain = the Spacer switches (deco grain in either mode), own fill wording', $sp_c['framify_org_deco_grain'] === $con_c['framify_org_deco_grain']
+check( 'container: grain = the Spacer switches, own fill wording', $sp_c['framify_org_deco_grain'] === $con_c['framify_org_deco_grain']
     && $sp_on + array( 'framify_org_mode' => array( 'clip', 'bg' ) ) === $con_c['framify_org_clip_grain']['condition'] && 'Grain on container fill' === $con_c['framify_org_clip_grain']['label'] && '' === $con_c['framify_org_clip_grain']['default'] );
 check( 'container: no image-only controls', ! isset( $con_c['framify_org_zoom'] ) && ! isset( $con_c['framify_org_grain_target'] ) );
 $img_look_ok = true;
 foreach ( $sp_look as $id ) {
-    $img_look_ok = $img_look_ok && 'yes' === $img_org->controls[ $id ]['condition']['framify_org_deco'] && ! isset( $img_org->controls[ $id ]['conditions'] );
+    $img_look_ok = $img_look_ok && ! isset( $img_org->controls[ $id ]['conditions'] ) && ! isset( $img_org->controls[ $id ]['condition']['framify_org_deco'] ) && ! isset( $img_org->controls[ $id ]['condition']['framify_org_enable'] );
 }
-check( 'image: deco look controls keep their plain conditions', $img_look_ok && $sp_on === $img_org->controls['framify_org_deco']['condition'] );
+check( 'image: the deco look controls depend only on the style, and the switch has no condition', $img_look_ok && ! isset( $img_org->controls['framify_org_deco']['condition'] ) );
 check( 'image: deco trigger still says Same as image', 'Same as image' === $img_org->controls['framify_org_deco_trigger']['options']['same'] );
 
 // Floating Shapes / Text: same ids; Text scopes its CSS to the Spacer's layer as a descendant.
@@ -613,15 +619,16 @@ check( 'container: the fill margin stops at the page\'s left / right edge (no ho
 check( 'spacer: the fill clip maps the shape back into the host box', false !== strpos( $org_js, 'x: ( s.left + box.x * w ) / fw,' ) && false !== strpos( $org_js, 'w: box.w * w / fw,' )
     && false !== strpos( $org_js, 'var clipBox = fx.fill && ! fx.bleed ? fillBox( box, hostW, hostH, fx.fillMargin ) : box;' ) && false !== strpos( $org_js, 'fx.clip.origin = zoomOrigin( clipBox, fx.zoomSide );' ) );
 // A0: bleed only for a Container in Clip mode with a moving custom shape.
-check( 'organic: bg mode always takes the fill path and builds no deco', false !== strpos( $org_js, "'bg' === s.framify_org_mode ||" ) && false !== strpos( $org_js, "if ( 'bg' !== s.framify_org_mode ) {" ) );
+check( 'organic: bg mode always takes the fill path, and the Deco Blob is drawn there whenever its switch is on', false !== strpos( $org_js, "'bg' === s.framify_org_mode ||" )
+    && false === strpos( $org_js, "'bg' !== s.framify_org_mode" ) && 1 === preg_match( "/Own id: the clip grain above already uses id \+ '-grain'\..*?if \( 'yes' === s\.framify_org_deco \) \{\s*var extra = this\.ownDeco\(/s", $org_js ) );
 $lib = framify_call( new Framify_Elementor(), 'library_shapes' );
 check( 'library: assets/shapes svgs are listed as lib_* with a title and a thumbnail built from path data only', isset( $lib['lib_soft-leaf'] ) && 'Soft Leaf' === $lib['lib_soft-leaf']['title']
     && 0 === strpos( $lib['lib_soft-leaf']['thumb'], 'data:image/svg+xml,' ) && false === strpos( rawurldecode( $lib['lib_soft-leaf']['thumb'] ), 'script' ) );
 check( 'library: Built-in | Uploaded tab + uploaded picker on the Organic Shape and Deco Blob, picker hidden unless the Uploaded tab is on', isset( $con_c['framify_org_shape_source'], $con_c['framify_org_shape_lib'], $con_c['framify_org_deco_shape_source'], $con_c['framify_org_deco_shape_lib'] )
     && 'builtin' === $con_c['framify_org_shape_source']['default'] && 'library' === $con_c['framify_org_shape_lib']['condition']['framify_org_shape_source']
     && 'library' === $con_c['framify_org_shape']['condition']['framify_org_shape_source!'] && isset( $con_c['framify_org_shape_lib']['options']['lib_soft-leaf'] ) );
-check( 'library: uploaded shapes reach the script and run through the Custom pipeline (library svg -> custom paste); deco is static', false !== strpos( $org_js, 'out.framify_org_custom_svg = svg;' )
-    && false !== strpos( $org_js, "var s = libraryShape( window.FramifyColor.settings( this ) );" ) && false !== strpos( $org_js, 'decoPair = { rest: libPath, hover: libPath };' ) );
+check( 'library: uploaded shapes reach the script and run through the Custom pipeline (library svg -> custom paste), for the shape and the Deco Blob', false !== strpos( $org_js, 'out.framify_org_custom_svg = svg;' )
+    && false !== strpos( $org_js, "var s = libraryShape( window.FramifyColor.settings( this ) );" ) && false !== strpos( $org_js, 'return libraryShape( out );' ) );
 $sl = 'Framify_Shape_Library';
 check( 'library sanitiser: the path limit leaves room for the svg wrapper (a max-size path still saves under MAX_BYTES)', '' !== $sl::clean_d( str_repeat( 'M0 0 ', 9800 ) ) && '' === $sl::clean_d( str_repeat( 'M0 0 ', 9801 ) ) && strlen( $sl::build_svg( substr( str_repeat( 'M0 0 ', 9800 ), 0, $sl::MAX_D ), '0 0 1000 1000' ) ) < $sl::MAX_BYTES );
 check( 'library sanitiser: path data keeps only path characters; markup, script and url() are refused', 'M0 0 L10 10 Z' === $sl::clean_d( "M0 0\nL10  10 Z" ) && '' === $sl::clean_d( 'M0 0 <script>alert(1)</script>' ) && '' === $sl::clean_d( 'url(#x)' ) && '' === $sl::clean_d( '' ) );
@@ -992,6 +999,126 @@ if ( 127 === $ef_nrc || ( 1 === $ef_nrc && ! preg_grep( '/^(PASS|FAIL) /', $ef_n
 } else {
     check( 'effects: node dev/tests/effects-core-test.js ALL PASSED (' . count( preg_grep( '/^PASS /', $ef_node ) ) . ' checks)', 0 === $ef_nrc && in_array( 'ALL PASSED', $ef_node, true ) );
 }
+
+// 13. Deco Blob parity + free Angle (1.18.0).
+$dp_kinds = array( 'container' => $con_org->controls, 'spacer' => $sp_org->controls, 'image' => $img_org->controls );
+$dp_suffix = array( 'shape_source', 'shape', 'shape_lib', 'edge', 'flip_h', 'flip_v', 'custom_rotate', 'angle', 'angle_fit', 'custom_svg', 'custom_motion', 'dot_style', 'custom_amount' );
+// Documented differences between a setting and its Deco Blob twin.
+$dp_alike = function ( $main, $deco, $suffix ) {
+    unset( $main['condition'], $main['conditions'], $deco['condition'], $deco['conditions'], $main['description'], $deco['description'], $main['classes'], $deco['classes'], $main['separator'], $deco['separator'] );
+    if ( 'shape' === $suffix ) {
+        unset( $main['default'], $deco['default'], $main['label'], $deco['label'] );
+    }
+    if ( 'shape_source' === $suffix ) {
+        unset( $main['label'], $deco['label'] );
+    }
+    if ( 'custom_motion' === $suffix ) {
+        unset( $deco['options']['static'], $main['default'], $deco['default'] );
+    }
+    return $main === $deco;
+};
+foreach ( $dp_kinds as $kind => $controls ) {
+    $miss = array();
+    $diff = array();
+    foreach ( $dp_suffix as $suffix ) {
+        $m = 'framify_org_' . ( in_array( $suffix, array( 'shape_source', 'shape', 'shape_lib' ), true ) ? '' : '' ) . ( 'shape_source' === $suffix || 'shape' === $suffix || 'shape_lib' === $suffix ? $suffix : $suffix );
+        $d = 'framify_org_deco_' . $suffix;
+        if ( ! isset( $controls[ $m ], $controls[ $d ] ) ) {
+            $miss[] = $suffix;
+        } elseif ( ! $dp_alike( $controls[ $m ], $controls[ $d ], $suffix ) ) {
+            $diff[] = $suffix;
+        }
+    }
+    check( 'deco parity (' . $kind . '): every Organic Shape setting has a Deco Blob twin of the same type, options and defaults' . ( $miss || $diff ? ' [' . implode( ',', array_merge( $miss, $diff ) ) . ']' : '' ), ! $miss && ! $diff );
+}
+check( 'deco parity: the Deco Blob\'s Custom motion adds Static and defaults to it; the shape keeps Liquid', 'static' === $con_c['framify_org_deco_custom_motion']['default'] && 'liquid' === $con_c['framify_org_custom_motion']['default']
+    && array( 'static', 'liquid', 'gentle', 'dots' ) === array_keys( $con_c['framify_org_deco_custom_motion']['options'] ) );
+check( 'deco parity: the Deco Blob picker offers Custom (21 shapes) and keeps its splash default', 21 === count( $con_c['framify_org_deco_shape']['options'] ) && isset( $con_c['framify_org_deco_shape']['options']['custom'] ) && 'splash' === $con_c['framify_org_deco_shape']['default'] );
+check( 'deco parity: ids that existed before keep their name, type and default (frozen in organic-controls-baseline.json)', ( function () use ( $dp_kinds ) {
+    $base = json_decode( file_get_contents( __DIR__ . '/organic-controls-baseline.json' ), true );
+    $ok   = true;
+    foreach ( $dp_kinds as $kind => $controls ) {
+        foreach ( $base[ $kind ] as $id => $was ) {
+            if ( ! isset( $controls[ $id ] ) || $controls[ $id ]['type'] !== $was['type'] || ( isset( $controls[ $id ]['default'] ) ? $controls[ $id ]['default'] : null ) !== $was['default'] ) {
+                echo "  changed: $kind $id\n";
+                $ok = false;
+            }
+        }
+    }
+    return $ok;
+} )() );
+check( 'deco parity: the Organic Shape section keeps every frozen condition (only Angle and Shape look were added there)', ( function () use ( $dp_kinds, $in_section, $con_org, $sp_org, $img_org ) {
+    $base = json_decode( file_get_contents( __DIR__ . '/organic-controls-baseline.json' ), true );
+    $els  = array( 'container' => $con_org, 'spacer' => $sp_org, 'image' => $img_org );
+    $ok   = true;
+    foreach ( $dp_kinds as $kind => $controls ) {
+        foreach ( $base[ $kind ] as $id => $was ) {
+            if ( 'framify_org_section' !== $was['section'] ) {
+                continue;
+            }
+            $now = array(
+                'condition'  => isset( $controls[ $id ]['condition'] ) ? $controls[ $id ]['condition'] : null,
+                'conditions' => isset( $controls[ $id ]['conditions'] ) ? $controls[ $id ]['conditions'] : null,
+            );
+            if ( $now !== array( 'condition' => $was['condition'], 'conditions' => $was['conditions'] ) ) {
+                echo "  condition changed: $kind $id\n";
+                $ok = false;
+            }
+        }
+    }
+    return $ok;
+} )() );
+
+// Angle (any angle, every shape) on both layers.
+$ang_ok = true;
+foreach ( $dp_kinds as $controls ) {
+    foreach ( array( 'framify_org_angle' => $sp_on, 'framify_org_deco_angle' => null ) as $id => $cond ) {
+        $a = $controls[ $id ];
+        $ang_ok = $ang_ok && 'slider' === $a['type'] && array( 'deg' ) === $a['size_units'] && 0 === $a['range']['deg']['min'] && 360 === $a['range']['deg']['max'] && 'deg' === $a['default']['unit'] && 0 === $a['default']['size']
+            && ! empty( $a['frontend_available'] ) && 'none' === $a['render_type'] && ( null === $cond ? ! isset( $a['condition'] ) : $cond === $a['condition'] );
+    }
+    $ang_ok = $ang_ok && 'switcher' === $controls['framify_org_angle_fit']['type'] && '' === $controls['framify_org_angle_fit']['default'] && 'switcher' === $controls['framify_org_deco_angle_fit']['type'];
+}
+check( 'angle: a 0-360 degree slider and a Keep inside the box switch on the Organic Shape and the Deco Blob of every element, JS-read, unconditioned by shape', $ang_ok );
+$ang_order = $in_section( $con_org, 'framify_org_section' );
+check( 'angle: it follows the legacy quarter turn, which keeps its id, options 0/90/180/270 and Custom-only condition', array_search( 'framify_org_angle', $ang_order ) === array_search( 'framify_org_custom_rotate', $ang_order ) + 1
+    && array( 0, 90, 180, 270 ) === array_keys( $con_c['framify_org_custom_rotate']['options'] ) && '0' === $con_c['framify_org_custom_rotate']['default'] );
+
+// Shape look: the shape's own look in Behind content mode when the Deco Blob is on.
+$look_ids = array( 'framify_org_look', 'framify_org_look_style', 'framify_org_look_color', 'framify_org_look_outline_color', 'framify_org_look_outline_width' );
+$look_ok  = true;
+foreach ( $look_ids as $id ) {
+    $look_ok = $look_ok && isset( $con_c[ $id ], $sp_c[ $id ] ) && ! isset( $img_org->controls[ $id ] ) && 'yes' === $con_c[ $id ]['condition']['framify_org_deco'] && 'deco' === $con_c[ $id ]['condition']['framify_org_mode'] && 'framify_org_section' === $con_org->section_of[ $id ];
+}
+check( 'shape look: containers and the Spacer (not the Image widget) can give the shape its own look, only in Behind content mode with the Deco Blob on', $look_ok
+    && 'deco' === $con_c['framify_org_look']['default'] && array( 'deco', 'own' ) === array_keys( $con_c['framify_org_look']['options'] ) && 'own' === $con_c['framify_org_look_style']['condition']['framify_org_look'] );
+
+// The blob's own background colour and overlay: CSS only, outside the framify_org_ prefix.
+$bg_ok = true;
+foreach ( $dp_kinds as $controls ) {
+    foreach ( array( 'framify_decobg_color', 'framify_decobg_overlay', 'framify_decobg_overlay_opacity' ) as $id ) {
+        $c = $controls[ $id ];
+        $sels = array_keys( $c['selectors'] );
+        $bg_ok = $bg_ok && 'ui' === $c['render_type'] && empty( $c['frontend_available'] ) && ! isset( $c['global'] ) && 0 !== strpos( $id, 'framify_org_' )
+            && 2 === count( $sels ) && false !== strpos( $sels[0], '> .framify-organic__deco--extra' ) && false !== strpos( $sels[1], '> .elementor-widget-container > .framify-organic__deco--extra' );
+    }
+    $bg_ok = $bg_ok && array( 'framify_org_deco_style!' => 'outline' ) === $controls['framify_decobg_overlay']['condition'] && ! isset( $controls['framify_decobg_color']['condition'] );
+}
+check( 'deco background: Background colour (overrides the fill, also inside an outline), Overlay colour and opacity, CSS only, Spacer selector included, overlay hidden for Outline', $bg_ok );
+check( 'deco section: the Grain section shows when Organic Shape OR the Deco Blob is on, with no condition left on amount / pattern', ( function () use ( $con_org ) {
+    $sec = $con_org->sections['framify_grain_section'];
+    $or  = $sec['conditions'];
+    $names = array_map( function ( $t ) { return $t['name']; }, $or['terms'] );
+    return 'or' === $or['relation'] && array( 'framify_org_enable', 'framify_org_deco' ) === $names
+        && ! isset( $con_org->controls['framify_org_grain_amount']['condition'] ) && ! isset( $con_org->controls['framify_org_grain_pattern']['condition'] );
+} )() );
+$note_js = preg_match( "/var DECO_SETTINGS = \[ ([^\]]*) \];/", $org_js, $note_m ) ? array_map( function ( $x ) { return trim( $x, " '" ); }, explode( ',', $note_m[1] ) ) : array();
+sort( $note_js );
+$dp_sorted = $dp_suffix;
+sort( $dp_sorted );
+check( 'deco parity: the script maps exactly the settings the PHP registers twice (DECO_SETTINGS = the parity list)', $note_js === $dp_sorted );
+check( 'deco parity: the script exposes the Angle maths for tests', false !== strpos( $org_js, 'poseTransform: poseTransform,' ) && false !== strpos( $org_js, 'fitScale: fitScale,' ) && false !== strpos( $org_js, 'decoShapeSettings: decoShapeSettings,' ) );
+check( 'deco parity: Organic Shape off does not stop the Deco Blob (setup hands over to setupDecoOnly)', 1 === preg_match( "/'yes' !== s\.framify_org_enable \) \{.*?if \( 'yes' === s\.framify_org_deco \) \{\s*this\.setupDecoOnly\( s \);/s", $org_js ) );
 
 echo $failures ? "\n$failures FAILED\n" : "\nALL PASSED\n";
 exit( $failures ? 1 : 0 );

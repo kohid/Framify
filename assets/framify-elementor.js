@@ -128,6 +128,56 @@
 		return out;
 	}
 
+	// The Deco Blob has the same settings as the Organic Shape under the
+	// framify_org_deco_ prefix. This returns a settings object in which each
+	// of them stands in for the Organic Shape's (framify_org_X taken from
+	// framify_org_deco_X), so the blob runs through exactly the pipeline the
+	// shape does. Its trigger "Same as shape" follows the shape's trigger,
+	// timing and spring, or stands still when Organic Shape is off.
+	var DECO_SETTINGS = [ 'shape', 'shape_source', 'shape_lib', 'custom_svg', 'edge', 'flip_h', 'flip_v', 'custom_rotate', 'angle', 'angle_fit', 'custom_motion', 'dot_style', 'custom_amount' ];
+
+	function decoShapeSettings( s ) {
+		var out = {};
+		Object.keys( s ).forEach( function ( key ) {
+			out[ key ] = s[ key ];
+		} );
+		DECO_SETTINGS.forEach( function ( key ) {
+			out[ 'framify_org_' + key ] = s[ 'framify_org_deco_' + key ];
+		} );
+		out.framify_org_shape = out.framify_org_shape || 'splash';
+		// Static is the blob's default: an uploaded blob that never moved
+		// stays still when it follows the shape's trigger.
+		out.framify_org_custom_motion = out.framify_org_custom_motion || 'static';
+		var trigger = s.framify_org_deco_trigger || 'same';
+		if ( 'same' === trigger ) {
+			if ( 'yes' !== s.framify_org_enable ) {
+				out.framify_org_trigger = 'none';
+			}
+		} else {
+			out.framify_org_trigger = trigger;
+			out.framify_org_duration = s.framify_org_deco_duration;
+			out.framify_org_spring = s.framify_org_deco_spring;
+		}
+		return libraryShape( out );
+	}
+
+	// Behind content mode with the Deco Blob on: the Deco Blob look controls
+	// style the extra blob, so the shape itself reads its own (Shape look =
+	// Own) or keeps sharing them (the default).
+	function lookSettings( s ) {
+		if ( 'yes' !== s.framify_org_deco || 'own' !== s.framify_org_look ) {
+			return s;
+		}
+		var out = {};
+		Object.keys( s ).forEach( function ( key ) {
+			out[ key ] = s[ key ];
+		} );
+		[ 'style', 'color', 'outline_color', 'outline_width' ].forEach( function ( key ) {
+			out[ 'framify_org_deco_' + key ] = s[ 'framify_org_look_' + key ];
+		} );
+		return out;
+	}
+
 	function shapeData( id, fallback ) {
 		return CONFIG.shapes[ id ] || CONFIG.shapes[ fallback || CONFIG.defaultShape ] || null;
 	}
@@ -286,14 +336,17 @@
 	// (the switch on containers, the target on the Image widget), else null.
 	// A cleared colour is '' in the editor and missing on published pages;
 	// the || fallback treats both the same, so editor and live agree.
-	function decoLook( s, grain ) {
+	// overlay: the extra Deco Blob carries a second path that the overlay
+	// controls tint (CSS only, see framify_decobg_*).
+	function decoLook( s, grain, overlay ) {
 		var outline = 'outline' === s.framify_org_deco_style;
 		return {
 			outline: outline,
 			color: s.framify_org_deco_color || '#F2C53D',
 			outlineColor: s.framify_org_deco_outline_color || '#1E1E1E',
 			outlineWidth: number( s.framify_org_deco_outline_width, 2 ),
-			grain: outline ? null : grain || null
+			grain: outline ? null : grain || null,
+			overlay: !! overlay && ! outline
 		};
 	}
 
@@ -519,6 +572,39 @@
 			return 'blob' === family ? 'hover' : 'none';
 		}
 		return trigger;
+	}
+
+	// Free rotation (the Angle control): any angle, every shape, about the
+	// centre of the shape's box. The 0-100 box is square but is stretched to
+	// the element's pixel aspect (objectBoundingBox clip,
+	// preserveAspectRatio="none"), so a plain rotate() inside it would shear
+	// on a non-square element. Like gentleTransform, the rotation is
+	// conjugated with the aspect (stretch, rotate, unstretch), which is a true
+	// pixel-space rotation. k <= 1 is the optional Keep-inside-the-box shrink.
+	// Returns '' for no turn, so an untouched shape's strings do not change.
+	function readAngle( s, key ) {
+		var a = number( s[ key ], 0 ) % 360;
+		return isFinite( a ) ? ( a < 0 ? a + 360 : a ) : 0;
+	}
+
+	function poseTransform( angle, k, aspect ) {
+		if ( ! angle ) {
+			return '';
+		}
+		aspect = aspect > 0 && isFinite( aspect ) ? aspect : 1;
+		return 'translate(50 50) scale(' + ( 1 / aspect ) + ' 1) rotate(' + angle + ') scale(' + aspect + ' 1) scale(' + k + ') translate(-50 -50)';
+	}
+
+	// The uniform scale that keeps a box-filling shape turned by `angle`
+	// inside its box. The box is `aspect` wide by 1 high in pixel units; the
+	// turned box needs |c| a + |s| by |s| a + |c|. A box-filling bound: most
+	// shapes have room to spare, so it errs on the safe side.
+	function fitScale( angle, aspect ) {
+		aspect = aspect > 0 && isFinite( aspect ) ? aspect : 1;
+		var r = angle * Math.PI / 180;
+		var c = Math.abs( Math.cos( r ) );
+		var si = Math.abs( Math.sin( r ) );
+		return Math.min( 1, aspect / ( c * aspect + si ), 1 / ( si * aspect + c ) );
 	}
 
 	/* ---------- custom shape: liquid tracing ---------- */
@@ -1761,7 +1847,14 @@
 			}
 		}
 		svg.appendChild( path );
-		return { svg: svg, path: path };
+		var twin = null;
+		if ( look.overlay ) {
+			// Same outline, filled by the Deco Blob overlay controls (a CSS
+			// colour and opacity, transparent until set), above the grain.
+			twin = svgEl( 'path', { 'class': 'framify-organic__overlay', d: d } );
+			svg.appendChild( twin );
+		}
+		return { svg: svg, path: path, twin: twin };
 	}
 
 	// Clip mode: specks only, full size, so the container's own background
@@ -2035,6 +2128,11 @@
 		dotField: dotField,
 		dotPair: dotPair,
 		DOT_AMOUNT: DOT_AMOUNT,
+		readAngle: readAngle,
+		poseTransform: poseTransform,
+		fitScale: fitScale,
+		decoShapeSettings: decoShapeSettings,
+		lookSettings: lookSettings,
 		parsePath: parsePath,
 		blendPath: blendPath,
 		elastic: elastic,
@@ -2156,8 +2254,8 @@
 			// The element's own shape as a rest/hover pair. A static or Gentle
 			// custom shape never morphs, so both poses are the same raw path;
 			// Liquid uses its traced pair.
-			mainPair: function ( s ) {
-				var fx = this.fx;
+			mainPair: function ( s, st, fallback ) {
+				var fx = st || this.fx;
 				if ( fx.custom ) {
 					if ( fx.liquid ) {
 						return fx.liquid;
@@ -2168,7 +2266,7 @@
 					var path = parsePath( fx.custom.d );
 					return { rest: path, hover: path };
 				}
-				return shapePair( s.framify_org_shape, null, fx.edge );
+				return shapePair( s.framify_org_shape, fallback || null, fx.edge );
 			},
 
 			// Editor only, once per distinct paste: say why nothing happened.
@@ -2188,8 +2286,8 @@
 			// big dot pattern to Dots too, because tracing drops parts that
 			// small. Otherwise Liquid swaps in the traced pair, and falls back
 			// to Gentle when the paste can't be traced.
-			setupCustomMotion: function ( s ) {
-				var fx = this.fx;
+			setupCustomMotion: function ( s, st ) {
+				var fx = st || this.fx;
 				var amount = CUSTOM_AMOUNT[ s.framify_org_custom_amount ] ? s.framify_org_custom_amount : 'normal';
 				fx.over = springOvershoot( resolveTrigger( s.framify_org_trigger, fx.family ), SPRING_PERIOD[ s.framify_org_spring ] );
 				var field = 'gentle' === s.framify_org_custom_motion ? null : dotField( fx.custom.d );
@@ -2272,38 +2370,13 @@
 				} );
 			},
 
-			setup: function () {
-				var s = libraryShape( window.FramifyColor.settings( this ) );
-				if ( 'yes' !== s.framify_org_enable || ! shapeData( s.framify_org_shape ) ) {
-					return;
-				}
-				var custom = null;
-				if ( 'custom' === s.framify_org_shape ) {
-					custom = parseCustom( s.framify_org_custom_svg );
-					if ( ! custom ) {
-						this.warnCustom( s.framify_org_custom_svg );
-						return;
-					}
-				}
-
-				// A Spacer is a block like a container: no image, its own
-				// background is the fill. The host's box (the Spacer's height)
-				// is the placement box; the --framify-* properties on the
-				// widget element reach it by inheritance.
-				var spacer = 'spacer' === this.getWidgetType();
-				var el = spacer ? paintHost( this.$element[ 0 ] ) : this.$element[ 0 ];
-				var id = 'framify-org-' + ( ++uid );
-				var fx = this.fx = {
-					el: el,
-					// Two animation timelines: the image/shape, and the Image
-					// widget's deco when it has its own trigger.
-					channels: {
-						main: { value: 0, raf: 0, loopTimer: 0, looping: false },
-						deco: { value: 0, raf: 0, loopTimer: 0, looping: false }
-					},
-					parts: [],
-					cleanup: [],
-					family: custom ? 'custom' : familyOf( s.framify_org_shape ),
+			// The geometry state of one shape (the Organic Shape, or the Deco
+			// Blob through decoShapeSettings): family, flat edge, flips and
+			// turns, the inner transform chain, Custom fit, free Angle. s holds
+			// the shape's settings under the framify_org_ keys.
+			shapeFields: function ( s, custom, box, fallback ) {
+				var st = {
+					family: custom ? 'custom' : familyOf( s.framify_org_shape, fallback ),
 					custom: custom,
 					edgeSetting: s.framify_org_edge || 'auto',
 					edge: 'none',
@@ -2324,39 +2397,63 @@
 					motion: null,
 					over: 0,
 					aspect: 1,
-					img: null,
-					imgGrain: null,
-					clip: null,
-					// Spacer Clip mode: the layer carrying the Spacer's
-					// background, clipped instead of the host.
-					fill: null,
-					// Px the fill reaches past the host box (fillMargin; per
-					// side for a Container, fillSides).
-					fillMargin: 0,
-					// Container Clip mode with a moving custom shape: the host
-					// stays clipped and its background bleeds into an
-					// unclipped, oversized fill (bleedLayers).
-					bleed: false,
-					deco: null,
-					zoom: 0
+					// Free Angle (degrees, 0 = none) and Keep inside the box.
+					angle: readAngle( s, 'framify_org_angle' ),
+					fit: 'yes' === s.framify_org_angle_fit
 				};
-				var box = readBox( el, '', MAIN_BOX );
-				fx.edge = resolveEdge( fx.family, fx.edgeSetting, box, custom );
-				fx.zoomSide = orientSide( fx.edge, fx.orient );
+				st.edge = resolveEdge( st.family, st.edgeSetting, box, custom );
+				// A turned shape has no straight side on the photo edge to zoom from.
+				st.zoomSide = st.angle ? 'none' : orientSide( st.edge, st.orient );
 				// The inner chain, innermost last: fit (custom) or the drawn
 				// shape, then the flat-edge turn, then flip/rotate.
-				var orient = orientTransform( fx.orient );
+				var orient = orientTransform( st.orient );
 				if ( custom ) {
-					if ( ! custom.straight && ROTATE_SIDE[ fx.edgeSetting ] ) {
+					if ( ! custom.straight && ROTATE_SIDE[ st.edgeSetting ] ) {
 						this.warnFlat( s.framify_org_custom_svg );
 					}
-					fx.customFit = customFit( custom, fx.edge );
-					fx.customTurn = joinTransforms( orient, fx.customFit.turn );
-					fx.customInner = joinTransforms( fx.customTurn, customTransform( fx.customFit.box ) );
-					fx.inner = fx.customInner;
+					st.customFit = customFit( custom, st.edge );
+					st.customTurn = joinTransforms( orient, st.customFit.turn );
+					st.customInner = joinTransforms( st.customTurn, customTransform( st.customFit.box ) );
+					st.inner = st.customInner;
 				} else {
-					fx.inner = joinTransforms( orient, edgeTransform( fx.edge ) );
+					st.inner = joinTransforms( orient, edgeTransform( st.edge ) );
 				}
+				return st;
+			},
+
+			setup: function () {
+				var s = libraryShape( window.FramifyColor.settings( this ) );
+				if ( 'yes' !== s.framify_org_enable ) {
+					// No Organic Shape, but the Deco Blob stands on its own.
+					if ( 'yes' === s.framify_org_deco ) {
+						this.setupDecoOnly( s );
+					}
+					return;
+				}
+				if ( ! shapeData( s.framify_org_shape ) ) {
+					return;
+				}
+				var custom = null;
+				if ( 'custom' === s.framify_org_shape ) {
+					custom = parseCustom( s.framify_org_custom_svg );
+					if ( ! custom ) {
+						this.warnCustom( s.framify_org_custom_svg );
+						return;
+					}
+				}
+
+				// A Spacer is a block like a container: no image, its own
+				// background is the fill. The host's box (the Spacer's height)
+				// is the placement box; the --framify-* properties on the
+				// widget element reach it by inheritance.
+				var spacer = 'spacer' === this.getWidgetType();
+				var el = spacer ? paintHost( this.$element[ 0 ] ) : this.$element[ 0 ];
+				var id = 'framify-org-' + ( ++uid );
+				var fx = this.fx = this.newState( el );
+				var shape = this.shapeFields( s, custom, readBox( el, '', MAIN_BOX ) );
+				Object.keys( shape ).forEach( function ( key ) {
+					fx[ key ] = shape[ key ];
+				} );
 				if ( custom && ! REDUCE_MOTION && 'none' !== resolveTrigger( s.framify_org_trigger, fx.family ) ) {
 					this.setupCustomMotion( s );
 				}
@@ -2388,10 +2485,50 @@
 				this.place();
 				if ( ! REDUCE_MOTION ) {
 					this.bindTrigger( el, 'main', resolveTrigger( s.framify_org_trigger, fx.family ), number( s.framify_org_duration, 1500 ), SPRING_PERIOD[ s.framify_org_spring ] );
-					if ( fx.deco && 'deco' === fx.deco.channel ) {
-						this.bindTrigger( el, 'deco', s.framify_org_deco_trigger, number( s.framify_org_deco_duration, 2400 ), SPRING_PERIOD[ s.framify_org_deco_spring ] );
-					}
+					this.bindExtra( el, s );
 				}
+			},
+
+			// The extra Deco Blob's own trigger (when it is not "Same as shape").
+			bindExtra: function ( el, s ) {
+				var fx = this.fx;
+				if ( fx.extra && 'deco' === fx.extra.channel ) {
+					this.bindTrigger( el, 'deco', s.framify_org_deco_trigger, number( s.framify_org_deco_duration, 2400 ), SPRING_PERIOD[ s.framify_org_deco_spring ] );
+				}
+			},
+
+			// The bookkeeping every run keeps in this.fx, apart from the shape's
+			// own geometry (shapeFields).
+			newState: function ( el ) {
+				return {
+					el: el,
+					// Two animation timelines: the image/shape, and the
+					// Deco Blob when it has its own trigger.
+					channels: {
+						main: { value: 0, raf: 0, loopTimer: 0, looping: false },
+						deco: { value: 0, raf: 0, loopTimer: 0, looping: false }
+					},
+					parts: [],
+					cleanup: [],
+					img: null,
+					imgGrain: null,
+					clip: null,
+					// Spacer Clip mode: the layer carrying the Spacer's
+					// background, clipped instead of the host.
+					fill: null,
+					// Px the fill reaches past the host box (fillMargin; per
+					// side for a Container, fillSides).
+					fillMargin: 0,
+					// Container Clip mode with a moving custom shape: the host
+					// stays clipped and its background bleeds into an
+					// unclipped, oversized fill (bleedLayers).
+					bleed: false,
+					// The Behind content blob (the shape itself, drawn as a
+					// blob) and the extra Deco Blob.
+					deco: null,
+					extra: null,
+					zoom: 0
+				};
 			},
 
 			setupImage: function ( el, id, s ) {
@@ -2448,48 +2585,104 @@
 					return;
 				}
 				var decoSvg = this.ownDeco( el, id, s, target.deco ? grain : null, img );
+				if ( ! decoSvg ) {
+					return;
+				}
 				el.insertBefore( decoSvg, el.firstChild );
 				fx.cleanup.push( function () {
 					decoSvg.remove();
 				} );
 			},
 
-			// The Image widget's extra deco blob (also the Spacer's in Clip
-			// mode): its own shape, placement (deco-* properties, against
-			// anchor = the img, or the host box when null) and motion channel.
-			// Returns the svg; the caller inserts it and removes it on teardown.
+			// The extra Deco Blob, in every mode: its own shape (built-in,
+			// uploaded or pasted), placement (deco-* properties, against
+			// anchor = the img, or the host box when null), flat edge, flips,
+			// angle and motion channel. It runs through the same geometry the
+			// Organic Shape does (decoShapeSettings + shapeFields); the
+			// descriptor lands in fx.extra. Returns the svg, or null when its
+			// shape is unusable; the caller inserts it and removes it on
+			// teardown.
 			ownDeco: function ( el, id, s, grain, anchor ) {
 				var fx = this.fx;
-				// The deco has its own shape and placement; a Wavy deco's flat
-				// edge always follows its own horizontal position.
-				// An uploaded deco shape is static (no morph, no flat edge): its
-				// path is fitted into the 0-100 box by its own viewBox.
-				var decoLib = 'library' === s.framify_org_deco_shape_source && CONFIG.library ? parseCustom( CONFIG.library[ s.framify_org_deco_shape_lib ] ) : null;
-				var decoFamily = decoLib ? 'blob' : familyOf( s.framify_org_deco_shape, 'splash' );
-				var decoEdge = resolveEdge( decoFamily, 'auto', readBox( el, 'deco-', DECO_BOX ) );
-				var decoPair = shapePair( s.framify_org_deco_shape, 'splash', decoEdge );
-				if ( decoLib ) {
-					var libPath = parsePath( decoLib.d );
-					decoPair = { rest: libPath, hover: libPath };
+				var ds = decoShapeSettings( s );
+				var custom = null;
+				if ( 'custom' === ds.framify_org_shape ) {
+					custom = parseCustom( ds.framify_org_custom_svg );
+					if ( ! custom ) {
+						this.warnCustom( ds.framify_org_custom_svg );
+						return null;
+					}
+				} else if ( ! shapeData( ds.framify_org_shape, 'splash' ) ) {
+					return null;
 				}
-				var deco = buildDeco( id, decoPair.rest.d, decoLook( s, grain ) );
-				deco.path.setAttribute( 'transform', decoLib ? customTransform( decoLib.box ) : edgeTransform( decoEdge ) );
+				var st = this.shapeFields( ds, custom, readBox( el, 'deco-', DECO_BOX ), 'splash' );
+				if ( custom && ! REDUCE_MOTION && 'static' !== ds.framify_org_custom_motion && 'none' !== resolveTrigger( ds.framify_org_trigger, st.family ) ) {
+					this.setupCustomMotion( ds, st );
+				}
+				var pair = this.mainPair( ds, st, 'splash' );
+				var deco = buildDeco( id, pair.rest.d, decoLook( s, grain, true ) );
+				deco.path.setAttribute( 'transform', st.inner );
+				if ( deco.twin ) {
+					deco.twin.setAttribute( 'transform', st.inner );
+				}
+				deco.svg.classList.add( 'framify-organic__deco--extra' );
 
 				// "Same as image" (the default) keeps following the main channel.
 				var decoTrigger = s.framify_org_deco_trigger || 'same';
 				var decoChannel = 'same' === decoTrigger ? 'main' : 'deco';
-				fx.deco = {
+				fx.extra = {
 					svg: deco.svg,
+					path: deco.path,
+					twin: deco.twin,
 					prefix: 'deco-',
 					defaults: DECO_BOX,
-					family: decoFamily,
-					edge: decoEdge,
+					st: st,
 					anchor: anchor,
 					channel: decoChannel,
-					rotate: 'none' === decoTrigger ? 0 : number( s.framify_org_deco_rotate, 0 )
+					rotate: 'none' === decoTrigger ? 0 : number( s.framify_org_deco_rotate, 0 ),
+					aspect: 1
 				};
-				fx.parts.push( { pair: decoPair, path: deco.path, channel: decoChannel } );
+				fx.parts.push( { pair: pair, path: deco.path, twin: deco.twin, channel: decoChannel } );
 				return deco.svg;
+			},
+
+			// Organic Shape off, Deco Blob on: only the blob. No clip, fill or
+			// main shape, just the blob placed against the element (or the
+			// photo on an Image widget) and, when it has its own trigger,
+			// moving.
+			setupDecoOnly: function ( s ) {
+				var spacer = 'spacer' === this.getWidgetType();
+				var block = spacer || 'container' === this.getElementType();
+				var el = spacer ? paintHost( this.$element[ 0 ] ) : this.$element[ 0 ];
+				var img = block ? null : el.querySelector( 'img' );
+				if ( ! block && ! img ) {
+					return;
+				}
+				var id = 'framify-org-' + ( ++uid );
+				var fx = this.fx = this.newState( el );
+				fx.noMain = true;
+				fx.img = img;
+				var grain = block ? ( grainOn( s ) ? grainOptions( s, el ) : null ) : ( grainTarget( s ).deco ? grainOptions( s, el ) : null );
+				var svg = this.ownDeco( el, id, s, grain, img );
+				if ( ! svg ) {
+					return;
+				}
+				if ( block ) {
+					this.holdLayer( el, svg );
+					this.spill( el );
+				} else {
+					el.classList.add( 'framify-organic' );
+					el.insertBefore( svg, el.firstChild );
+					fx.cleanup.push( function () {
+						svg.remove();
+						el.classList.remove( 'framify-organic' );
+					} );
+				}
+				this.observeLayout();
+				this.place();
+				if ( ! REDUCE_MOTION ) {
+					this.bindExtra( el, s );
+				}
 			},
 
 			// Spacer, Clip mode. Clipping the host (as a Container does) would
@@ -2526,9 +2719,13 @@
 				} );
 				this.holdLayer( el, fill );
 
-				// Own id: the clip grain above already uses id + '-grain'.
-				if ( 'bg' !== s.framify_org_mode ) {
-					this.holdLayer( el, this.ownDeco( el, id + '-deco', s, grainOn( s ) ? grainOptions( s, el ) : null, null ) );
+				// Own id: the clip grain above already uses id + '-grain'. The
+				// blob is behind the clipped fill, in Clip and Background modes alike.
+				if ( 'yes' === s.framify_org_deco ) {
+					var extra = this.ownDeco( el, id + '-deco', s, grainOn( s ) ? grainOptions( s, el ) : null, null );
+					if ( extra ) {
+						this.holdLayer( el, extra );
+					}
 				}
 				this.spill( el );
 			},
@@ -2819,14 +3016,24 @@
 					return;
 				}
 
-				var deco = buildDeco( id, main.rest.d, decoLook( s, grainOn( s ) ? grainOptions( s, el ) : null ) );
+				var deco = buildDeco( id, main.rest.d, decoLook( lookSettings( s ), grainOn( s ) ? grainOptions( s, el ) : null ) );
 				deco.path.setAttribute( 'transform', fx.inner );
 
 				this.holdLayer( el, deco.svg );
 
-				// In deco mode the deco IS the shape, so it uses the main placement.
-				fx.deco = { svg: deco.svg, path: deco.path, prefix: '', defaults: MAIN_BOX, family: fx.family, edge: fx.edge, anchor: null, channel: 'main', rotate: 0 };
+				// In deco mode the deco IS the shape, so it uses the main
+				// placement; its Angle turns the whole svg (pixel space).
+				fx.deco = { svg: deco.svg, path: deco.path, prefix: '', defaults: MAIN_BOX, st: fx, anchor: null, channel: 'main', rotate: 0, aspect: 1 };
 				fx.parts.push( { pair: main, path: deco.path, channel: 'main' } );
+
+				// The extra Deco Blob goes behind it (holdLayer inserts first).
+				if ( 'yes' === s.framify_org_deco ) {
+					var extra = this.ownDeco( el, id + '-deco', s, grainOn( s ) ? grainOptions( s, el ) : null, null );
+					if ( extra ) {
+						this.holdLayer( el, extra );
+						this.spill( el );
+					}
+				}
 			},
 
 			// Placement can change with no settings change: a window resize, an
@@ -2873,7 +3080,9 @@
 					return;
 				}
 				var box = readBox( fx.el, '', MAIN_BOX );
-				if ( resolveEdge( fx.family, fx.edgeSetting, box, fx.custom ) !== fx.edge ) {
+				// Without an Organic Shape (the Deco Blob on its own) there is
+				// no main edge to check, clip or fill to place.
+				if ( ! fx.noMain && resolveEdge( fx.family, fx.edgeSetting, box, fx.custom ) !== fx.edge ) {
 					this.rebuild();
 					return;
 				}
@@ -2884,14 +3093,32 @@
 					this.refill( this.fillMarginFor( fx.el ) );
 				}
 
-				if ( fx.deco ) {
-					var deco = fx.deco;
-					var decoBox = deco.prefix ? readBox( fx.el, deco.prefix, deco.defaults ) : box;
-					if ( deco.prefix && resolveEdge( deco.family, 'auto', decoBox ) !== deco.edge ) {
+				// The Behind content blob (the shape itself, main placement) and
+				// the extra Deco Blob (its own placement and geometry).
+				var blobs = [ fx.deco, fx.extra ];
+				for ( var i = 0; i < blobs.length; i++ ) {
+					var d = blobs[ i ];
+					if ( ! d ) {
+						continue;
+					}
+					var decoBox = d.prefix ? readBox( fx.el, d.prefix, d.defaults ) : box;
+					if ( d.prefix && resolveEdge( d.st.family, d.st.edgeSetting, decoBox, d.st.custom ) !== d.st.edge ) {
 						this.rebuild();
 						return;
 					}
-					positionDeco( deco.svg, decoBox, deco.anchor );
+					positionDeco( d.svg, decoBox, d.anchor );
+					// The blob's own pixel aspect: Gentle's rotation and the
+					// Keep-inside-the-box fit conjugate with it.
+					var ael = d.anchor || fx.el;
+					var raw = ael.offsetWidth * decoBox.w / ( ael.offsetHeight * decoBox.h );
+					d.aspect = raw > 0 && isFinite( raw ) ? raw : 1;
+					if ( d.prefix ) {
+						d.st.aspect = d.aspect;
+					}
+				}
+				if ( fx.noMain ) {
+					this.render();
+					return;
 				}
 
 				// The box the clipped shape actually fills, for Gentle's aspect
@@ -2924,8 +3151,8 @@
 					}
 				}
 
-				if ( fx.custom ) {
-					// Gentle's rotation needs the shape box's rendered pixel aspect
+				if ( fx.custom || fx.angle ) {
+					// Gentle's rotation (and the free Angle) needs the shape box's rendered pixel aspect
 					// (see gentleTransform); an Image widget clips the img itself, a
 					// Container (clip or deco mode) clips/traces the element, so
 					// fx.img (when set) is always the right element to measure.
@@ -3042,6 +3269,7 @@
 				var fx = this.fx;
 				var value = fx.channels.main.value;
 				fx.parts.forEach( function ( part ) {
+					var d;
 					if ( part.pair.rest === part.pair.hover ) {
 						// A static shape (Custom: rest and hover are the same
 						// parsed path). blendPath's NUMBER tokenizer would mangle
@@ -3051,21 +3279,44 @@
 						// original string untouched, and only once.
 						if ( part.path.getAttribute( 'd' ) !== part.pair.rest.d ) {
 							part.path.setAttribute( 'd', part.pair.rest.d );
+							if ( part.twin ) {
+								part.twin.setAttribute( 'd', part.pair.rest.d );
+							}
 						}
-					} else if ( part.pair.blend ) {
+						return;
+					}
+					if ( part.pair.blend ) {
 						// Dots: its own blender (arc flags must stay integers).
-						part.path.setAttribute( 'd', part.pair.blend( fx.channels[ part.channel ].value ) );
+						d = part.pair.blend( fx.channels[ part.channel ].value );
 					} else {
-						part.path.setAttribute( 'd', blendPath( part.pair.rest, part.pair.hover, fx.channels[ part.channel ].value ) );
+						d = blendPath( part.pair.rest, part.pair.hover, fx.channels[ part.channel ].value );
+					}
+					part.path.setAttribute( 'd', d );
+					if ( part.twin ) {
+						part.twin.setAttribute( 'd', d );
 					}
 				} );
-				if ( fx.deco && fx.deco.rotate ) {
-					// A CSS turn on the deco svg: it rotates in pixel space, so it
-					// never shears the way a rotation inside the stretched 0-100
-					// box would.
-					var turn = fx.deco.rotate * fx.channels[ fx.deco.channel ].value;
-					fx.deco.svg.style.transform = turn ? 'rotate(' + turn + 'deg)' : '';
-				}
+				// The blobs are svg elements: the shape drawn behind the content
+				// (Behind content mode) and the extra Deco Blob. Their turn is a
+				// CSS transform on the svg, which rotates in pixel space, so it
+				// never shears the way a rotation inside the stretched 0-100 box
+				// would: the Angle, plus the "Turn while moving" of the extra blob.
+				[ fx.deco, fx.extra ].forEach( function ( d ) {
+					if ( ! d ) {
+						return;
+					}
+					var st = d.st;
+					var turn = ( d.rotate ? d.rotate * fx.channels[ d.channel ].value : 0 ) + st.angle;
+					var k = st.angle && st.fit ? fitScale( st.angle, d.aspect ) : 1;
+					d.svg.style.transform = turn || 1 !== k ? 'rotate(' + turn + 'deg)' + ( 1 !== k ? ' scale(' + k + ')' : '' ) : '';
+					if ( d.prefix && st.gentle ) {
+						var g = gentleTransform( st.gentle, fx.channels[ d.channel ].value, st.customInner, d.aspect );
+						d.path.setAttribute( 'transform', g );
+						if ( d.twin ) {
+							d.twin.setAttribute( 'transform', g );
+						}
+					}
+				} );
 				if ( fx.gentle ) {
 					// Gentle custom motion lives in the inner transform, shared by
 					// the clip and by a container's deco path.
@@ -3082,7 +3333,10 @@
 							fx.imgGrain.style.transform = fx.img.style.transform;
 						}
 					}
-					fx.clip.path.setAttribute( 'transform', clipTransform( fx.clip.box, fx.inner, zoom, fx.clip.origin ) );
+					// The free Angle is outermost in the inner chain: the last
+					// thing applied to the shape.
+					var inner = fx.angle ? joinTransforms( poseTransform( fx.angle, fx.fit ? fitScale( fx.angle, fx.aspect ) : 1, fx.aspect ), fx.inner ) : fx.inner;
+					fx.clip.path.setAttribute( 'transform', clipTransform( fx.clip.box, inner, zoom, fx.clip.origin ) );
 					if ( fx.img ) {
 						syncPhoto( fx.el );
 					}
