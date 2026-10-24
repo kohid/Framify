@@ -10,7 +10,12 @@ Development is edit-file → reload page. There is nothing to compile or lint; t
 
 ## Working agreement
 
-Always work in collaboration with `/feature-dev:feature-dev` and `/frontend-design:frontend-design`, whether or not the request names them: feature-dev for the workflow (explore, clarify, design, implement, review), frontend-design for every visual or UI decision.
+In every session, whether or not the request names them, work in collaboration with all four:
+
+- `/feature-dev:feature-dev` for the workflow: explore, clarify, design, implement, review. No implementation before the user approves an architecture.
+- `/frontend-design:frontend-design` for every visual or UI decision.
+- `fullstack-developer` for the PHP, JavaScript and Elementor side of a change, so the front end and back end are designed together.
+- `superpowers:brainstorming` before any new feature or behaviour change, to settle intent and options with the user first.
 
 ## Verifying behaviour
 
