@@ -238,12 +238,12 @@ CASES[ 'off' ] = [ 'container', { framify_org_enable: '', framify_org_mode: 'cli
   // Grain textures, colour and size.
   const filterOf = ( settings ) => run( 'container', { ...base, framify_org_mode: 'deco', framify_org_shape: 'pebble', framify_org_deco_grain: 'yes', ...settings }, ( page ) => q( page, () => {
     const f = window.__m.host.querySelector( 'filter' );
-    const prims = [ ...f.children ].map( ( n ) => n.tagName + ':' + ( n.getAttribute( 'baseFrequency' ) || '' ) + ':' + ( n.getAttribute( 'values' ) || '' ) );
+    const prims = [ ...f.children ].map( ( n ) => n.tagName + ':' + ( n.getAttribute( 'baseFrequency' ) || '' ) + ':' + ( n.getAttribute( 'values' ) || '' ) + ':' + ( n.getAttribute( 'href' ) || '' ) );
     const results = [ ...f.children ].map( ( n ) => n.getAttribute( 'result' ) );
     return { prims, results, count: f.children.length, attached: !! f.parentNode };
   } ) );
   const legacy = await filterOf( {} );
-  for ( const t of [ 'speckle', 'chalk', 'brush', 'fibre', 'film', 'halftone' ] ) {
+  for ( const t of [ 'speckle', 'chalk', 'brush', 'fibre', 'film', 'halftone', 'dispersion', 'strokes', 'splatter', 'scratches' ] ) {
     const r = await filterOf( { framify_org_grain_texture: t } );
     ok( 'grain texture ' + t + ': builds a filter that names a specks result and ends merged into the shape', r.results.indexOf( 'specks' ) > -1 && 'feMerge' === r.prims[ r.prims.length - 1 ].split( ':' )[ 0 ] );
     if ( 'speckle' === t ) {
@@ -252,6 +252,33 @@ CASES[ 'off' ] = [ 'container', { framify_org_enable: '', framify_org_mode: 'cli
       ok( 'grain texture ' + t + ': differs from the classic speckle', JSON.stringify( r.prims ) !== JSON.stringify( legacy.prims ) );
     }
   }
+  const fadeIs = ( r ) => r.prims.some( ( x ) => /^feImage/.test( x ) );
+  ok( 'grain fade: none (the default) adds no gradient image, so every texture is unchanged', ! fadeIs( legacy ) );
+  const faded = await filterOf( { framify_org_grain_fade: 'right', framify_org_grain_reach: { size: 40 } } );
+  ok( 'grain fade: a side adds the gradient mask before the grain is kept inside the shape', fadeIs( faded ) && faded.results.indexOf( 'specksFaded' ) > -1 );
+  ok( 'grain fade: Dispersion fades from the left on its own, and an explicit side wins', fadeIs( await filterOf( { framify_org_grain_texture: 'dispersion' } ) ) && JSON.stringify( ( await filterOf( { framify_org_grain_texture: 'dispersion', framify_org_grain_fade: 'right' } ) ).prims ) !== JSON.stringify( ( await filterOf( { framify_org_grain_texture: 'dispersion' } ) ).prims ) );
+  // Pixel check: a Fade from the left leaves more grain on the left half.
+  const dens = await run( 'container', { ...base, framify_org_mode: 'clip', framify_org_shape: 'custom', framify_org_custom_svg: '<svg viewBox="0 0 100 100"><path d="M0 0H100V100H0Z"/></svg>', framify_org_clip_grain: 'yes', framify_org_grain_texture: 'dispersion', framify_org_grain_fade: 'left', framify_org_grain_color: '#000000' }, async ( page ) => {
+    await page.evaluate( () => { Object.assign( window.__m.host.style, { width: '400px', height: '200px', background: '#fff', position: 'relative' } ); } );
+    await page.waitForTimeout( 300 );
+    const shot = await page.screenshot( { clip: { x: 0, y: 0, width: 400, height: 200 } } );
+    return shot.toString( 'base64' );
+  } );
+  const darkness = await run( 'container', { framify_org_enable: '' }, async ( page ) => {
+    return page.evaluate( async ( b64 ) => {
+      const img = new Image();
+      img.src = 'data:image/png;base64,' + b64;
+      await img.decode();
+      const c = document.createElement( 'canvas' );
+      c.width = 400;
+      c.height = 200;
+      const x = c.getContext( '2d' );
+      x.drawImage( img, 0, 0 );
+      const sum = ( x0 ) => { const d = x.getImageData( x0, 0, 100, 200 ).data; let t = 0; for ( let i = 0; i < d.length; i += 4 ) { t += 255 - d[ i ]; } return t; };
+      return [ sum( 0 ), sum( 300 ) ];
+    }, dens );
+  } );
+  ok( 'grain fade: Dispersion fading from the left is darker on the left quarter than the right (' + darkness[ 0 ] + ' vs ' + darkness[ 1 ] + ')', darkness[ 0 ] > 3 * Math.max( 1, darkness[ 1 ] ) );
   const unknown = await filterOf( { framify_org_grain_texture: 'nonsense' } );
   ok( 'grain texture: an unknown value falls back to speckle', JSON.stringify( unknown.prims ) === JSON.stringify( legacy.prims ) );
   const red = await filterOf( { framify_org_grain_color: '#ff0000' } );

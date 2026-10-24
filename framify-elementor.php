@@ -963,8 +963,36 @@ class Framify_Elementor {
                 'fibre'    => esc_html__( 'Paper fibre', 'framify' ),
                 'film'     => esc_html__( 'Film grain', 'framify' ),
                 'halftone' => esc_html__( 'Halftone dots', 'framify' ),
+                'dispersion' => esc_html__( 'Dispersion (stipple fade)', 'framify' ),
+                'strokes'  => esc_html__( 'Brush strokes', 'framify' ),
+                'splatter' => esc_html__( 'Grunge splatter', 'framify' ),
+                'scratches' => esc_html__( 'Scratches', 'framify' ),
             ),
             'description' => esc_html__( 'Distressed chalk is the worn, powdery print look.', 'framify' ),
+        ) ) );
+
+        $element->add_control( 'framify_org_grain_fade', $this->live( array(
+            'label'       => esc_html__( 'Fade from', 'framify' ),
+            'type'        => $cm::SELECT,
+            'default'     => 'none',
+            'options'     => array(
+                'none'   => esc_html__( 'None (even grain)', 'framify' ),
+                'left'   => esc_html__( 'Left', 'framify' ),
+                'right'  => esc_html__( 'Right', 'framify' ),
+                'top'    => esc_html__( 'Top', 'framify' ),
+                'bottom' => esc_html__( 'Bottom', 'framify' ),
+                'center' => esc_html__( 'Centre', 'framify' ),
+            ),
+            'description' => esc_html__( 'The grain is densest on that side and thins out across the shape. Dispersion fades from the left unless you choose another side.', 'framify' ),
+        ) ) );
+
+        $element->add_control( 'framify_org_grain_reach', $this->live( array(
+            'label'      => esc_html__( 'Fade reach', 'framify' ),
+            'type'       => $cm::SLIDER,
+            'size_units' => array( 'px' ),
+            'range'      => array( 'px' => array( 'min' => 5, 'max' => 100, 'step' => 1 ) ),
+            'default'    => array( 'unit' => 'px', 'size' => 70 ),
+            'condition'  => array( 'framify_org_grain_fade!' => 'none' ),
         ) ) );
 
         $element->add_control( 'framify_org_grain_color', $this->live( array(

@@ -1119,8 +1119,8 @@ sort( $dp_sorted );
 foreach ( array( 'container' => $con_org, 'spacer' => $spa_org ?? null, 'image' => $img_org ) as $gk => $gc ) {
     if ( ! $gc ) { continue; }
     $gt = $gc->controls['framify_org_grain_texture'] ?? array();
-    check( "grain ($gk): Texture select defaults to speckle (saved pages keep their look) and offers chalk, brush, fibre, film, halftone",
-        'speckle' === ( $gt['default'] ?? '' ) && array( 'speckle', 'chalk', 'brush', 'fibre', 'film', 'halftone' ) === array_keys( $gt['options'] ?? array() ) );
+    check( "grain ($gk): Texture select defaults to speckle (saved pages keep their look) and offers the generated textures",
+        'speckle' === ( $gt['default'] ?? '' ) && array( 'speckle', 'chalk', 'brush', 'fibre', 'film', 'halftone', 'dispersion', 'strokes', 'splatter', 'scratches' ) === array_keys( $gt['options'] ?? array() ) );
     check( "grain ($gk): Grain colour defaults to white with no global colour", '#FFFFFF' === ( $gc->controls['framify_org_grain_color']['default'] ?? '' ) );
     check( "grain ($gk): Grain size slider 1-100 defaults to 50", 50 === ( $gc->controls['framify_org_grain_size']['default']['size'] ?? 0 ) && 100 === ( $gc->controls['framify_org_grain_size']['range']['px']['max'] ?? 0 ) );
 }

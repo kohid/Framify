@@ -303,6 +303,16 @@
 	// few faint specks, 100 heavy chalk. Pattern 0 = a speckle of the
 	// element's own, seeded from its Elementor id so it stays the same
 	// across reloads.
+	// The side the grain stays dense on, or null for an even grain. Dispersion
+	// is a fade by nature: with none chosen it thins out from the left.
+	function grainFade( s ) {
+		var from = s.framify_org_grain_fade;
+		if ( ! /^(left|right|top|bottom|center)$/.test( from || '' ) ) {
+			from = 'dispersion' === s.framify_org_grain_texture ? 'left' : null;
+		}
+		return from;
+	}
+
 	function grainOptions( s, el ) {
 		var amount = Math.max( 0, Math.min( 100, number( s.framify_org_grain_amount, 50 ) ) );
 		var pattern = Math.round( number( s.framify_org_grain_pattern, 0 ) );
@@ -314,7 +324,9 @@
 			texture: s.framify_org_grain_texture || 'speckle',
 			color: grainRgb( s.framify_org_grain_color ),
 			// Size 50 = the original; 100 = patches 4x larger, 1 = 4x finer.
-			scale: Math.round( Math.pow( 2, ( 50 - size ) / 25 ) * 1000 ) / 1000
+			scale: Math.round( Math.pow( 2, ( 50 - size ) / 25 ) * 1000 ) / 1000,
+			fade: grainFade( s ),
+			reach: Math.max( 5, Math.min( 100, number( s.framify_org_grain_reach, 70 ) ) )
 		};
 	}
 
@@ -2207,6 +2219,49 @@
 			noiseNode( filter, fq( f.n * 4 ), 1, grain.seed, 'filmNoise' );
 			maskNode( filter, 'filmNoise', rgb, 1.8 * ( 0.15 + 0.85 * grain.amount ), -0.2 * ( 0.15 + 0.85 * grain.amount ), 'specks' );
 		},
+		// Dispersion: a fine stipple in clumps. Fade (see grainOptions) makes
+		// it thin out across the shape; with none set it fades from the left.
+		dispersion: function ( filter, f, grain, rgb ) {
+			var amt = grain.amount;
+			noiseNode( filter, fq( f.n * 6 ), 1, grain.seed, 'stipple' );
+			maskNode( filter, 'stipple', rgb, 9, -( 5.2 - 0.9 * amt ), 'dotsHard' );
+			noiseNode( filter, fq( f.n * 0.18 ), 3, grain.seed + 9, 'clumpNoise' );
+			maskNode( filter, 'clumpNoise', rgb, 3.5, -0.9, 'clumps' );
+			filter.appendChild( svgEl( 'feComposite', { 'in': 'dotsHard', in2: 'clumps', operator: 'in', result: 'specks' } ) );
+		},
+		// Brush strokes: noise stretched along x, cut hard, so it reads as
+		// solid dry-brush bars; its own octaves roughen the edges.
+		strokes: function ( filter, f, grain, rgb ) {
+			var amt = grain.amount;
+			noiseNode( filter, fq( f.n * 0.012 ) + ' ' + fq( f.n * 0.4 ), 5, grain.seed, 'barNoise' );
+			maskNode( filter, 'barNoise', rgb, 14, -( 7.9 - 2.4 * amt ), 'specks' );
+		},
+		// Grunge splatter: dust and flecks at two scales, cut hard, thicker
+		// in blotchy patches.
+		splatter: function ( filter, f, grain, rgb ) {
+			var amt = grain.amount;
+			noiseNode( filter, fq( f.n * 4.5 ), 4, grain.seed, 'fleckNoise' );
+			maskNode( filter, 'fleckNoise', rgb, 9, -( 5.5 - 1.1 * amt ), 'flecks' );
+			noiseNode( filter, fq( f.n * 0.12 ), 3, grain.seed + 31, 'patchNoise2' );
+			maskNode( filter, 'patchNoise2', rgb, 5, -( 2.1 - 0.9 * amt ), 'patch2' );
+			filter.appendChild( svgEl( 'feComposite', { 'in': 'flecks', in2: 'patch2', operator: 'in', result: 'specks' } ) );
+		},
+		// Scratches: hairlines from noise stretched far along one axis, in
+		// both directions, plus a little dust.
+		scratches: function ( filter, f, grain, rgb ) {
+			var amt = grain.amount;
+			noiseNode( filter, fq( f.n * 0.006 ) + ' ' + fq( f.n * 3 ), 2, grain.seed, 'lineH' );
+			noiseNode( filter, fq( f.n * 3 ) + ' ' + fq( f.n * 0.006 ), 2, grain.seed + 4, 'lineV' );
+			maskNode( filter, 'lineH', rgb, 12, -( 8.0 - 1.2 * amt ), 'sh' );
+			maskNode( filter, 'lineV', rgb, 12, -( 8.3 - 1.2 * amt ), 'sv' );
+			noiseNode( filter, fq( f.n * 5 ), 2, grain.seed + 8, 'dustNoise' );
+			maskNode( filter, 'dustNoise', rgb, 9, -( 5.9 - 0.8 * amt ), 'sd' );
+			var merge = svgEl( 'feMerge', { result: 'specks' } );
+			[ 'sh', 'sv', 'sd' ].forEach( function ( name ) {
+				merge.appendChild( svgEl( 'feMergeNode', { 'in': name } ) );
+			} );
+			filter.appendChild( merge );
+		},
 		// Halftone: a regular dot grid (a blurred square, tiled and hardened
 		// into dots), kept to blotchy patches by low-frequency noise.
 		halftone: function ( filter, f, grain, rgb ) {
@@ -2252,7 +2307,18 @@
 		} );
 	}
 
-	// grain = { cut, seed, amount, texture, color, scale } from grainOptions().
+	// Fade: a white-to-black gradient image over the shape (feImage), its
+	// brightness the share of grain that survives. `from` is the side the
+	// grain stays dense on ('center' = dense in the middle); reach (5-100)
+	// is how far across the fade runs.
+	function fadeImage( from, reach ) {
+		var stop = '<stop offset="0" stop-color="#fff"/><stop offset="' + fq( Math.max( 0.05, reach / 100 ) ) + '" stop-color="#000"/>';
+		var dir = { left: 'x1="0" y1="0" x2="1" y2="0"', right: 'x1="1" y1="0" x2="0" y2="0"', top: 'x1="0" y1="0" x2="0" y2="1"', bottom: 'x1="0" y1="1" x2="0" y2="0"' }[ from ];
+		var grad = dir ? '<linearGradient id="g" ' + dir + '>' + stop + '</linearGradient>' : '<radialGradient id="g" cx="0.5" cy="0.5" r="0.7071">' + stop + '</radialGradient>';
+		return 'data:image/svg+xml,' + encodeURIComponent( '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" preserveAspectRatio="none"><defs>' + grad + '</defs><rect width="1" height="1" fill="url(#g)"/></svg>' );
+	}
+
+	// grain = { cut, seed, amount, texture, color, scale, fade, reach } from grainOptions().
 	// The speckle texture with white colour and the default size is exactly
 	// the original filter.
 	function buildGrainFilter( filterId, specksOnly, frequency, grain ) {
@@ -2263,7 +2329,14 @@
 		var f = { n: base * scale, base: 1 === scale ? String( frequency || '0.45' ) : fq( base * scale ) };
 		var build = GRAIN_TEXTURES[ grain.texture ] || GRAIN_TEXTURES.speckle;
 		build( filter, f, { cut: grain.cut, seed: grain.seed, amount: undefined === grain.amount ? 0.5 : grain.amount }, grain.color || [ 1, 1, 1 ] );
-		filter.appendChild( svgEl( 'feComposite', { 'in': 'specks', in2: 'SourceGraphic', operator: 'in', result: 'specksIn' } ) );
+		var kept = 'specks';
+		if ( grain.fade ) {
+			filter.appendChild( svgEl( 'feImage', { href: fadeImage( grain.fade, grain.reach ), preserveAspectRatio: 'none', result: 'fadeImg' } ) );
+			filter.appendChild( svgEl( 'feColorMatrix', { 'in': 'fadeImg', type: 'matrix', values: '0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  1 0 0 0 0', result: 'fadeMask' } ) );
+			filter.appendChild( svgEl( 'feComposite', { 'in': 'specks', in2: 'fadeMask', operator: 'in', result: 'specksFaded' } ) );
+			kept = 'specksFaded';
+		}
+		filter.appendChild( svgEl( 'feComposite', { 'in': kept, in2: 'SourceGraphic', operator: 'in', result: 'specksIn' } ) );
 		if ( ! specksOnly ) {
 			var merge = svgEl( 'feMerge' );
 			merge.appendChild( svgEl( 'feMergeNode', { 'in': 'SourceGraphic' } ) );
