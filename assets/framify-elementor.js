@@ -134,7 +134,7 @@
 	// framify_org_deco_X), so the blob runs through exactly the pipeline the
 	// shape does. Its trigger "Same as shape" follows the shape's trigger,
 	// timing and spring, or stands still when Organic Shape is off.
-	var DECO_SETTINGS = [ 'shape', 'shape_source', 'shape_lib', 'custom_svg', 'edge', 'flip_h', 'flip_v', 'custom_rotate', 'angle', 'angle_fit', 'custom_motion', 'dot_style', 'custom_amount' ];
+	var DECO_SETTINGS = [ 'shape', 'shape_source', 'shape_lib', 'custom_svg', 'edge', 'flip_h', 'flip_v', 'custom_rotate', 'angle', 'angle_fit', 'custom_motion', 'dot_style', 'custom_amount', 'anim', 'anim_to', 'anim_amount' ];
 
 	function decoShapeSettings( s ) {
 		var out = {};
@@ -599,12 +599,18 @@
 		return isFinite( a ) ? ( a < 0 ? a + 360 : a ) : 0;
 	}
 
-	function poseTransform( angle, k, aspect ) {
-		if ( ! angle ) {
+	// pose (optional, from poseOf) adds a shape animation's turn, squash and
+	// shift on top: the turn and squash in pixel space like the angle, the
+	// shift straight in the box (it is a % of it).
+	function poseTransform( angle, k, aspect, pose ) {
+		if ( ! angle && ! pose ) {
 			return '';
 		}
 		aspect = aspect > 0 && isFinite( aspect ) ? aspect : 1;
-		return 'translate(50 50) scale(' + ( 1 / aspect ) + ' 1) rotate(' + angle + ') scale(' + aspect + ' 1) scale(' + k + ') translate(-50 -50)';
+		if ( ! pose ) {
+			return 'translate(50 50) scale(' + ( 1 / aspect ) + ' 1) rotate(' + angle + ') scale(' + aspect + ' 1) scale(' + k + ') translate(-50 -50)';
+		}
+		return 'translate(' + ( 50 + pose.tx ) + ' ' + ( 50 + pose.ty ) + ') scale(' + ( 1 / aspect ) + ' 1) rotate(' + ( angle + pose.rot ) + ') scale(' + pose.sx + ' ' + pose.sy + ') scale(' + aspect + ' 1) scale(' + k + ') translate(-50 -50)';
 	}
 
 	// The uniform scale that keeps a box-filling shape turned by `angle`
@@ -617,6 +623,213 @@
 		var c = Math.abs( Math.cos( r ) );
 		var si = Math.abs( Math.sin( r ) );
 		return Math.min( 1, aspect / ( c * aspect + si ), 1 / ( si * aspect + c ) );
+	}
+
+	/* ---------- shape animations ---------- */
+
+	var ANIMS = { spin: 1, sway: 1, pulse: 1, jelly: 1, float: 1, drift: 1, morph: 1 };
+	var RING_POINTS = 128;
+
+	// The Shape animation of a layer (s = its settings, custom = its parsed
+	// paste, if any), or null: none chosen, reduced motion, or a Morph that
+	// has nothing to morph (a custom / uploaded source, an unknown target).
+	// k = the Animation amount around its default (50 = 1).
+	function readAnim( s, custom ) {
+		var kind = s.framify_org_anim;
+		if ( REDUCE_MOTION || ! ANIMS[ kind ] ) {
+			return null;
+		}
+		if ( 'morph' === kind && ( custom || ! CONFIG.shapes[ s.framify_org_anim_to ] ) ) {
+			return null;
+		}
+		return { kind: kind, k: Math.max( 0, Math.min( 100, number( s.framify_org_anim_amount, 50 ) ) ) / 50 };
+	}
+
+	// The pose at phase p (cycles; a hover channel runs 0 to 1, a loop clock
+	// keeps counting): rotation in degrees, scale, and translation in % of the
+	// shape's own box. Every pose is the identity at p = 0 and at whole
+	// cycles, so the shape rests where it was drawn. Morph has no pose.
+	function poseOf( anim, p ) {
+		if ( ! anim || 'morph' === anim.kind ) {
+			return null;
+		}
+		var k = anim.k;
+		var tau = 2 * Math.PI;
+		var pose = { rot: 0, sx: 1, sy: 1, tx: 0, ty: 0 };
+		switch ( anim.kind ) {
+			case 'spin':
+				pose.rot = 360 * p * k;
+				break;
+			case 'sway':
+				pose.rot = 14 * k * Math.sin( tau * p );
+				break;
+			case 'pulse':
+				pose.sx = pose.sy = 1 + 0.14 * k * ( 1 - Math.cos( tau * p ) ) / 2;
+				break;
+			case 'jelly':
+				var wob = 0.16 * k * Math.sin( 2 * tau * p ) * Math.exp( -3 * Math.max( 0, p ) );
+				pose.sx = 1 + wob;
+				pose.sy = 1 - wob;
+				break;
+			case 'float':
+				pose.ty = -5 * k * Math.sin( tau * p );
+				pose.rot = 2 * k * Math.sin( tau * p + 1 );
+				break;
+			case 'drift':
+				pose.tx = 5 * k * Math.sin( tau * p );
+				pose.ty = 3 * k * Math.sin( 2 * tau * p );
+				break;
+		}
+		return pose;
+	}
+
+	// A shape's outline as RING_POINTS evenly spaced points (one subpath of
+	// absolute M / L / H / V / C / Z), or null when it is anything else.
+	function ringOf( d ) {
+		var re = /([MLHVCZ])([^MLHVCZ]*)/g;
+		var m;
+		var pts = [];
+		var x = 0;
+		var y = 0;
+		var started = false;
+		while ( ( m = re.exec( d ) ) ) {
+			var c = m[ 1 ];
+			var a = ( m[ 2 ].match( NUMBER ) || [] ).map( Number );
+			if ( 'M' === c ) {
+				if ( started ) {
+					return null;
+				}
+				started = true;
+				x = a[ 0 ];
+				y = a[ 1 ];
+				pts.push( [ x, y ] );
+			} else if ( 'L' === c ) {
+				for ( var i = 0; i + 1 < a.length; i += 2 ) {
+					x = a[ i ];
+					y = a[ i + 1 ];
+					pts.push( [ x, y ] );
+				}
+			} else if ( 'H' === c ) {
+				x = a[ a.length - 1 ];
+				pts.push( [ x, y ] );
+			} else if ( 'V' === c ) {
+				y = a[ a.length - 1 ];
+				pts.push( [ x, y ] );
+			} else if ( 'C' === c ) {
+				for ( var j = 0; j + 5 < a.length; j += 6 ) {
+					for ( var t = 1; t <= 12; t++ ) {
+						var u = t / 12;
+						var v = 1 - u;
+						pts.push( [
+							v * v * v * x + 3 * v * v * u * a[ j ] + 3 * v * u * u * a[ j + 2 ] + u * u * u * a[ j + 4 ],
+							v * v * v * y + 3 * v * v * u * a[ j + 1 ] + 3 * v * u * u * a[ j + 3 ] + u * u * u * a[ j + 5 ]
+						] );
+					}
+					x = a[ j + 4 ];
+					y = a[ j + 5 ];
+				}
+			}
+		}
+		if ( pts.length < 3 ) {
+			return null;
+		}
+		pts.push( pts[ 0 ] );
+		var cum = [ 0 ];
+		for ( var n = 1; n < pts.length; n++ ) {
+			cum.push( cum[ n - 1 ] + Math.hypot( pts[ n ][ 0 ] - pts[ n - 1 ][ 0 ], pts[ n ][ 1 ] - pts[ n - 1 ][ 1 ] ) );
+		}
+		var total = cum[ cum.length - 1 ];
+		if ( ! ( total > 0 ) ) {
+			return null;
+		}
+		var ring = [];
+		var seg = 1;
+		for ( var r = 0; r < RING_POINTS; r++ ) {
+			var at = total * r / RING_POINTS;
+			while ( seg < cum.length - 1 && cum[ seg ] < at ) {
+				seg++;
+			}
+			var span = cum[ seg ] - cum[ seg - 1 ] || 1;
+			var f = ( at - cum[ seg - 1 ] ) / span;
+			ring.push( [ pts[ seg - 1 ][ 0 ] + ( pts[ seg ][ 0 ] - pts[ seg - 1 ][ 0 ] ) * f, pts[ seg - 1 ][ 1 ] + ( pts[ seg ][ 1 ] - pts[ seg - 1 ][ 1 ] ) * f ] );
+		}
+		return ring;
+	}
+
+	function ringArea( ring ) {
+		var a = 0;
+		for ( var i = 0; i < ring.length; i++ ) {
+			var q = ring[ ( i + 1 ) % ring.length ];
+			a += ring[ i ][ 0 ] * q[ 1 ] - q[ 0 ] * ring[ i ][ 1 ];
+		}
+		return a;
+	}
+
+	function ringPath( ring ) {
+		return 'M' + ring.map( function ( q ) {
+			return q[ 0 ].toFixed( 2 ) + ' ' + q[ 1 ].toFixed( 2 );
+		} ).join( 'L' ) + 'Z';
+	}
+
+	// Rest shape to target shape. Shapes drawn with the same commands blend
+	// number by number (the cheap, exact way); otherwise both outlines are
+	// resampled to the same number of points, the target turned to the
+	// start and direction that move the points least. Anything it cannot
+	// read stays still.
+	function morphPair( rest, target ) {
+		if ( rest.parts.join( '|' ) === target.parts.join( '|' ) && rest.nums.length === target.nums.length ) {
+			return { rest: rest, hover: target };
+		}
+		var a = ringOf( rest.d );
+		var b = ringOf( target.d );
+		if ( ! a || ! b ) {
+			return { rest: rest, hover: rest };
+		}
+		if ( ringArea( a ) * ringArea( b ) < 0 ) {
+			b.reverse();
+		}
+		var best = 0;
+		var bestCost = Infinity;
+		for ( var shift = 0; shift < RING_POINTS; shift += 2 ) {
+			var cost = 0;
+			for ( var i = 0; i < RING_POINTS; i += 4 ) {
+				var q = b[ ( i + shift ) % RING_POINTS ];
+				cost += Math.pow( a[ i ][ 0 ] - q[ 0 ], 2 ) + Math.pow( a[ i ][ 1 ] - q[ 1 ], 2 );
+			}
+			if ( cost < bestCost ) {
+				bestCost = cost;
+				best = shift;
+			}
+		}
+		var to = [];
+		for ( var n = 0; n < RING_POINTS; n++ ) {
+			to.push( b[ ( n + best ) % RING_POINTS ] );
+		}
+		return {
+			rest: rest,
+			hover: parsePath( ringPath( to ) ),
+			blend: function ( t ) {
+				if ( t <= 0 ) {
+					return rest.d;
+				}
+				return ringPath( a.map( function ( q, idx ) {
+					return [ q[ 0 ] + ( to[ idx ][ 0 ] - q[ 0 ] ) * t, q[ 1 ] + ( to[ idx ][ 1 ] - q[ 1 ] ) * t ];
+				} ) );
+			}
+		};
+	}
+
+	// The main trigger, with an animation turning Auto into on hover (Auto
+	// only moves blobs, and only by their built-in hover morph).
+	function animTrigger( s, st ) {
+		var setting = s.framify_org_trigger || 'auto';
+		return st.anim && 'auto' === setting ? 'hover' : resolveTrigger( setting, st.family );
+	}
+
+	// A looping pose animation runs on a continuous clock (a spin keeps
+	// turning); everything else, Morph included, ping-pongs its channel.
+	function poseClock( st ) {
+		return !! ( st && st.anim && 'morph' !== st.anim.kind );
 	}
 
 	/* ---------- custom shape: liquid tracing ---------- */
@@ -2391,7 +2604,14 @@
 					var path = parsePath( fx.custom.d );
 					return { rest: path, hover: path };
 				}
-				return shapePair( s.framify_org_shape, fallback || null, fx.edge );
+				var pair = shapePair( s.framify_org_shape, fallback || null, fx.edge );
+				if ( pair && fx.anim ) {
+					// An animation replaces the blob's own hover morph: the
+					// shape rests, or morphs into the chosen one.
+					var to = 'morph' === fx.anim.kind ? shapePair( fx.animTo, null, fx.edge ) : null;
+					return to ? morphPair( pair.rest, to.rest ) : { rest: pair.rest, hover: pair.rest };
+				}
+				return pair;
 			},
 
 			// Editor only, once per distinct paste: say why nothing happened.
@@ -2526,7 +2746,10 @@
 					aspect: 1,
 					// Free Angle (degrees, 0 = none) and Keep inside the box.
 					angle: readAngle( s, 'framify_org_angle' ),
-					fit: 'yes' === s.framify_org_angle_fit
+					fit: 'yes' === s.framify_org_angle_fit,
+					// Shape animation (readAnim), which replaces Custom motion.
+					anim: readAnim( s, custom ),
+					animTo: s.framify_org_anim_to
 				};
 				st.edge = resolveEdge( st.family, st.edgeSetting, box, custom );
 				// A turned shape has no straight side on the photo edge to zoom from.
@@ -2581,7 +2804,7 @@
 				Object.keys( shape ).forEach( function ( key ) {
 					fx[ key ] = shape[ key ];
 				} );
-				if ( custom && ! REDUCE_MOTION && 'none' !== resolveTrigger( s.framify_org_trigger, fx.family ) ) {
+				if ( custom && ! REDUCE_MOTION && ! fx.anim && 'none' !== resolveTrigger( s.framify_org_trigger, fx.family ) ) {
 					this.setupCustomMotion( s );
 				}
 
@@ -2611,7 +2834,7 @@
 				this.observeLayout();
 				this.place();
 				if ( ! REDUCE_MOTION ) {
-					this.bindTrigger( el, 'main', resolveTrigger( s.framify_org_trigger, fx.family ), number( s.framify_org_duration, 1500 ), SPRING_PERIOD[ s.framify_org_spring ] );
+					this.bindTrigger( el, 'main', animTrigger( s, fx ), number( s.framify_org_duration, 1500 ), SPRING_PERIOD[ s.framify_org_spring ], poseClock( fx ) );
 					this.bindExtra( el, s );
 				}
 			},
@@ -2620,7 +2843,7 @@
 			bindExtra: function ( el, s ) {
 				var fx = this.fx;
 				if ( fx.extra && 'deco' === fx.extra.channel ) {
-					this.bindTrigger( el, 'deco', s.framify_org_deco_trigger, number( s.framify_org_deco_duration, 2400 ), SPRING_PERIOD[ s.framify_org_deco_spring ] );
+					this.bindTrigger( el, 'deco', s.framify_org_deco_trigger, number( s.framify_org_deco_duration, 2400 ), SPRING_PERIOD[ s.framify_org_deco_spring ], poseClock( fx.extra.st ) );
 				}
 			},
 
@@ -2745,7 +2968,7 @@
 					return null;
 				}
 				var st = this.shapeFields( ds, custom, readBox( el, 'deco-', DECO_BOX ), 'splash' );
-				if ( custom && ! REDUCE_MOTION && 'static' !== ds.framify_org_custom_motion && 'none' !== resolveTrigger( ds.framify_org_trigger, st.family ) ) {
+				if ( custom && ! REDUCE_MOTION && ! st.anim && 'static' !== ds.framify_org_custom_motion && 'none' !== resolveTrigger( ds.framify_org_trigger, st.family ) ) {
 					this.setupCustomMotion( ds, st );
 				}
 				var pair = this.mainPair( ds, st, 'splash' );
@@ -3284,7 +3507,7 @@
 					}
 				}
 
-				if ( fx.custom || fx.angle ) {
+				if ( fx.custom || fx.angle || fx.anim || ( fx.extra && fx.extra.st.anim ) ) {
 					// Gentle's rotation (and the free Angle) needs the shape box's rendered pixel aspect
 					// (see gentleTransform); an Image widget clips the img itself, a
 					// Container (clip or deco mode) clips/traces the element, so
@@ -3300,7 +3523,7 @@
 			// Binds one animation channel to a trigger on the element: hover,
 			// once in view, or a loop while visible. 'none' (or no trigger)
 			// binds nothing, leaving that channel at rest.
-			bindTrigger: function ( el, channel, trigger, duration, period ) {
+			bindTrigger: function ( el, channel, trigger, duration, period, clock ) {
 				var self = this;
 				var fx = this.fx;
 				if ( ! trigger || 'none' === trigger || 'same' === trigger ) {
@@ -3337,7 +3560,11 @@
 								observer.disconnect();
 							}
 						} else if ( entry.isIntersecting ) {
-							self.startLoop( channel, duration );
+							if ( clock ) {
+								self.startClock( channel, duration * 2 );
+							} else {
+								self.startLoop( channel, duration );
+							}
 						} else {
 							self.stopLoop( channel );
 						}
@@ -3391,6 +3618,31 @@
 				go( ch.value >= 0.5 ? 0 : 1 );
 			},
 
+			// Loop of a pose animation: the channel counts cycles without end
+			// (one every `period` ms), so a spin keeps turning the same way.
+			startClock: function ( channel, period ) {
+				var self = this;
+				var ch = this.fx.channels[ channel ];
+				if ( ch.looping ) {
+					return;
+				}
+				ch.looping = true;
+				var t0 = null;
+				var base = ch.value;
+				var step = function ( now ) {
+					if ( ! ch.looping ) {
+						return;
+					}
+					if ( null === t0 ) {
+						t0 = now;
+					}
+					ch.value = base + ( now - t0 ) / period;
+					self.render();
+					ch.raf = requestAnimationFrame( step );
+				};
+				ch.raf = requestAnimationFrame( step );
+			},
+
 			stopLoop: function ( channel ) {
 				var ch = this.fx.channels[ channel ];
 				ch.looping = false;
@@ -3439,9 +3691,14 @@
 						return;
 					}
 					var st = d.st;
-					var turn = ( d.rotate ? d.rotate * fx.channels[ d.channel ].value : 0 ) + st.angle;
+					var pose = poseOf( st.anim, fx.channels[ d.channel ].value );
+					var turn = ( d.rotate ? d.rotate * fx.channels[ d.channel ].value : 0 ) + st.angle + ( pose ? pose.rot : 0 );
 					var k = st.angle && st.fit ? fitScale( st.angle, d.aspect ) : 1;
-					d.svg.style.transform = turn || 1 !== k ? 'rotate(' + turn + 'deg)' + ( 1 !== k ? ' scale(' + k + ')' : '' ) : '';
+					var sx = pose ? k * pose.sx : k;
+					var sy = pose ? k * pose.sy : k;
+					var scale = 1 === sx && 1 === sy ? '' : 'scale(' + sx + ( sx === sy ? '' : ', ' + sy ) + ')';
+					var shift = pose && ( pose.tx || pose.ty ) ? 'translate(' + pose.tx + '%, ' + pose.ty + '%) ' : '';
+					d.svg.style.transform = turn || scale || shift ? shift + 'rotate(' + turn + 'deg)' + ( scale ? ' ' + scale : '' ) : '';
 					if ( d.prefix && st.gentle ) {
 						var g = gentleTransform( st.gentle, fx.channels[ d.channel ].value, st.customInner, d.aspect );
 						d.path.setAttribute( 'transform', g );
@@ -3468,7 +3725,8 @@
 					}
 					// The free Angle is outermost in the inner chain: the last
 					// thing applied to the shape.
-					var inner = fx.angle ? joinTransforms( poseTransform( fx.angle, fx.fit ? fitScale( fx.angle, fx.aspect ) : 1, fx.aspect ), fx.inner ) : fx.inner;
+					var mainPose = poseOf( fx.anim, value );
+					var inner = fx.angle || mainPose ? joinTransforms( poseTransform( fx.angle, fx.fit && fx.angle ? fitScale( fx.angle, fx.aspect ) : 1, fx.aspect, mainPose ), fx.inner ) : fx.inner;
 					fx.clip.path.setAttribute( 'transform', clipTransform( fx.clip.box, inner, zoom, fx.clip.origin ) );
 					if ( fx.img ) {
 						syncPhoto( fx.el );

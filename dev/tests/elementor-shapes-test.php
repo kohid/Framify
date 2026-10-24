@@ -1002,7 +1002,7 @@ if ( 127 === $ef_nrc || ( 1 === $ef_nrc && ! preg_grep( '/^(PASS|FAIL) /', $ef_n
 
 // 13. Deco Blob parity + free Angle (1.18.0).
 $dp_kinds = array( 'container' => $con_org->controls, 'spacer' => $sp_org->controls, 'image' => $img_org->controls );
-$dp_suffix = array( 'shape_source', 'shape', 'shape_lib', 'edge', 'flip_h', 'flip_v', 'custom_rotate', 'angle', 'angle_fit', 'custom_svg', 'custom_motion', 'dot_style', 'custom_amount' );
+$dp_suffix = array( 'shape_source', 'shape', 'shape_lib', 'edge', 'flip_h', 'flip_v', 'custom_rotate', 'angle', 'angle_fit', 'custom_svg', 'custom_motion', 'dot_style', 'custom_amount', 'anim', 'anim_to', 'anim_amount' );
 // Documented differences between a setting and its Deco Blob twin.
 $dp_alike = function ( $main, $deco, $suffix ) {
     unset( $main['condition'], $main['conditions'], $deco['condition'], $deco['conditions'], $main['description'], $deco['description'], $main['classes'], $deco['classes'], $main['separator'], $deco['separator'] );

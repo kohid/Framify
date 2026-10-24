@@ -571,6 +571,8 @@ class Framify_Elementor {
         // them static), so these only appear then.
         $this->register_custom_motion_group( $element, 'framify_org_', $on, array( 'name' => 'framify_org_trigger', 'operator' => '!in', 'value' => array( 'auto', 'none' ) ) );
 
+        $this->register_anim_controls( $element, 'framify_org_', $on );
+
         if ( ! $is_container ) {
             $element->add_control( 'framify_org_zoom', $this->live( array(
                 'label'      => esc_html__( 'Image zoom (%)', 'framify' ),
@@ -835,6 +837,56 @@ class Framify_Elementor {
                 'strong' => esc_html__( 'Strong', 'framify' ),
             ),
         ) + $custom_moving ) );
+    }
+
+    /**
+     * Shape animation, for the Organic Shape (prefix framify_org_) and the
+     * Deco Blob (framify_org_deco_): a motion that replaces Custom motion.
+     * Spin / Sway / Pulse / Jelly / Float / Drift move the shape as a whole
+     * (the pose); Morph turns it into another built-in shape. They run on the
+     * layer's own trigger (Auto means on hover for an animation).
+     */
+    private function register_anim_controls( $element, $p, array $on ) {
+        $cm      = 'Elementor\Controls_Manager';
+        $targets = array();
+        foreach ( $this->shape_options() as $id => $opt ) {
+            $targets[ $id ] = $opt['title'];
+        }
+        $poses = array( 'spin', 'sway', 'pulse', 'jelly', 'float', 'drift' );
+
+        $element->add_control( $p . 'anim', $this->live( array(
+            'label'       => esc_html__( 'Shape animation', 'framify' ),
+            'type'        => $cm::SELECT,
+            'default'     => 'none',
+            'options'     => array(
+                'none'  => esc_html__( 'None', 'framify' ),
+                'spin'  => esc_html__( 'Spin', 'framify' ),
+                'sway'  => esc_html__( 'Sway', 'framify' ),
+                'pulse' => esc_html__( 'Pulse', 'framify' ),
+                'jelly' => esc_html__( 'Jelly', 'framify' ),
+                'float' => esc_html__( 'Float', 'framify' ),
+                'drift' => esc_html__( 'Drift', 'framify' ),
+                'morph' => esc_html__( 'Morph into another shape', 'framify' ),
+            ),
+            'description' => esc_html__( 'Replaces Custom motion and the blob hover morph. It runs on the trigger above (Auto = on hover); Morph needs a built-in shape.', 'framify' ),
+        ) + ( $on ? array( 'condition' => $on ) : array() ) ) );
+
+        $element->add_control( $p . 'anim_to', $this->live( array(
+            'label'     => esc_html__( 'Morph into', 'framify' ),
+            'type'      => $cm::SELECT,
+            'default'   => 'pebble',
+            'options'   => $targets,
+            'condition' => $on + array( $p . 'anim' => 'morph' ),
+        ) ) );
+
+        $element->add_control( $p . 'anim_amount', $this->live( array(
+            'label'      => esc_html__( 'Animation amount', 'framify' ),
+            'type'       => $cm::SLIDER,
+            'size_units' => array( 'px' ),
+            'range'      => array( 'px' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
+            'default'    => array( 'unit' => 'px', 'size' => 50 ),
+            'condition'  => $on + array( $p . 'anim' => $poses ),
+        ) ) );
     }
 
     /**
@@ -1175,6 +1227,8 @@ class Framify_Elementor {
                 ),
             ),
         ), true );
+
+        $this->register_anim_controls( $element, 'framify_org_deco_', array() );
     }
 
     /**

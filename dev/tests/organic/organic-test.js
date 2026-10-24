@@ -262,6 +262,81 @@ CASES[ 'off' ] = [ 'container', { framify_org_enable: '', framify_org_mode: 'cli
   const freq = ( r ) => parseFloat( r.prims[ 0 ].split( ':' )[ 1 ] );
   ok( 'grain size: 100 is coarser (lower frequency) and 1 finer than the default 50', freq( coarse ) < freq( legacy ) && freq( legacy ) < freq( fine ) );
 
+  // Shape animations.
+  const animState = ( settings, kind, wait ) => run( kind || 'container', { ...base, framify_org_mode: 'clip', framify_org_shape: 'pebble', framify_org_duration: { size: 400 }, framify_org_spring: 'subtle', ...settings }, async ( page ) => {
+    const read = () => q( page, () => {
+      const c = window.__m.host.querySelector( 'clipPath path' );
+      return { d: c.getAttribute( 'd' ), t: c.getAttribute( 'transform' ) };
+    } );
+    const rest = await read();
+    await page.evaluate( () => { window.__m.host.dispatchEvent( new MouseEvent( 'mouseenter' ) ); } );
+    await page.waitForTimeout( wait || 130 );
+    const mid = await read();
+    await page.waitForTimeout( 1200 );
+    return { rest, mid, end: await read() };
+  } );
+  const none = await animState( { framify_org_trigger: 'hover' } );
+  const spin = await animState( { framify_org_trigger: 'hover', framify_org_anim: 'spin' } );
+  ok( 'animation Spin: the shape turns mid-hover (clip transform changes) but its outline stays the same', spin.mid.t !== spin.rest.t && spin.mid.d === spin.rest.d );
+  ok( 'animation Spin: replaces the blob hover morph (a built-in blob only morphs without an animation)', none.end.d !== none.rest.d && spin.end.d === spin.rest.d );
+  const animFrom = {};
+  for ( const kind of [ 'sway', 'pulse', 'jelly', 'float', 'drift' ] ) {
+    animFrom[ kind ] = await animState( { framify_org_trigger: 'hover', framify_org_anim: kind } );
+    ok( 'animation ' + kind + ': moves the shape mid-hover and keeps its outline', animFrom[ kind ].mid.t !== animFrom[ kind ].rest.t && animFrom[ kind ].mid.d === animFrom[ kind ].rest.d );
+  }
+  ok( 'animation Auto trigger means on hover for an animation (a wavy shape moves)', ( await animState( { framify_org_shape: 'tide', framify_org_anim: 'sway' } ) ).mid.t !== ( await animState( { framify_org_shape: 'tide' } ) ).mid.t );
+  const morphSame = await animState( { framify_org_trigger: 'hover', framify_org_anim: 'morph', framify_org_anim_to: 'bean' } );
+  ok( 'animation Morph (same structure): the outline changes towards the target and settles on it', morphSame.mid.d !== morphSame.rest.d && morphSame.end.d !== morphSame.rest.d );
+  const morphCross = await animState( { framify_org_trigger: 'hover', framify_org_anim: 'morph', framify_org_anim_to: 'tide' } );
+  ok( 'animation Morph (another family): resamples to a closed outline that moves', /^M[^A-Za-z]*(L[^A-Za-z]*)+Z$/.test( morphCross.end.d ) && morphCross.end.d !== morphCross.rest.d );
+  ok( 'animation Morph: with a pasted custom shape it does nothing', ( await animState( { framify_org_trigger: 'hover', framify_org_shape: 'custom', framify_org_custom_svg: CUSTOM_SVG, framify_org_anim: 'morph', framify_org_anim_to: 'bean' } ) ).end.d === ( await animState( { framify_org_trigger: 'hover', framify_org_shape: 'custom', framify_org_custom_svg: CUSTOM_SVG } ) ).end.d );
+  const customSway = await animState( { framify_org_trigger: 'hover', framify_org_shape: 'custom', framify_org_custom_svg: CUSTOM_SVG, framify_org_custom_motion: 'liquid', framify_org_anim: 'sway' } );
+  ok( 'animation replaces Custom motion: a pasted shape with Liquid chosen keeps its outline and sways instead', customSway.mid.d === customSway.rest.d && customSway.mid.t !== customSway.rest.t );
+  const angled = await animState( { framify_org_trigger: 'hover', framify_org_angle: { size: 30 }, framify_org_anim: 'sway' } );
+  ok( 'animation + Angle: both turn the shape (the rest pose already carries the angle)', /rotate\(30\)/.test( angled.rest.t ) && angled.mid.t !== angled.rest.t );
+  // Loop clock: a Spin keeps turning the same way.
+  const clock = await run( 'container', { ...base, framify_org_mode: 'clip', framify_org_shape: 'pebble', framify_org_trigger: 'loop', framify_org_duration: { size: 500 }, framify_org_anim: 'spin' }, async ( page ) => {
+    const rot = () => q( page, () => { const m = /rotate\(([-\d.e]+)/.exec( window.__m.host.querySelector( 'clipPath path' ).getAttribute( 'transform' ) ); return m ? parseFloat( m[ 1 ] ) : null; } );
+    await page.waitForTimeout( 400 );
+    const a = await rot();
+    await page.waitForTimeout( 400 );
+    const b = await rot();
+    await page.waitForTimeout( 400 );
+    return [ a, b, await rot() ];
+  } );
+  ok( 'animation loop: Spin runs on a continuous clock (the angle only ever increases)', null !== clock[ 0 ] && clock[ 1 ] > clock[ 0 ] && clock[ 2 ] > clock[ 1 ] );
+  // The Deco Blob's own animation.
+  const decoAnim = await run( 'container', { ...base, framify_org_mode: 'clip', framify_org_shape: 'pebble', framify_org_trigger: 'none', framify_org_deco: 'yes', framify_org_deco_trigger: 'hover', framify_org_deco_duration: { size: 400 }, framify_org_deco_spring: 'subtle', framify_org_deco_anim: 'pulse' }, async ( page ) => {
+    const read = () => q( page, () => window.__m.host.querySelector( '.framify-organic__deco--extra' ).style.transform );
+    const rest = await read();
+    await page.evaluate( () => { window.__m.host.dispatchEvent( new MouseEvent( 'mouseenter' ) ); } );
+    await page.waitForTimeout( 130 );
+    return [ rest, await read() ];
+  } );
+  ok( 'deco animation: Pulse scales the extra blob on its own trigger (CSS transform, pixel space)', '' === decoAnim[ 0 ] && /scale\(1\.\d+\)/.test( decoAnim[ 1 ] ) );
+  const decoMorph = await run( 'container', { ...base, framify_org_mode: 'clip', framify_org_shape: 'pebble', framify_org_trigger: 'none', framify_org_deco: 'yes', framify_org_deco_shape: 'splash', framify_org_deco_trigger: 'hover', framify_org_deco_duration: { size: 400 }, framify_org_deco_spring: 'subtle', framify_org_deco_anim: 'morph', framify_org_deco_anim_to: 'tide' }, async ( page ) => {
+    const read = () => q( page, () => window.__m.host.querySelector( '.framify-organic__deco--extra path' ).getAttribute( 'd' ) );
+    const rest = await read();
+    await page.evaluate( () => { window.__m.host.dispatchEvent( new MouseEvent( 'mouseenter' ) ); } );
+    await page.waitForTimeout( 1200 );
+    return [ rest, await read() ];
+  } );
+  ok( 'deco animation: Morph turns the extra blob into another family', decoMorph[ 0 ] !== decoMorph[ 1 ] && /Z$/.test( decoMorph[ 1 ] ) );
+  // Reduced motion: no animation at all.
+  const rm = await ( async () => {
+    const page = await browser2.newPage( { viewport: { width: 800, height: 600 }, reducedMotion: 'reduce' } );
+    await page.addInitScript( 'window.framifyOrganic = ' + config + ';' );
+    await page.goto( 'file://' + path.join( __dirname, 'organic.html' ) );
+    await page.evaluate( () => { window.__m = window.mountOrganic( 'c1', 'container', { framify_org_enable: 'yes', framify_org_mode: 'clip', framify_org_shape: 'pebble', framify_org_trigger: 'hover', framify_org_anim: 'spin' } ); } );
+    const t0 = await page.evaluate( () => window.__m.host.querySelector( 'clipPath path' ).getAttribute( 'transform' ) );
+    await page.evaluate( () => { window.__m.host.dispatchEvent( new MouseEvent( 'mouseenter' ) ); } );
+    await page.waitForTimeout( 300 );
+    const t1 = await page.evaluate( () => window.__m.host.querySelector( 'clipPath path' ).getAttribute( 'transform' ) );
+    await page.close();
+    return t0 === t1;
+  } )();
+  ok( 'animation: reduced motion leaves the shape still', rm );
+
   // Lifecycle: rebuild leaves one blob, teardown leaves nothing.
   const life = await run( 'container', { ...base, framify_org_mode: 'deco', framify_org_deco: 'yes', framify_org_shape: 'pebble' }, async ( page ) => {
     await page.evaluate( () => { window.__m.inst.rebuild(); } );
