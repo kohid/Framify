@@ -302,9 +302,10 @@ CASES[ 'off' ] = [ 'container', { framify_org_enable: '', framify_org_mode: 'cli
     await page.waitForTimeout( 400 );
     const b = await rot();
     await page.waitForTimeout( 400 );
-    return [ a, b, await rot() ];
+    const v = await q( page, () => window.__m.inst.fx.channels.main.value );
+    return [ a, b, await rot(), v ];
   } );
-  ok( 'animation loop: Spin runs on a continuous clock (the angle only ever increases)', null !== clock[ 0 ] && clock[ 1 ] > clock[ 0 ] && clock[ 2 ] > clock[ 1 ] );
+  ok( 'animation loop: Spin runs on a continuous clock (the angle only ever increases while the channel value stays within 0 to 1)', null !== clock[ 0 ] && clock[ 1 ] > clock[ 0 ] && clock[ 2 ] > clock[ 1 ] && clock[ 3 ] >= 0 && clock[ 3 ] <= 1 );
   // The Deco Blob's own animation.
   const decoAnim = await run( 'container', { ...base, framify_org_mode: 'clip', framify_org_shape: 'pebble', framify_org_trigger: 'none', framify_org_deco: 'yes', framify_org_deco_trigger: 'hover', framify_org_deco_duration: { size: 400 }, framify_org_deco_spring: 'subtle', framify_org_deco_anim: 'pulse' }, async ( page ) => {
     const read = () => q( page, () => window.__m.host.querySelector( '.framify-organic__deco--extra' ).style.transform );
@@ -322,6 +323,14 @@ CASES[ 'off' ] = [ 'container', { framify_org_enable: '', framify_org_mode: 'cli
     return [ rest, await read() ];
   } );
   ok( 'deco animation: Morph turns the extra blob into another family', decoMorph[ 0 ] !== decoMorph[ 1 ] && /Z$/.test( decoMorph[ 1 ] ) );
+  const decoSame = await run( 'container', { ...base, framify_org_mode: 'clip', framify_org_shape: 'tide', framify_org_deco: 'yes', framify_org_deco_anim: 'spin', framify_org_deco_duration: { size: 400 }, framify_org_deco_spring: 'subtle' }, async ( page ) => {
+    const read = () => q( page, () => window.__m.host.querySelector( '.framify-organic__deco--extra' ).style.transform );
+    const rest = await read();
+    await page.evaluate( () => { window.__m.host.dispatchEvent( new MouseEvent( 'mouseenter' ) ); } );
+    await page.waitForTimeout( 130 );
+    return [ rest, await read() ];
+  } );
+  ok( 'deco animation with the default trigger and a shape that does not animate: plays on hover', decoSame[ 0 ] !== decoSame[ 1 ] );
   // Reduced motion: no animation at all.
   const rm = await ( async () => {
     const page = await browser2.newPage( { viewport: { width: 800, height: 600 }, reducedMotion: 'reduce' } );

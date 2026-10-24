@@ -607,9 +607,7 @@
 			return '';
 		}
 		aspect = aspect > 0 && isFinite( aspect ) ? aspect : 1;
-		if ( ! pose ) {
-			return 'translate(50 50) scale(' + ( 1 / aspect ) + ' 1) rotate(' + angle + ') scale(' + aspect + ' 1) scale(' + k + ') translate(-50 -50)';
-		}
+		pose = pose || { rot: 0, sx: 1, sy: 1, tx: 0, ty: 0 };
 		return 'translate(' + ( 50 + pose.tx ) + ' ' + ( 50 + pose.ty ) + ') scale(' + ( 1 / aspect ) + ' 1) rotate(' + ( angle + pose.rot ) + ') scale(' + pose.sx + ' ' + pose.sy + ') scale(' + aspect + ' 1) scale(' + k + ') translate(-50 -50)';
 	}
 
@@ -667,13 +665,13 @@
 				pose.sx = pose.sy = 1 + 0.14 * k * ( 1 - Math.cos( tau * p ) ) / 2;
 				break;
 			case 'jelly':
-				var wob = 0.16 * k * Math.sin( 2 * tau * p ) * Math.exp( -3 * Math.max( 0, p ) );
+				var wob = 0.16 * k * Math.sin( 2 * tau * p ) * Math.exp( -3 * ( p - Math.floor( p ) ) );
 				pose.sx = 1 + wob;
 				pose.sy = 1 - wob;
 				break;
 			case 'float':
 				pose.ty = -5 * k * Math.sin( tau * p );
-				pose.rot = 2 * k * Math.sin( tau * p + 1 );
+				pose.rot = 2 * k * ( Math.sin( tau * p + 1 ) - Math.sin( 1 ) );
 				break;
 			case 'drift':
 				pose.tx = 5 * k * Math.sin( tau * p );
@@ -826,10 +824,15 @@
 		return st.anim && 'auto' === setting ? 'hover' : resolveTrigger( setting, st.family );
 	}
 
+	// The phase a pose reads: the clock's endless count, else the 0-1 channel.
+	function phaseOf( ch ) {
+		return ch.clock ? ch.phase : ch.value;
+	}
+
 	// A looping pose animation runs on a continuous clock (a spin keeps
 	// turning); everything else, Morph included, ping-pongs its channel.
 	function poseClock( st ) {
-		return !! ( st && st.anim && 'morph' !== st.anim.kind );
+		return !! ( st.anim && 'morph' !== st.anim.kind );
 	}
 
 	/* ---------- custom shape: liquid tracing ---------- */
@@ -2843,7 +2846,7 @@
 			bindExtra: function ( el, s ) {
 				var fx = this.fx;
 				if ( fx.extra && 'deco' === fx.extra.channel ) {
-					this.bindTrigger( el, 'deco', s.framify_org_deco_trigger, number( s.framify_org_deco_duration, 2400 ), SPRING_PERIOD[ s.framify_org_deco_spring ], poseClock( fx.extra.st ) );
+					this.bindTrigger( el, 'deco', fx.extra.trigger, number( s.framify_org_deco_duration, 2400 ), SPRING_PERIOD[ s.framify_org_deco_spring ], poseClock( fx.extra.st ) );
 				}
 			},
 
@@ -2855,8 +2858,8 @@
 					// Two animation timelines: the image/shape, and the
 					// Deco Blob when it has its own trigger.
 					channels: {
-						main: { value: 0, raf: 0, loopTimer: 0, looping: false },
-						deco: { value: 0, raf: 0, loopTimer: 0, looping: false }
+						main: { value: 0, raf: 0, loopTimer: 0, looping: false, clock: false, phase: 0 },
+						deco: { value: 0, raf: 0, loopTimer: 0, looping: false, clock: false, phase: 0 }
 					},
 					parts: [],
 					cleanup: [],
@@ -2984,6 +2987,12 @@
 
 				// "Same as image" (the default) keeps following the main channel.
 				var decoTrigger = s.framify_org_deco_trigger || 'same';
+				if ( 'same' === decoTrigger && st.anim && ! fx.anim ) {
+					// The shape itself does not animate (or is off): the blob's
+					// animation runs on the shape's trigger, else on hover.
+					var follow = fx.noMain || 'yes' !== s.framify_org_enable ? 'none' : resolveTrigger( s.framify_org_trigger, fx.family );
+					decoTrigger = 'none' === follow ? 'hover' : follow;
+				}
 				var decoChannel = 'same' === decoTrigger ? 'main' : 'deco';
 				fx.extra = {
 					svg: deco.svg,
@@ -2994,6 +3003,7 @@
 					st: st,
 					anchor: anchor,
 					channel: decoChannel,
+					trigger: decoTrigger,
 					rotate: 'none' === decoTrigger ? 0 : number( s.framify_org_deco_rotate, 0 ),
 					aspect: 1
 				};
@@ -3618,8 +3628,10 @@
 				go( ch.value >= 0.5 ? 0 : 1 );
 			},
 
-			// Loop of a pose animation: the channel counts cycles without end
-			// (one every `period` ms), so a spin keeps turning the same way.
+			// Loop of a pose animation: ch.phase counts cycles without end (one
+			// every `period` ms), so a spin keeps turning the same way. The
+			// channel value stays a smooth 0-1-0 swing (0 at whole cycles) for
+			// everything else that reads it (zoom, the blob blend, turns).
 			startClock: function ( channel, period ) {
 				var self = this;
 				var ch = this.fx.channels[ channel ];
@@ -3628,7 +3640,8 @@
 				}
 				ch.looping = true;
 				var t0 = null;
-				var base = ch.value;
+				ch.clock = true;
+				var base = ch.phase;
 				var step = function ( now ) {
 					if ( ! ch.looping ) {
 						return;
@@ -3636,7 +3649,8 @@
 					if ( null === t0 ) {
 						t0 = now;
 					}
-					ch.value = base + ( now - t0 ) / period;
+					ch.phase = base + ( now - t0 ) / period;
+					ch.value = ( 1 - Math.cos( 2 * Math.PI * ch.phase ) ) / 2;
 					self.render();
 					ch.raf = requestAnimationFrame( step );
 				};
@@ -3691,7 +3705,7 @@
 						return;
 					}
 					var st = d.st;
-					var pose = poseOf( st.anim, fx.channels[ d.channel ].value );
+					var pose = poseOf( st.anim, phaseOf( fx.channels[ d.channel ] ) );
 					var turn = ( d.rotate ? d.rotate * fx.channels[ d.channel ].value : 0 ) + st.angle + ( pose ? pose.rot : 0 );
 					var k = st.angle && st.fit ? fitScale( st.angle, d.aspect ) : 1;
 					var sx = pose ? k * pose.sx : k;
@@ -3725,7 +3739,7 @@
 					}
 					// The free Angle is outermost in the inner chain: the last
 					// thing applied to the shape.
-					var mainPose = poseOf( fx.anim, value );
+					var mainPose = poseOf( fx.anim, phaseOf( fx.channels.main ) );
 					var inner = fx.angle || mainPose ? joinTransforms( poseTransform( fx.angle, fx.fit && fx.angle ? fitScale( fx.angle, fx.aspect ) : 1, fx.aspect, mainPose ), fx.inner ) : fx.inner;
 					fx.clip.path.setAttribute( 'transform', clipTransform( fx.clip.box, inner, zoom, fx.clip.origin ) );
 					if ( fx.img ) {

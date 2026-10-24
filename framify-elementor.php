@@ -964,7 +964,6 @@ class Framify_Elementor {
             'label'   => esc_html__( 'Grain colour', 'framify' ),
             'type'    => $cm::COLOR,
             'default' => '#FFFFFF',
-            'global'  => array( 'active' => false ),
         ) ) );
 
         $element->add_control( 'framify_org_grain_amount', $this->live( array(
